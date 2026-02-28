@@ -5,8 +5,10 @@ Authors: ANTEDB Contributors
 -/
 
 import expdb.Literature.Classical
+import expdb.Literature.Bourgain
 import expdb.Transforms.VanDerCorputA
 import expdb.Transforms.VanDerCorputB
+import expdb.Tactics.Chain
 
 /-!
 # Derived Exponent Pairs - Examples
@@ -213,15 +215,72 @@ theorem derived_pair_1_9_13_18_from_trivial : IsExponentPair (1/9) (13/18) := by
   exact h4.ofA (by norm_num) (by norm_num)
 
 /-!
+## Automated Derivations Using `by_chain`
+
+The `by_chain` tactic automates the A/B chain application pattern, reducing
+multi-line proofs to one-liners. Below we re-derive several of the pairs above
+using `by_chain` to validate the tactic.
+-/
+
+/--
+Re-derive (1/6, 2/3) = A(1/2, 1/2) using `by_chain`.
+-/
+theorem derived_classical_vdc_chain : IsExponentPair (1/6) (2/3) := by
+  by_chain "A" weyl_pair
+
+/--
+Re-derive (1/2, 1/2) = B(0, 1) using `by_chain`.
+-/
+theorem weyl_from_trivial_chain : IsExponentPair (1/2) (1/2) := by
+  by_chain "B" trivial_pair
+
+/--
+Re-derive (1/6, 2/3) = AB(0, 1) using `by_chain`.
+-/
+theorem classical_vdc_from_trivial_chain : IsExponentPair (1/6) (2/3) := by
+  by_chain "AB" trivial_pair
+
+/--
+Re-derive (1/14, 11/14) = A(1/6, 2/3) using `by_chain`.
+-/
+theorem derived_pair_1_14_11_14_chain : IsExponentPair (1/14) (11/14) := by
+  by_chain "A" classical_vdc_pair
+
+/--
+Re-derive (2/7, 4/7) = BA(1/6, 2/3) using `by_chain`.
+-/
+theorem derived_pair_2_7_4_7_chain : IsExponentPair (2/7) (4/7) := by
+  by_chain "BA" classical_vdc_pair
+
+/--
+Re-derive (2/7, 4/7) = BAAB(0, 1) using `by_chain`.
+The manual proof required 4 intermediate steps; `by_chain` handles it automatically.
+-/
+theorem derived_pair_2_7_4_7_from_trivial_chain : IsExponentPair (2/7) (4/7) := by
+  by_chain "BAAB" trivial_pair
+
+/--
+Re-derive (1/9, 13/18) = ABAAB(0, 1) using `by_chain`.
+The manual proof required 5 intermediate steps.
+-/
+theorem derived_pair_1_9_13_18_from_trivial_chain : IsExponentPair (1/9) (13/18) := by
+  by_chain "ABAAB" trivial_pair
+
+/--
+Derive (13/194, 76/97) = A(13/84, 55/84) from the Bourgain pair using `by_chain`.
+-/
+theorem bourgain_A_chain : IsExponentPair (13/194) (76/97) := by
+  by_chain "A" bourgain_pair
+
+/-!
 ## Future Work
 
 As the formalization progresses, this file will be expanded with:
 
 1. **More derived pairs**: Matching all pairs in `derived.py`
-2. **Automated tactics**: Custom tactics to apply transform chains automatically
-3. **Verification scripts**: Python code to check consistency between Lean and Python
-4. **Optimality proofs**: Showing certain pairs are optimal for specific problems
-5. **Convex combinations**: Using the convexity theorem to derive additional pairs
+2. **Verification scripts**: Python code to check consistency between Lean and Python
+3. **Optimality proofs**: Showing certain pairs are optimal for specific problems
+4. **Convex combinations**: Using the convexity theorem to derive additional pairs
 
 The ultimate goal is that every `Hypothesis` object in the Python code that represents
 a derived exponent pair will have a corresponding theorem in this file.
