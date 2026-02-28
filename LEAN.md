@@ -365,6 +365,18 @@ The formalization uses **25 literature axioms** and **2 transform axioms** (and 
 | `trudgianYang_pair_3` | Literature/TrudgianYang.lean | (2779/38033, 58699/76066) is an exponent pair |
 | `trudgianYang_pair_4` | Literature/TrudgianYang.lean | (715/10238, 7955/10238) is an exponent pair |
 
+**Large value estimate axioms:**
+
+| Axiom | File | What it asserts |
+|---|---|---|
+| `large_value_L2_branch1` | Literature/LargeValues.lean | ρ ≤ 2 − 2σ (L² mean value, branch 1) |
+| `large_value_L2_branch2` | Literature/LargeValues.lean | ρ ≤ 1 − 2σ + τ (L² mean value, branch 2) |
+| `large_value_huxley` | Literature/LargeValues.lean | ρ ≤ 4 − 6σ + τ (Huxley) |
+| `large_value_heath_brown` | Literature/LargeValues.lean | ρ ≤ 10 − 13σ + τ (Heath-Brown) |
+| `large_value_guth_maynard_branch2` | Literature/LargeValues.lean | ρ ≤ 18/5 − 4σ (Guth-Maynard) |
+| `large_value_guth_maynard_branch3` | Literature/LargeValues.lean | ρ ≤ τ + 12/5 − 4σ (Guth-Maynard) |
+| `large_value_raise_to_power` | Transforms/LargeValueRaisePower.lean | Raise-to-power transform |
+
 Note: `trivial_pair`, `weyl_pair`, and `classical_vdc_pair` could be reduced to just `trivial_pair` + the two transforms (since Weyl = B(trivial) and classical = AB(trivial)), but keeping all three as axioms is convenient and mirrors the Python code.
 
 #### Zero Density Axioms
@@ -465,7 +477,7 @@ Following the paper's guidance, the formalization deliberately does **not** atte
 
 7. **Zero density estimates** ✅ — Defined `IsZeroDensityBound` and `ZeroDensityEstimate`, axiomatized 6 classical literature results (Carlson, Ingham, Huxley, Heath-Brown, Bourgain, Guth-Maynard), axiomatized 2 EP→ZD transforms (Ivić, Bourgain), and formalized derivation chains connecting exponent pairs to zero density bounds. See `Basic/ZeroDensityEstimate.lean`, `Literature/ZeroDensityClassical.lean`, `Transforms/ExponentPairToZeroDensity.lean`, and `Derived/ZeroDensityExamples.lean`.
 
-8. **Large value estimates** — Define `LargeValueEstimate` following `large_values.py` and axiomatize the transforms that connect these to other exponents.
+8. **Large value estimates** ✅ — `LargeValueEstimate` has been defined in `Basic/LargeValueEstimate.lean`, with literature axioms in `Literature/LargeValues.lean` (L², Huxley, Heath-Brown, Guth-Maynard), the raise-to-power transform in `Transforms/LargeValueRaisePower.lean`, and derived examples in `Derived/LargeValueExamples.lean`. Future work includes axiomatizing Jutila's parameterized family and Bourgain's optimized piecewise estimates.
 
 ### Long-term (research-level)
 
