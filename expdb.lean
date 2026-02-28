@@ -19,6 +19,9 @@ import expdb.Literature.TrudgianYang
 import expdb.Transforms.VanDerCorputA
 import expdb.Transforms.VanDerCorputB
 
+-- Tactics
+import expdb.Tactics.Chain
+
 -- Derived results
 import expdb.Derived.Examples
 

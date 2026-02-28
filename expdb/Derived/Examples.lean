@@ -12,6 +12,7 @@ import expdb.Literature.RobertSargos
 import expdb.Literature.TrudgianYang
 import expdb.Transforms.VanDerCorputA
 import expdb.Transforms.VanDerCorputB
+import expdb.Tactics.Chain
 
 /-!
 # Derived Exponent Pairs - Examples
@@ -321,10 +322,9 @@ theorem derived_pair_2_9_11_18_from_trivial : IsExponentPair (2/9) (11/18) := by
 As the formalization progresses, this file will be expanded with:
 
 1. **More derived pairs**: Matching all pairs in `derived.py`
-2. **Automated tactics**: Custom tactics to apply transform chains automatically
-3. **Verification scripts**: Python code to check consistency between Lean and Python
-4. **Optimality proofs**: Showing certain pairs are optimal for specific problems
-5. **Convex combinations**: Using the convexity theorem to derive additional pairs
+2. **Verification scripts**: Python code to check consistency between Lean and Python
+3. **Optimality proofs**: Showing certain pairs are optimal for specific problems
+4. **Convex combinations**: Using the convexity theorem to derive additional pairs
 
 The ultimate goal is that every `Hypothesis` object in the Python code that represents
 a derived exponent pair will have a corresponding theorem in this file.

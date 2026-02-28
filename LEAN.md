@@ -32,6 +32,8 @@ expdb/
 ├── Transforms/
 │   ├── VanDerCorputA.lean         # A-process axiom + ofA helper
 │   └── VanDerCorputB.lean         # B-process axiom + ofB helper
+├── Tactics/
+│   └── Chain.lean                 # by_chain tactic for automated A/B derivations
 ├── Derived/
 │   └── Examples.lean              # 22+ proven derivation theorems
 ├── ForMathlib/                    # (placeholder) for upstreaming to Mathlib
@@ -300,6 +302,32 @@ exact h2.ofB (by norm_num) (by norm_num)                            -- → (2/7,
 
 The `(by norm_num)` arguments prove that the rational arithmetic simplifies correctly (e.g. that `(1/6) / (2*(1/6) + 2) = 1/14`). Lean's kernel checks these proofs, giving a stronger guarantee than Python's runtime assertions.
 
+### Custom Tactics (`Tactics/Chain.lean`)
+
+The `by_chain` tactic automates the repetitive pattern of applying `ofA`/`ofB` with `norm_num`, reducing multi-line derivation proofs to one-liners:
+
+```lean
+-- Before: manual 4-step proof
+theorem derived_pair_2_7_4_7_from_trivial : IsExponentPair (2/7) (4/7) := by
+  have h1 : IsExponentPair (1/2) (1/2) := trivial_pair.ofB (by norm_num) (by norm_num)
+  have h2 : IsExponentPair (1/6) (2/3) := h1.ofA (by norm_num) (by norm_num)
+  have h3 : IsExponentPair (1/14) (11/14) := h2.ofA (by norm_num) (by norm_num)
+  exact h3.ofB (by norm_num) (by norm_num)
+
+-- After: one-liner with by_chain
+theorem derived_pair_2_7_4_7_from_trivial_chain : IsExponentPair (2/7) (4/7) := by
+  by_chain "BAAB" trivial_pair
+```
+
+The chain string is read in function composition order: `"BAAB"` means `B(A(A(B(start))))`, so the rightmost character is applied first. Each character must be `'A'` (A-process) or `'B'` (B-process).
+
+| Example | Chain | Start | Result |
+|---|---|---|---|
+| `by_chain "B" trivial_pair` | B | (0,1) | (1/2, 1/2) |
+| `by_chain "AB" trivial_pair` | AB | (0,1) | (1/6, 2/3) |
+| `by_chain "BAAB" trivial_pair` | BAAB | (0,1) | (2/7, 4/7) |
+| `by_chain "A" bourgain_pair` | A | (13/84, 55/84) | (13/194, 76/97) |
+
 ## What Is NOT Formalized (and Why)
 
 Following the paper's guidance, the formalization deliberately does **not** attempt:
@@ -333,7 +361,7 @@ Following the paper's guidance, the formalization deliberately does **not** atte
 
 5. **Python → Lean bridge** — `Hypothesis.to_lean()` auto-generates Lean proof terms from dependency trees for exponent pairs derived via A/B transform chains, enabling batch verification. See `hypotheses.py`.
 
-6. **Custom tactics** — Build `apply_chain` or similar tactics to automate A/B chain applications, reducing proofs to one-liners like `exact by_chain "BAAB" trivial_pair`.
+6. **Custom tactics** ✅ — The `by_chain` tactic in `Tactics/Chain.lean` automates A/B chain applications, reducing proofs to one-liners like `by_chain "BAAB" trivial_pair`. See the "Custom Tactics" section above for details and examples.
 
 7. **Zero density estimates** — Define `ZeroDensityEstimate` and axiomatize key results from `zero_density_estimate.py`, then formalize the derivation chains that connect zero density to exponent pairs.
 
