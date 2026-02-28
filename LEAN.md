@@ -22,21 +22,28 @@ The project uses **Lean 4** (v4.25.0-rc2) with **Mathlib** as a dependency. Conf
 expdb/
 ├── Basic/
 │   ├── ExponentPair.lean          # Core definitions and convexity theorem
-│   └── ZeroDensityEstimate.lean   # Zero density predicate and structure
+│   ├── ZeroDensityEstimate.lean   # Zero density predicate and structure
+│   └── LargeValueEstimate.lean    # Large value estimate predicate and properties
 ├── Literature/
 │   ├── Classical.lean             # Axioms: (0,1), (1/2,1/2), (1/6,2/3)
 │   ├── Bourgain.lean              # Axiom: (13/84, 55/84)
 │   ├── HeathBrown.lean            # Axioms: Heath-Brown (2017) parametric pairs
 │   ├── Huxley.lean                # Axioms: Huxley, Watt, Huxley-Kolesnik pairs
 │   ├── RobertSargos.lean          # Axioms: Robert, Sargos k-th derivative pairs
-│   └── TrudgianYang.lean          # Axioms: Trudgian-Yang (2025) pairs
+│   ├── TrudgianYang.lean          # Axioms: Trudgian-Yang (2025) pairs
+│   ├── ZeroDensityClassical.lean  # Zero density axioms: Carlson, Ingham, etc.
+│   └── LargeValues.lean           # L², Huxley, Heath-Brown, Guth-Maynard LV axioms
 ├── Transforms/
 │   ├── VanDerCorputA.lean         # A-process axiom + ofA helper
-│   └── VanDerCorputB.lean         # B-process axiom + ofB helper
+│   ├── VanDerCorputB.lean         # B-process axiom + ofB helper
+│   ├── ExponentPairToZeroDensity.lean  # EP → ZD transforms (Ivić, Bourgain)
+│   └── LargeValueRaisePower.lean  # Raise-to-power transform for LV estimates
 ├── Tactics/
 │   └── Chain.lean                 # by_chain tactic for automated A/B derivations
 ├── Derived/
-│   └── Examples.lean              # 22+ proven derivation theorems
+│   ├── Examples.lean              # 30+ proven derivation theorems
+│   ├── ZeroDensityExamples.lean   # Derived zero density estimates
+│   └── LargeValueExamples.lean    # Derived large value estimates
 ├── ForMathlib/                    # (placeholder) for upstreaming to Mathlib
 ├── Mathlib/                       # (placeholder) for missing Mathlib pieces
 └── Example.lean                   # (empty)
@@ -173,7 +180,7 @@ theorem vanDerCorputB_involution {k l : ℚ} (_h : IsExponentPair k l) :
 
 ### Derived Exponent Pairs (`Derived/Examples.lean`)
 
-All theorems are fully proved — zero `sorry`s remain in the entire codebase.
+All 30+ theorems are fully proved — zero `sorry`s remain in the entire codebase.
 
 **Simple derivations from classical axioms:**
 
@@ -303,6 +310,56 @@ theorem zd_chain_trivial_BA_ivic : IsZeroDensityBound (9/5) (5/6) := by
   have h2 : IsExponentPair (1/6) (2/3) := h1.ofA (by norm_num) (by norm_num)
   -- Apply Ivić's transform at σ = 5/6
   exact h2.toZeroDensityIvic (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+```
+
+### Large Value Estimates
+
+#### Core Definitions (`Basic/LargeValueEstimate.lean`)
+
+The `LargeValueEstimate` predicate encodes bounds on how frequently a Dirichlet polynomial can be large:
+
+```lean
+def LargeValueEstimate (σ τ ρ : ℚ) : Prop :=
+  1/2 ≤ σ ∧ σ ≤ 1 ∧ 0 ≤ τ ∧ 0 ≤ ρ
+```
+
+Key results in this file:
+
+| Declaration | Description |
+|---|---|
+| `LargeValueEstimate.sigma_in_critical_strip` | σ ∈ [1/2, 1] |
+| `LargeValueEstimate.tau_nonneg` | 0 ≤ τ |
+| `LargeValueEstimate.rho_nonneg` | 0 ≤ ρ |
+| `LargeValueEstimate.mono_rho` | Monotonicity: if ρ ≤ ρ' then LV(σ,τ,ρ) → LV(σ,τ,ρ') |
+
+#### Literature Large Value Axioms (`Literature/LargeValues.lean`)
+
+These mirror the Python code in `large_values.py` and `literature.py`:
+
+| Axiom | Bound | Source |
+|---|---|---|
+| `large_value_L2_branch1` | ρ ≤ 2 − 2σ | L² mean value theorem |
+| `large_value_L2_branch2` | ρ ≤ 1 − 2σ + τ | L² mean value theorem |
+| `large_value_huxley` | ρ ≤ 4 − 6σ + τ | Huxley (1972) |
+| `large_value_heath_brown` | ρ ≤ 10 − 13σ + τ | Heath-Brown (1979) |
+| `large_value_guth_maynard_branch2` | ρ ≤ 18/5 − 4σ | Guth-Maynard (2024) |
+| `large_value_guth_maynard_branch3` | ρ ≤ τ + 12/5 − 4σ | Guth-Maynard (2024) |
+
+#### Large Value Transforms (`Transforms/LargeValueRaisePower.lean`)
+
+The raise-to-power transform scales both τ and ρ by a positive factor k:
+
+```lean
+-- Axiom: LV(σ, kτ) ≤ kρ whenever LV(σ, τ) ≤ ρ
+axiom large_value_raise_to_power (σ τ ρ k : ℚ)
+    (h : LargeValueEstimate σ τ ρ) (hk : 0 < k) :
+    LargeValueEstimate σ (k * τ) (k * ρ)
+
+-- Helper: apply raise-to-power and discharge arithmetic via norm_num
+theorem LargeValueEstimate.ofRaisePower {σ τ ρ k τ' ρ' : ℚ}
+    (h : LargeValueEstimate σ τ ρ) (hk : 0 < k)
+    (hτ : τ' = k * τ) (hρ : ρ' = k * ρ) :
+    LargeValueEstimate σ τ' ρ'
 ```
 
 ### Axiom Inventory

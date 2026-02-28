@@ -12,21 +12,18 @@ import expdb.Basic.ZeroDensityEstimate
 -- Literature results (axiomatized)
 import expdb.Literature.Classical
 import expdb.Literature.Bourgain
-import expdb.Literature.LargeValues
 import expdb.Literature.HeathBrown
 import expdb.Literature.Huxley
 import expdb.Literature.RobertSargos
 import expdb.Literature.TrudgianYang
+import expdb.Literature.ZeroDensityClassical
+import expdb.Literature.LargeValues
 
 -- Transforms
 import expdb.Transforms.VanDerCorputA
 import expdb.Transforms.VanDerCorputB
-import expdb.Transforms.LargeValueRaisePower
-
--- Derived results
-import expdb.Derived.Examples
-import expdb.Derived.LargeValueExamples
 import expdb.Transforms.ExponentPairToZeroDensity
+import expdb.Transforms.LargeValueRaisePower
 
 -- Tactics
 import expdb.Tactics.Chain
@@ -34,6 +31,7 @@ import expdb.Tactics.Chain
 -- Derived results
 import expdb.Derived.Examples
 import expdb.Derived.ZeroDensityExamples
+import expdb.Derived.LargeValueExamples
 
 -- Original example file
 import expdb.Example
