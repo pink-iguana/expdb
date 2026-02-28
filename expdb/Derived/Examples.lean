@@ -5,6 +5,11 @@ Authors: ANTEDB Contributors
 -/
 
 import expdb.Literature.Classical
+import expdb.Literature.Bourgain
+import expdb.Literature.HeathBrown
+import expdb.Literature.Huxley
+import expdb.Literature.RobertSargos
+import expdb.Literature.TrudgianYang
 import expdb.Transforms.VanDerCorputA
 import expdb.Transforms.VanDerCorputB
 
@@ -211,6 +216,104 @@ theorem derived_pair_1_9_13_18_from_trivial : IsExponentPair (1/9) (13/18) := by
   have h3 : IsExponentPair (1/14) (11/14) := h2.ofA (by norm_num) (by norm_num)
   have h4 : IsExponentPair (2/7) (4/7) := h3.ofB (by norm_num) (by norm_num)
   exact h4.ofA (by norm_num) (by norm_num)
+
+/-!
+## Derivations from Bourgain's Pair
+
+These examples show longer transform chains starting from the Bourgain pair (13/84, 55/84).
+-/
+
+/--
+AA(13/84, 55/84): applying the A-process twice to the Bourgain pair.
+
+Chain: (13/84, 55/84) →A→ (13/194, 76/97) →A→ (13/414, 359/414)
+
+Step 2: A(13/194, 76/97) = ((13/194)/(2·(13/194)+2), (76/97)/(2·(13/194)+2) + 1/2)
+      = ((13/194)/(207/97), (76/97)/(207/97) + 1/2) = (13/414, 76/207 + 1/2)
+      = (13/414, 359/414)
+-/
+theorem bourgain_AA : IsExponentPair (13/414) (359/414) :=
+  bourgain_A.ofA (by norm_num) (by norm_num)
+
+/--
+BA(13/84, 55/84): applying B after A to the Bourgain pair.
+
+Chain: (13/84, 55/84) →A→ (13/194, 76/97) →B→ (76/97 - 1/2, 13/194 + 1/2)
+     = (55/194, 110/194) = (55/194, 55/97)
+-/
+theorem bourgain_BA : IsExponentPair (55/194) (55/97) :=
+  bourgain_A.ofB (by norm_num) (by norm_num)
+
+/-!
+## Derivations from Heath-Brown Pairs
+
+These demonstrate that the new literature axioms work with the existing transforms.
+-/
+
+/--
+BA(1/10, 23/30): applying B after A to the Heath-Brown m=3 pair.
+
+Chain: (1/10, 23/30) →A→ (1/22, 28/33) →B→ (28/33 - 1/2, 1/22 + 1/2)
+     = (23/66, 12/22) = (23/66, 6/11)
+-/
+theorem heathBrown_m3_BA : IsExponentPair (23/66) (6/11) :=
+  heathBrown_m3_A.ofB (by norm_num) (by norm_num)
+
+/--
+AB(1/10, 23/30): applying A after B to the Heath-Brown m=3 pair.
+
+Chain: (1/10, 23/30) →B→ (4/15, 3/5) →A→ ((4/15)/(2·(4/15)+2), (3/5)/(2·(4/15)+2)+1/2)
+     = ((4/15)/(38/15), (3/5)/(38/15)+1/2) = (4/38, 9/38+1/2) = (2/19, 28/38)
+     = (2/19, 14/19)
+-/
+theorem heathBrown_m3_AB : IsExponentPair (2/19) (14/19) :=
+  heathBrown_m3_B.ofA (by norm_num) (by norm_num)
+
+/-!
+## Derivations from Robert-Sargos Pairs
+
+The Robert-Sargos pairs have very small k values, so transforms produce interesting
+new points in the exponent pair triangle.
+-/
+
+/--
+BA(1/13, 10/13): applying B after A to the Robert 2002 pair.
+
+Chain: (1/13, 10/13) →A→ (1/28, 6/7) →B→ (6/7 - 1/2, 1/28 + 1/2) = (5/14, 15/28)
+-/
+theorem robert_2002_BA : IsExponentPair (5/14) (15/28) :=
+  robert_2002_A.ofB (by norm_num) (by norm_num)
+
+/--
+AB(1/13, 10/13): applying A after B to the Robert 2002 pair.
+
+Chain: (1/13, 10/13) →B→ (7/26, 15/26) →A→ ((7/26)/(2·(7/26)+2), (15/26)/(2·(7/26)+2)+1/2)
+     = ((7/26)/(66/26), (15/26)/(66/26)+1/2) = (7/66, 15/66+1/2) = (7/66, 8/11)
+-/
+theorem robert_2002_AB : IsExponentPair (7/66) (8/11) :=
+  robert_2002_B.ofA (by norm_num) (by norm_num)
+
+/-!
+## Cross-Literature Derivation: Full Chain from Trivial
+
+These show full derivation chains that combine transforms with multiple
+literature axioms.
+-/
+
+/--
+Extended chain from trivial: (2/9, 11/18) = BABAAAB(0, 1)
+
+This extends the previous chain further:
+(0,1) →B→ (1/2,1/2) →A→ (1/6,2/3) →A→ (1/14,11/14) →B→ (2/7,4/7)
+→A→ (1/9,13/18) →B→ (2/9,11/18)
+-/
+theorem derived_pair_2_9_11_18_from_trivial : IsExponentPair (2/9) (11/18) := by
+  have h1 : IsExponentPair (1/2) (1/2) := trivial_pair.ofB (by norm_num) (by norm_num)
+  have h2 : IsExponentPair (1/6) (2/3) := h1.ofA (by norm_num) (by norm_num)
+  have h3 : IsExponentPair (1/14) (11/14) := h2.ofA (by norm_num) (by norm_num)
+  have h4 : IsExponentPair (2/7) (4/7) := h3.ofB (by norm_num) (by norm_num)
+  have h5 : IsExponentPair (1/9) (13/18) := h4.ofA (by norm_num) (by norm_num)
+  exact h5.ofB (by norm_num) (by norm_num)
 
 /-!
 ## Future Work
