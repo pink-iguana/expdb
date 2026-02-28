@@ -7,11 +7,16 @@ Authors: ANTEDB Contributors
 -- Basic definitions
 import expdb.Basic.ExponentPair
 import expdb.Basic.LargeValueEstimate
+import expdb.Basic.ZeroDensityEstimate
 
 -- Literature results (axiomatized)
 import expdb.Literature.Classical
 import expdb.Literature.Bourgain
 import expdb.Literature.LargeValues
+import expdb.Literature.HeathBrown
+import expdb.Literature.Huxley
+import expdb.Literature.RobertSargos
+import expdb.Literature.TrudgianYang
 
 -- Transforms
 import expdb.Transforms.VanDerCorputA
@@ -21,6 +26,14 @@ import expdb.Transforms.LargeValueRaisePower
 -- Derived results
 import expdb.Derived.Examples
 import expdb.Derived.LargeValueExamples
+import expdb.Transforms.ExponentPairToZeroDensity
+
+-- Tactics
+import expdb.Tactics.Chain
+
+-- Derived results
+import expdb.Derived.Examples
+import expdb.Derived.ZeroDensityExamples
 
 -- Original example file
 import expdb.Example
