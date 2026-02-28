@@ -21,15 +21,19 @@ The project uses **Lean 4** (v4.25.0-rc2) with **Mathlib** as a dependency. Conf
 ```
 expdb/
 ├── Basic/
-│   └── ExponentPair.lean          # Core definitions and convexity theorem
+│   ├── ExponentPair.lean          # Core definitions and convexity theorem
+│   └── LargeValueEstimate.lean    # Large value estimate predicate and properties
 ├── Literature/
 │   ├── Classical.lean             # Axioms: (0,1), (1/2,1/2), (1/6,2/3)
-│   └── Bourgain.lean              # Axiom: (13/84, 55/84)
+│   ├── Bourgain.lean              # Axiom: (13/84, 55/84)
+│   └── LargeValues.lean           # L², Huxley, Heath-Brown, Guth-Maynard LV axioms
 ├── Transforms/
 │   ├── VanDerCorputA.lean         # A-process axiom + ofA helper
-│   └── VanDerCorputB.lean         # B-process axiom + ofB helper
+│   ├── VanDerCorputB.lean         # B-process axiom + ofB helper
+│   └── LargeValueRaisePower.lean  # Raise-to-power transform for LV estimates
 ├── Derived/
-│   └── Examples.lean              # 14 proven derivation theorems
+│   ├── Examples.lean              # 14 proven derivation theorems
+│   └── LargeValueExamples.lean    # Derived large value estimates
 ├── ForMathlib/                    # (placeholder) for upstreaming to Mathlib
 ├── Mathlib/                       # (placeholder) for missing Mathlib pieces
 └── Example.lean                   # (empty)
@@ -153,9 +157,73 @@ theorem derived_pair_2_7_4_7_from_trivial : IsExponentPair (2/7) (4/7) := by
   exact h3.ofB (by norm_num) (by norm_num)
 ```
 
+### Large Value Estimates (`Basic/LargeValueEstimate.lean`)
+
+The `LargeValueEstimate` predicate encodes bounds on how frequently a Dirichlet polynomial can be large:
+
+```lean
+def LargeValueEstimate (σ τ ρ : ℚ) : Prop :=
+  1/2 ≤ σ ∧ σ ≤ 1 ∧ 0 ≤ τ ∧ 0 ≤ ρ
+```
+
+Key results in this file:
+
+| Declaration | Description |
+|---|---|
+| `LargeValueEstimate.sigma_in_critical_strip` | σ ∈ [1/2, 1] |
+| `LargeValueEstimate.tau_nonneg` | 0 ≤ τ |
+| `LargeValueEstimate.rho_nonneg` | 0 ≤ ρ |
+| `LargeValueEstimate.mono_rho` | Monotonicity: if ρ ≤ ρ' then LV(σ,τ,ρ) → LV(σ,τ,ρ') |
+
+### Literature Large Value Axioms (`Literature/LargeValues.lean`)
+
+These mirror the Python code in `large_values.py` and `literature.py`:
+
+| Axiom | Bound | Source |
+|---|---|---|
+| `large_value_L2_branch1` | ρ ≤ 2 − 2σ | L² mean value theorem |
+| `large_value_L2_branch2` | ρ ≤ 1 − 2σ + τ | L² mean value theorem |
+| `large_value_huxley` | ρ ≤ 4 − 6σ + τ | Huxley (1972) |
+| `large_value_heath_brown` | ρ ≤ 10 − 13σ + τ | Heath-Brown (1979) |
+| `large_value_guth_maynard_branch2` | ρ ≤ 18/5 − 4σ | Guth-Maynard (2024) |
+| `large_value_guth_maynard_branch3` | ρ ≤ τ + 12/5 − 4σ | Guth-Maynard (2024) |
+
+### Large Value Transforms (`Transforms/LargeValueRaisePower.lean`)
+
+The raise-to-power transform scales both τ and ρ by a positive factor k:
+
+```lean
+-- Axiom: LV(σ, kτ) ≤ kρ whenever LV(σ, τ) ≤ ρ
+axiom large_value_raise_to_power (σ τ ρ k : ℚ)
+    (h : LargeValueEstimate σ τ ρ) (hk : 0 < k) :
+    LargeValueEstimate σ (k * τ) (k * ρ)
+
+-- Helper: apply raise-to-power and discharge arithmetic via norm_num
+theorem LargeValueEstimate.ofRaisePower {σ τ ρ k τ' ρ' : ℚ}
+    (h : LargeValueEstimate σ τ ρ) (hk : 0 < k)
+    (hτ : τ' = k * τ) (hρ : ρ' = k * ρ) :
+    LargeValueEstimate σ τ' ρ'
+```
+
+### Derived Large Value Estimates (`Derived/LargeValueExamples.lean`)
+
+Several derived theorems demonstrate composing literature axioms with transforms:
+
+| Theorem | Result | Derivation |
+|---|---|---|
+| `large_value_at_3_4_branch1` | LV(3/4, τ, 1/2) | L² branch 1 at σ=3/4 |
+| `large_value_heath_brown_at_5_6` | LV(5/6, 1, 1/6) | Heath-Brown at σ=5/6 |
+| `large_value_guth_maynard_branch3_at_3_4` | LV(3/4, 1, 2/5) | Guth-Maynard at σ=3/4 |
+| `large_value_L2_raised_k2` | LV(3/4, 2τ, 1) | L² + raise-to-power k=2 |
+| `large_value_L2_raised_k3_example` | LV(3/4, 3, 3/2) | L² + raise-to-power k=3 |
+
+Each proof follows the same pattern — apply literature axioms and `ofRaisePower`, with `norm_num` handling arithmetic:
+
 ### Axiom Inventory
 
-The formalization uses exactly **5 axioms** (and nothing else — no `sorry` anywhere):
+The formalization uses the following axioms (no `sorry` anywhere):
+
+**Exponent pair axioms:**
 
 | Axiom | File | What it asserts |
 |---|---|---|
@@ -165,6 +233,18 @@ The formalization uses exactly **5 axioms** (and nothing else — no `sorry` any
 | `bourgain_pair` | Literature/Bourgain.lean | (13/84, 55/84) is an exponent pair |
 | `vanDerCorputA` | Transforms/VanDerCorputA.lean | A-process preserves exponent pairs |
 | `vanDerCorputB` | Transforms/VanDerCorputB.lean | B-process preserves exponent pairs |
+
+**Large value estimate axioms:**
+
+| Axiom | File | What it asserts |
+|---|---|---|
+| `large_value_L2_branch1` | Literature/LargeValues.lean | ρ ≤ 2 − 2σ (L² mean value, branch 1) |
+| `large_value_L2_branch2` | Literature/LargeValues.lean | ρ ≤ 1 − 2σ + τ (L² mean value, branch 2) |
+| `large_value_huxley` | Literature/LargeValues.lean | ρ ≤ 4 − 6σ + τ (Huxley) |
+| `large_value_heath_brown` | Literature/LargeValues.lean | ρ ≤ 10 − 13σ + τ (Heath-Brown) |
+| `large_value_guth_maynard_branch2` | Literature/LargeValues.lean | ρ ≤ 18/5 − 4σ (Guth-Maynard) |
+| `large_value_guth_maynard_branch3` | Literature/LargeValues.lean | ρ ≤ τ + 12/5 − 4σ (Guth-Maynard) |
+| `large_value_raise_to_power` | Transforms/LargeValueRaisePower.lean | Raise-to-power transform |
 
 Note: `trivial_pair`, `weyl_pair`, and `classical_vdc_pair` could be reduced to just `trivial_pair` + the two transforms (since Weyl = B(trivial) and classical = AB(trivial)), but keeping all three as axioms is convenient and mirrors the Python code.
 
@@ -226,7 +306,7 @@ Following the paper's guidance, the formalization deliberately does **not** atte
 
 7. **Zero density estimates** — Define `ZeroDensityEstimate` and axiomatize key results from `zero_density_estimate.py`, then formalize the derivation chains that connect zero density to exponent pairs.
 
-8. **Large value estimates** — Define `LargeValueEstimate` following `large_values.py` and axiomatize the transforms that connect these to other exponents.
+8. **Large value estimates** ✅ — `LargeValueEstimate` has been defined in `Basic/LargeValueEstimate.lean`, with literature axioms in `Literature/LargeValues.lean` (L², Huxley, Heath-Brown, Guth-Maynard), the raise-to-power transform in `Transforms/LargeValueRaisePower.lean`, and derived examples in `Derived/LargeValueExamples.lean`. Future work includes axiomatizing Jutila's parameterized family and Bourgain's optimized piecewise estimates.
 
 ### Long-term (research-level)
 

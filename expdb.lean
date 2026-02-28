@@ -6,17 +6,21 @@ Authors: ANTEDB Contributors
 
 -- Basic definitions
 import expdb.Basic.ExponentPair
+import expdb.Basic.LargeValueEstimate
 
 -- Literature results (axiomatized)
 import expdb.Literature.Classical
 import expdb.Literature.Bourgain
+import expdb.Literature.LargeValues
 
 -- Transforms
 import expdb.Transforms.VanDerCorputA
 import expdb.Transforms.VanDerCorputB
+import expdb.Transforms.LargeValueRaisePower
 
 -- Derived results
 import expdb.Derived.Examples
+import expdb.Derived.LargeValueExamples
 
 -- Original example file
 import expdb.Example
