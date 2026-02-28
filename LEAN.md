@@ -331,7 +331,7 @@ Following the paper's guidance, the formalization deliberately does **not** atte
 
 ### Medium-term (requires more design)
 
-5. **Python → Lean bridge** — Add `Hypothesis.to_lean()` to the Python code to auto-generate Lean proof terms from dependency trees, enabling batch verification.
+5. **Python → Lean bridge** — `Hypothesis.to_lean()` auto-generates Lean proof terms from dependency trees for exponent pairs derived via A/B transform chains, enabling batch verification. See `hypotheses.py`.
 
 6. **Custom tactics** — Build `apply_chain` or similar tactics to automate A/B chain applications, reducing proofs to one-liners like `exact by_chain "BAAB" trivial_pair`.
 

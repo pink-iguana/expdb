@@ -1,3 +1,4 @@
+from fractions import Fraction
 from typing import Optional
 
 # Basic code for handling hypotheses in the exponent database.  The code here is
@@ -39,7 +40,7 @@ from typing import Optional
 # - dependencies : the set of hypotheses that the current hypothesis directly
 #       depends on (defaults to the empty set).
 
-# TODO: add `Lean proof` attribute
+# Lean code generation is available via the `to_lean()` method.
 
 class Hypothesis:
     def __init__(self, name, hypothesis_type, data, proof, reference):
@@ -149,6 +150,191 @@ class Hypothesis:
         if year == "Unknown date":
             year = -1
         return max([year] + [h.proof_date() for h in self.dependencies])
+
+    # Lean code generation --------------------------------------------------------
+
+    # Known Lean axiom names for exponent pairs, keyed by (k, l).
+    # Extend this dictionary when new axioms are added to the Lean formalization.
+    _LEAN_EXPONENT_PAIR_AXIOMS = {
+        (Fraction(0), Fraction(1)): "trivial_pair",
+        (Fraction(1, 2), Fraction(1, 2)): "weyl_pair",
+        (Fraction(1, 6), Fraction(2, 3)): "classical_vdc_pair",
+        (Fraction(13, 84), Fraction(55, 84)): "bourgain_pair",
+    }
+
+    @staticmethod
+    def _lean_format_frac(f):
+        """Format a Fraction as a Lean rational literal."""
+        f = Fraction(f)
+        if f.denominator == 1:
+            return str(f.numerator)
+        return f"({f.numerator}/{f.denominator})"
+
+    @staticmethod
+    def _lean_auto_name(k, l):
+        """Generate a Lean theorem name from exponent pair values."""
+        k, l = Fraction(k), Fraction(l)
+        def part(f):
+            if f.denominator == 1:
+                return str(f.numerator)
+            return f"{f.numerator}_{f.denominator}"
+        return f"derived_pair_{part(k)}_{part(l)}"
+
+    def _lean_linearize_proof(self):
+        """
+        Walk the dependency tree and return a linearized proof chain.
+
+        Returns a list of (hypothesis, lean_ref, transform) tuples where:
+        - The first element is the base axiom with lean_ref set to its Lean
+          name (or None if unknown) and transform=None.
+        - Subsequent elements are derived steps with lean_ref=None and
+          transform='A' or 'B'.
+
+        The chain follows van der Corput A/B transforms. If a non-A/B step
+        is encountered (e.g. convexity), the chain stops and treats that
+        node as a base case.
+        """
+        steps = []
+        current = self
+
+        while True:
+            key = (Fraction(current.data.k), Fraction(current.data.l))
+
+            # Leaf node: no dependencies
+            if not current.dependencies:
+                lean_ref = Hypothesis._LEAN_EXPONENT_PAIR_AXIOMS.get(key)
+                steps.append((current, lean_ref, None))
+                break
+
+            # Find an A/B transform and the input exponent pair
+            transform = None
+            input_hyp = None
+            for dep in current.dependencies:
+                if dep.hypothesis_type == "Exponent pair transform":
+                    if dep.name == "van der Corput A transform":
+                        transform = "A"
+                    elif dep.name == "van der Corput B transform":
+                        transform = "B"
+                elif dep.hypothesis_type == "Exponent pair":
+                    input_hyp = dep
+
+            if transform and input_hyp:
+                steps.append((current, None, transform))
+                current = input_hyp
+            else:
+                # Not a simple A/B chain step (convexity, other transforms)
+                lean_ref = Hypothesis._LEAN_EXPONENT_PAIR_AXIOMS.get(key)
+                steps.append((current, lean_ref, None))
+                break
+
+        steps.reverse()
+        return steps
+
+    def to_lean(self, theorem_name=None):
+        """
+        Generate a Lean 4 theorem proving this exponent pair from its
+        dependency tree.
+
+        Currently supports hypotheses of type 'Exponent pair' whose proofs
+        consist of chains of van der Corput A and B transforms applied to
+        known literature axioms. Convexity-based proofs and other transform
+        types are partially supported: the chain is traced as far as
+        possible, and any unsupported base case is flagged with a TODO
+        comment.
+
+        Parameters
+        ----------
+        theorem_name : str, optional
+            Name for the generated Lean theorem. If not provided, a name is
+            auto-generated from the exponent pair values.
+
+        Returns
+        -------
+        str
+            A string containing a valid Lean 4 theorem statement and proof.
+
+        Raises
+        ------
+        ValueError
+            If the hypothesis type is not 'Exponent pair'.
+
+        Examples
+        --------
+        >>> from literature import *
+        >>> A = literature.find_hypothesis(keywords="van der Corput A transform")
+        >>> B = literature.find_hypothesis(keywords="van der Corput B transform")
+        >>> pair = B.data.transform(trivial_exp_pair)
+        >>> pair = A.data.transform(pair)
+        >>> print(pair.to_lean())
+        theorem derived_pair_1_6_2_3 : IsExponentPair (1/6) (2/3) := by
+          have h1 : IsExponentPair (1/2) (1/2) := trivial_pair.ofB (by norm_num) (by norm_num)
+          exact h1.ofA (by norm_num) (by norm_num)
+        """
+        if self.hypothesis_type != "Exponent pair":
+            raise ValueError(
+                f"to_lean() currently only supports 'Exponent pair' hypotheses, "
+                f"got '{self.hypothesis_type}'"
+            )
+
+        fmt = Hypothesis._lean_format_frac
+        steps = self._lean_linearize_proof()
+
+        k_str = fmt(self.data.k)
+        l_str = fmt(self.data.l)
+        name = theorem_name or Hypothesis._lean_auto_name(self.data.k, self.data.l)
+
+        base_hyp, base_ref, _ = steps[0]
+
+        # Handle missing axiom reference
+        if base_ref is None:
+            bk = fmt(base_hyp.data.k)
+            bl = fmt(base_hyp.data.l)
+            placeholder = Hypothesis._lean_auto_name(base_hyp.data.k, base_hyp.data.l)
+            comment = (
+                f"-- TODO: The following axiom is needed but not yet in the Lean "
+                f"formalization.\n"
+                f"-- axiom {placeholder} : IsExponentPair {bk} {bl}\n"
+            )
+            base_ref = placeholder
+        else:
+            comment = ""
+
+        # Single element: just the axiom itself
+        if len(steps) == 1:
+            return (
+                f"{comment}theorem {name} : IsExponentPair {k_str} {l_str} :=\n"
+                f"  {base_ref}"
+            )
+
+        # Two elements: single transform, use term-mode proof
+        if len(steps) == 2:
+            _, _, transform = steps[1]
+            return (
+                f"{comment}theorem {name} : IsExponentPair {k_str} {l_str} :=\n"
+                f"  {base_ref}.of{transform} (by norm_num) (by norm_num)"
+            )
+
+        # Three or more: tactic-mode proof with have chain
+        lines = [
+            f"{comment}theorem {name} : IsExponentPair {k_str} {l_str} := by"
+        ]
+        for i in range(1, len(steps)):
+            hyp, _, transform = steps[i]
+            prev_ref = base_ref if i == 1 else f"h{i - 1}"
+            hk = fmt(hyp.data.k)
+            hl = fmt(hyp.data.l)
+
+            if i < len(steps) - 1:
+                lines.append(
+                    f"  have h{i} : IsExponentPair {hk} {hl} := "
+                    f"{prev_ref}.of{transform} (by norm_num) (by norm_num)"
+                )
+            else:
+                lines.append(
+                    f"  exact {prev_ref}.of{transform} (by norm_num) (by norm_num)"
+                )
+
+        return "\n".join(lines)
 
 
 ########################################################################################
