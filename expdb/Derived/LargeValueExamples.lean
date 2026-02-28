@@ -116,7 +116,7 @@ theorem large_value_guth_maynard_at_3_4 (τ : ℚ) (hτ : 0 ≤ τ) :
   large_value_guth_maynard_branch2 (3/4) τ (by norm_num) (by norm_num) hτ (by norm_num)
 
 /--
-Guth-Maynard third branch at σ = 3/4, τ = 1: ρ ≤ 1 + 12/5 − 4·(3/4) = 1 + 12/5 − 3 = 2/5.
+Guth-Maynard third branch at σ = 3/4, τ = 1: ρ ≤ 1 + 12/5 − 4·(3/4) = 17/5 − 3 = 2/5.
 
 For this particular (σ, τ), the third branch gives a better bound than the second.
 -/

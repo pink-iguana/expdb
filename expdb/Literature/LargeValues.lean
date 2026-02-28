@@ -128,6 +128,8 @@ Guth and Maynard's large value theorem gives:
 
 /--
 Guth-Maynard large value theorem, second branch: ρ ≤ 18/5 − 4σ.
+
+(The first branch ρ ≤ 2 − 2σ is already captured by `large_value_L2_branch1`.)
 -/
 axiom large_value_guth_maynard_branch2 (σ τ : ℚ)
     (hσ₁ : 1/2 ≤ σ) (hσ₂ : σ ≤ 1) (hτ : 0 ≤ τ) (hρ : 0 ≤ 18/5 - 4 * σ) :
