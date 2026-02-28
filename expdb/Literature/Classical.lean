@@ -23,7 +23,7 @@ those derived from the foundational work of Weyl and van der Corput in the 1920s
 These results are currently axiomatized, following the approach in the Python
 codebase where literature results are taken as given. Future work may formalize
 the underlying exponential sum estimates, but this is not necessary for the
-initial formalization goals (see `LEAN_FORMALIZATION_PLAN.md`).
+initial formalization goals (see `LEAN.md`).
 
 The axiomatization strategy mirrors the `literature.py` module in the Python code,
 where results are recorded with their references but not re-proved.

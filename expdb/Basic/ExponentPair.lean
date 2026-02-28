@@ -8,6 +8,8 @@ import Mathlib.Data.Rat.Defs
 import Mathlib.Algebra.Field.Rat
 import Mathlib.Algebra.Order.Field.Rat
 import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.Ring
 
 /-!
 # Exponent Pairs
@@ -37,7 +39,7 @@ This is the foundational file for the ANTEDB Lean formalization. Currently, we d
 the geometric constraints on exponent pairs but leave the analytic conditions
 (exponential sum bounds) as axioms to be formalized later.
 
-See `LEAN_FORMALIZATION_PLAN.md` for the overall formalization strategy.
+See `LEAN.md` for the overall formalization strategy.
 -/
 
 /--
@@ -100,13 +102,33 @@ theorem l_in_unit_interval {k l : ℚ} (h : IsExponentPair k l) : 0 ≤ l ∧ l 
                _ ≤ l := h.2.2.1
   · exact h.2.2.2.1
 
+/-- The set of exponent pairs is convex: any convex combination of two
+    exponent pairs is again an exponent pair (at the geometric constraint level). -/
+theorem convex {k₁ l₁ k₂ l₂ t : ℚ}
+    (h₁ : IsExponentPair k₁ l₁) (h₂ : IsExponentPair k₂ l₂)
+    (ht₀ : 0 ≤ t) (ht₁ : t ≤ 1) :
+    IsExponentPair (t * k₁ + (1 - t) * k₂) (t * l₁ + (1 - t) * l₂) := by
+  unfold IsExponentPair at *
+  obtain ⟨h1a, h1b, h1c, h1d, h1e⟩ := h₁
+  obtain ⟨h2a, h2b, h2c, h2d, h2e⟩ := h₂
+  have h_1mt : (0 : ℚ) ≤ 1 - t := by linarith
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · nlinarith [mul_nonneg ht₀ h1a, mul_nonneg h_1mt h2a]
+  · nlinarith [mul_nonneg ht₀ (show (0 : ℚ) ≤ 1/2 - k₁ by linarith),
+               mul_nonneg h_1mt (show (0 : ℚ) ≤ 1/2 - k₂ by linarith)]
+  · nlinarith [mul_nonneg ht₀ (show (0 : ℚ) ≤ l₁ - 1/2 by linarith),
+               mul_nonneg h_1mt (show (0 : ℚ) ≤ l₂ - 1/2 by linarith)]
+  · nlinarith [mul_nonneg ht₀ (show (0 : ℚ) ≤ 1 - l₁ by linarith),
+               mul_nonneg h_1mt (show (0 : ℚ) ≤ 1 - l₂ by linarith)]
+  · nlinarith [mul_nonneg ht₀ (show (0 : ℚ) ≤ 1 - k₁ - l₁ by linarith),
+               mul_nonneg h_1mt (show (0 : ℚ) ≤ 1 - k₂ - l₂ by linarith)]
+
 end IsExponentPair
 
 /-!
 ## Examples
 
 These will be populated with actual exponent pairs as the formalization progresses.
-For now, we leave these as `sorry` to document the intended structure.
 -/
 
 -- The trivial exponent pair (0, 1)
@@ -116,5 +138,10 @@ example : IsExponentPair 0 1 := by
 
 -- The Weyl exponent pair (1/2, 1/2)
 example : IsExponentPair (1/2) (1/2) := by
+  unfold IsExponentPair
+  norm_num
+
+-- The Bourgain exponent pair (13/84, 55/84)
+example : IsExponentPair (13/84) (55/84) := by
   unfold IsExponentPair
   norm_num

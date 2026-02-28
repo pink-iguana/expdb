@@ -16,7 +16,7 @@ This is intended to be a living database; additional corrections, updates, and c
 - [Dependency graph](https://teorth.github.io/expdb/blueprint/dep_graph_document.html) of the theorems in the database.
 - [PDF form of blueprint](https://teorth.github.io/expdb/blueprint.pdf), a downloadable, human-readable version of the database stored as a single file.
 - [Python code repository](https://github.com/teorth/expdb/tree/main/blueprint/src/python), containing a programmable version of this database and various optimization routines.
-- [Lean formalization plan](LEAN_FORMALIZATION_PLAN.md), describing the strategy for integrating formal verification using the Lean theorem prover.
+- [Lean formalization](LEAN.md), describing the Lean formalization of the database including what has been proved and next steps.
 
 ## External links
 - T. Tao, T. Trudgian, A. Yang, "[New exponent pairs, zero density estimates, and zero additive energy estimates: a systematic approach](https://arxiv.org/abs/2501.16779)": A paper describing the project, and several of the new results that already arose from it

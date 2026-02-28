@@ -4,7 +4,7 @@ This folder contains `.lean` files with new declarations to be upstreamed to Mat
 
 ## Planned Structure
 
-As the Lean formalization progresses (see [LEAN_FORMALIZATION_PLAN.md](../../LEAN_FORMALIZATION_PLAN.md)), this directory will contain:
+As the Lean formalization progresses (see [LEAN.md](../../LEAN.md)), this directory will contain:
 
 - `Convex/ConvexCombination.lean` - General lemmas about convex combinations and convex hull operations
 - `NumberTheory/ExponentialSums.lean` - Prerequisites for the van der Corput lemma and exponential sum theory

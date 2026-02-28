@@ -9,6 +9,7 @@ import expdb.Basic.ExponentPair
 
 -- Literature results (axiomatized)
 import expdb.Literature.Classical
+import expdb.Literature.Bourgain
 
 -- Transforms
 import expdb.Transforms.VanDerCorputA
@@ -76,7 +77,7 @@ The formalization is organized into several modules:
 
 ## Getting Started
 
-See `LEAN_FORMALIZATION_PLAN.md` for the overall strategy and implementation phases.
+See `LEAN.md` for the overall strategy and implementation phases.
 
 To start exploring:
 1. Look at `expdb.Basic.ExponentPair` for the core definitions
@@ -87,7 +88,7 @@ To start exploring:
 
 - [ANTEDB Web Blueprint](https://teorth.github.io/expdb/blueprint/)
 - [ANTEDB Python Code](https://github.com/teorth/expdb/tree/main/blueprint/src/python)
-- [Formalization Plan](LEAN_FORMALIZATION_PLAN.md)
+- [Lean Formalization](LEAN.md)
 - T. Tao, T. Trudgian, A. Yang, "New exponent pairs, zero density estimates, and
   zero additive energy estimates: a systematic approach" (2025)
 -/

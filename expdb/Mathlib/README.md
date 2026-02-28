@@ -4,7 +4,7 @@ This folder contains `.lean` files with declarations missing from existing Mathl
 
 ## Planned Structure
 
-As the Lean formalization progresses (see [LEAN_FORMALIZATION_PLAN.md](../../LEAN_FORMALIZATION_PLAN.md)), this directory will contain:
+As the Lean formalization progresses (see [LEAN.md](../../LEAN.md)), this directory will contain:
 
 - `NumberTheory/AnalyticNumberTheory.lean` - Analytic number theory-specific tools and definitions
 - `NumberTheory/ExponentialSumEstimates.lean` - Weyl sums, van der Corput lemma, and related exponential sum estimates

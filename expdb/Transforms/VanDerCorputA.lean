@@ -28,7 +28,7 @@ This theorem is currently axiomatized. A full formalization would require:
 2. Proving the van der Corput differencing lemma
 3. Showing that the geometric transformation corresponds to the analytic one
 
-This deep formalization is a long-term goal (Phase 5 in `LEAN_FORMALIZATION_PLAN.md`).
+This deep formalization is a long-term goal (see `LEAN.md`).
 For now, we follow the Python codebase approach of treating transforms as given
 operations on exponent pairs.
 
@@ -60,6 +60,18 @@ the amplitude of oscillation in exponential sums.
 axiom vanDerCorputA (k l : ℚ) (h : IsExponentPair k l) :
     IsExponentPair (k / (2*k + 2)) (l / (2*k + 2) + 1/2)
 
+namespace IsExponentPair
+
+/-- Apply the A-process and simplify: given `IsExponentPair k l`, produce
+    `IsExponentPair k' l'` where `k' = k/(2k+2)` and `l' = l/(2k+2) + 1/2`,
+    with the equalities discharged by the caller (typically via `norm_num`). -/
+theorem ofA {k l k' l' : ℚ} (h : IsExponentPair k l)
+    (hk : k' = k / (2 * k + 2)) (hl : l' = l / (2 * k + 2) + 1/2) :
+    IsExponentPair k' l' := by
+  rw [hk, hl]; exact vanDerCorputA k l h
+
+end IsExponentPair
+
 /-!
 ## Properties and Examples
 
@@ -85,10 +97,7 @@ The trivial pair (0, 1) is a fixed point of the A-process.
 Proof: A(0, 1) = (0/(0+2), 1/(0+2) + 1/2) = (0, 1/2 + 1/2) = (0, 1).
 -/
 example : IsExponentPair 0 1 → IsExponentPair 0 1 := by
-  intro h
-  -- convert vanDerCorputA 0 1 h using 1
-  -- After simplification, A(0, 1) = (0, 1)
-  sorry
+  intro h; exact h.ofA (by norm_num) (by norm_num)
 
 /--
 Applying A to Weyl's pair (1/2, 1/2) gives the classical pair (1/6, 2/3).
@@ -97,10 +106,8 @@ Proof: A(1/2, 1/2) = (1/2 / (1 + 2), 1/2 / (1 + 2) + 1/2)
                     = (1/6, 1/6 + 1/2)
                     = (1/6, 2/3)
 -/
-example (h : IsExponentPair (1/2) (1/2)) : IsExponentPair (1/6) (2/3) := by
-  -- convert vanDerCorputA (1/2) (1/2) h using 1
-  -- After simplification, A(1/2, 1/2) = (1/6, 2/3)
-  sorry
+example (h : IsExponentPair (1/2) (1/2)) : IsExponentPair (1/6) (2/3) :=
+  h.ofA (by norm_num) (by norm_num)
 
 end VanDerCorputA
 

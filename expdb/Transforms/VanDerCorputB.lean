@@ -58,6 +58,18 @@ relating bounds for different types of sums.
 axiom vanDerCorputB (k l : ℚ) (h : IsExponentPair k l) :
     IsExponentPair (l - 1/2) (k + 1/2)
 
+namespace IsExponentPair
+
+/-- Apply the B-process and simplify: given `IsExponentPair k l`, produce
+    `IsExponentPair k' l'` where `k' = l - 1/2` and `l' = k + 1/2`,
+    with the equalities discharged by the caller (typically via `norm_num`). -/
+theorem ofB {k l k' l' : ℚ} (h : IsExponentPair k l)
+    (hk : k' = l - 1/2) (hl : l' = k + 1/2) :
+    IsExponentPair k' l' := by
+  rw [hk, hl]; exact vanDerCorputB k l h
+
+end IsExponentPair
+
 /-!
 ## Properties and Examples
 -/
@@ -81,21 +93,26 @@ Proof: B(0, 1) = (1 - 1/2, 0 + 1/2) = (1/2, 1/2)
 This is a fundamental relationship showing how Weyl's estimate follows from
 the trivial bound by applying the B-process.
 -/
-example (h : IsExponentPair 0 1) : IsExponentPair (1/2) (1/2) := by
-  -- convert vanDerCorputB 0 1 h using 1
-  -- After simplification, B(0, 1) = (1/2, 1/2)
-  sorry
+example (h : IsExponentPair 0 1) : IsExponentPair (1/2) (1/2) :=
+  h.ofB (by norm_num) (by norm_num)
 
 /--
-The B-process is (almost) an involution: B² is close to the identity.
+The B-process is an involution on the classical pairs:
+B(1/2, 1/2) = (0, 1), mapping Weyl's pair back to the trivial pair.
 
-More precisely, B²(k, l) = (k, l - 1) when l ≥ 1, which maps outside the triangle.
-Within the triangle, the relationship is more subtle.
+More generally, B²(k, l) = (k, l) whenever both (k, l) and B(k, l) are
+in the exponent pair triangle.
 -/
-example (hk : IsExponentPair (1/2) (1/2)) : IsExponentPair 0 1 := by
-  -- convert vanDerCorputB (1/2) (1/2) hk using 1
-  -- After simplification, B(1/2, 1/2) = (0, 1)
-  sorry
+example (hk : IsExponentPair (1/2) (1/2)) : IsExponentPair 0 1 :=
+  hk.ofB (by norm_num) (by norm_num)
+
+/--
+The B-process is an involution: applying B twice gives back the original pair.
+This follows from the arithmetic identity (k+1/2)-1/2 = k and (l-1/2)+1/2 = l.
+-/
+theorem vanDerCorputB_involution {k l : ℚ} (_h : IsExponentPair k l) :
+    (k + 1/2 : ℚ) - 1/2 = k ∧ (l - 1/2 : ℚ) + 1/2 = l := by
+  constructor <;> ring
 
 end VanDerCorputB
 
