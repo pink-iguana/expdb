@@ -21,7 +21,8 @@ The project uses **Lean 4** (v4.25.0-rc2) with **Mathlib** as a dependency. Conf
 ```
 expdb/
 ├── Basic/
-│   └── ExponentPair.lean          # Core definitions and convexity theorem
+│   ├── ExponentPair.lean          # Core definitions and convexity theorem
+│   └── ZeroDensityEstimate.lean   # Zero density predicate and structure
 ├── Literature/
 │   ├── Classical.lean             # Axioms: (0,1), (1/2,1/2), (1/6,2/3)
 │   ├── Bourgain.lean              # Axiom: (13/84, 55/84)
@@ -218,6 +219,92 @@ theorem derived_pair_2_7_4_7_from_trivial : IsExponentPair (2/7) (4/7) := by
   exact h3.ofB (by norm_num) (by norm_num)
 ```
 
+### Zero Density Estimates
+
+#### Core Definitions (`Basic/ZeroDensityEstimate.lean`)
+
+The `IsZeroDensityBound` predicate encodes zero density estimates for the Riemann zeta function:
+
+```lean
+def IsZeroDensityBound (A σ : ℚ) : Prop :=
+  0 ≤ A ∧ 1/2 ≤ σ ∧ σ ≤ 1
+```
+
+This asserts that `A` is a valid bound on the zero density exponent at `σ`, meaning N(σ, T) ≤ T^{A(1-σ) + o(1)}. There is also a `ZeroDensityEstimate` structure bundling the values with proofs.
+
+Key results:
+
+| Declaration | Description |
+|---|---|
+| `IsZeroDensityBound.mono` | Monotonicity: weaker bounds are still valid |
+| `IsZeroDensityBound.sigma_bounds` | σ ∈ [1/2, 1] |
+| `IsZeroDensityBound.bound_nonneg` | A ≥ 0 |
+
+#### Literature Zero Density Axioms (`Literature/ZeroDensityClassical.lean`)
+
+These mirror Chapter 11 of `literature.py` in the Python code:
+
+| Axiom | Bound | Domain | Source |
+|---|---|---|---|
+| `carlson_zero_density` | A(σ) ≤ 4σ | σ ∈ [1/2, 1] | Carlson (1921) |
+| `ingham_zero_density` | A(σ) ≤ 3/(2-σ) | σ ∈ [1/2, 1] | Ingham (1940) |
+| `huxley_zero_density` | A(σ) ≤ 3/(3σ-1) | σ ∈ (1/2, 1] | Huxley (1972) |
+| `heathbrown_zero_density` | A(σ) ≤ 4/(4σ-1) | σ ∈ [25/28, 1] | Heath-Brown (1979) |
+| `bourgain_zero_density` | A(σ) ≤ 2 | σ ∈ [25/32, 1] | Bourgain (2000) |
+| `guth_maynard_zero_density` | A(σ) ≤ 15/(3+5σ) | σ ∈ [1/2, 1] | Guth-Maynard (2024) |
+
+#### Exponent Pair → Zero Density Transforms (`Transforms/ExponentPairToZeroDensity.lean`)
+
+Two axiomatized transforms connect exponent pairs to zero density estimates:
+
+| Axiom | Formula | Description |
+|---|---|---|
+| `ivic_ep_to_zd` | A(σ) ≤ 3/(2σ) | Ivić (m=2): EP → ZD via exponent pair method |
+| `bourgain_ep_to_zd` | A(σ) ≤ 4k/(2(1+k)σ-1-l) | Bourgain: EP → ZD for k ≤ 1/5, l ≥ 3/5 |
+
+Each transform has a helper theorem on `IsExponentPair` for ergonomic use:
+
+```lean
+-- Apply Ivić's transform: (k, l) → A(σ) ≤ 3/(2σ)
+theorem IsExponentPair.toZeroDensityIvic ...
+
+-- Apply Bourgain's transform: (k, l) → A(σ) ≤ 4k/(2(1+k)σ - 1 - l)
+theorem IsExponentPair.toZeroDensityBourgain ...
+```
+
+#### Derived Zero Density Examples (`Derived/ZeroDensityExamples.lean`)
+
+Derived zero density bounds include direct instantiations and derivation chains:
+
+**Direct instantiations:**
+
+| Theorem | Bound | Source |
+|---|---|---|
+| `carlson_at_3_4` | A(3/4) ≤ 3 | Carlson |
+| `ingham_at_3_4` | A(3/4) ≤ 12/5 | Ingham |
+| `bourgain_density_at_7_8` | A(7/8) ≤ 2 | Bourgain |
+| `guth_maynard_at_3_4` | A(3/4) ≤ 20/9 | Guth-Maynard |
+
+**EP → ZD derivation chains:**
+
+| Theorem | Bound | Chain |
+|---|---|---|
+| `ivic_from_classical_vdc_at_5_6` | A(5/6) ≤ 9/5 | Classical EP → Ivić |
+| `zd_chain_trivial_BA_ivic` | A(5/6) ≤ 9/5 | Trivial →B→A→ Ivić |
+| `zd_chain_classical_A_ivic` | A(6/7) ≤ 7/4 | Classical →A→ Ivić |
+
+The derivation chain proofs combine A/B transforms with EP→ZD transforms:
+
+```lean
+theorem zd_chain_trivial_BA_ivic : IsZeroDensityBound (9/5) (5/6) := by
+  -- (0, 1) →B→ (1/2, 1/2)
+  have h1 : IsExponentPair (1/2) (1/2) := trivial_pair.ofB (by norm_num) (by norm_num)
+  -- (1/2, 1/2) →A→ (1/6, 2/3)
+  have h2 : IsExponentPair (1/6) (2/3) := h1.ofA (by norm_num) (by norm_num)
+  -- Apply Ivić's transform at σ = 5/6
+  exact h2.toZeroDensityIvic (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+```
+
 ### Axiom Inventory
 
 The formalization uses **25 literature axioms** and **2 transform axioms** (and nothing else — no `sorry` anywhere):
@@ -279,6 +366,19 @@ The formalization uses **25 literature axioms** and **2 transform axioms** (and 
 | `trudgianYang_pair_4` | Literature/TrudgianYang.lean | (715/10238, 7955/10238) is an exponent pair |
 
 Note: `trivial_pair`, `weyl_pair`, and `classical_vdc_pair` could be reduced to just `trivial_pair` + the two transforms (since Weyl = B(trivial) and classical = AB(trivial)), but keeping all three as axioms is convenient and mirrors the Python code.
+
+#### Zero Density Axioms
+
+| Axiom | File | What it asserts |
+|---|---|---|
+| `carlson_zero_density` | Literature/ZeroDensityClassical.lean | A(σ) ≤ 4σ for σ ∈ [1/2, 1] |
+| `ingham_zero_density` | Literature/ZeroDensityClassical.lean | A(σ) ≤ 3/(2-σ) for σ ∈ [1/2, 1] |
+| `huxley_zero_density` | Literature/ZeroDensityClassical.lean | A(σ) ≤ 3/(3σ-1) for σ ∈ (1/2, 1] |
+| `heathbrown_zero_density` | Literature/ZeroDensityClassical.lean | A(σ) ≤ 4/(4σ-1) for σ ∈ [25/28, 1] |
+| `bourgain_zero_density` | Literature/ZeroDensityClassical.lean | A(σ) ≤ 2 for σ ∈ [25/32, 1] |
+| `guth_maynard_zero_density` | Literature/ZeroDensityClassical.lean | A(σ) ≤ 15/(3+5σ) for σ ∈ [1/2, 1] |
+| `ivic_ep_to_zd` | Transforms/ExponentPairToZeroDensity.lean | Ivić EP→ZD transform (m=2) |
+| `bourgain_ep_to_zd` | Transforms/ExponentPairToZeroDensity.lean | Bourgain EP→ZD transform |
 
 ## How Proofs Work
 
@@ -363,7 +463,7 @@ Following the paper's guidance, the formalization deliberately does **not** atte
 
 6. **Custom tactics** ✅ — The `by_chain` tactic in `Tactics/Chain.lean` automates A/B chain applications, reducing proofs to one-liners like `by_chain "BAAB" trivial_pair`. See the "Custom Tactics" section above for details and examples.
 
-7. **Zero density estimates** — Define `ZeroDensityEstimate` and axiomatize key results from `zero_density_estimate.py`, then formalize the derivation chains that connect zero density to exponent pairs.
+7. **Zero density estimates** ✅ — Defined `IsZeroDensityBound` and `ZeroDensityEstimate`, axiomatized 6 classical literature results (Carlson, Ingham, Huxley, Heath-Brown, Bourgain, Guth-Maynard), axiomatized 2 EP→ZD transforms (Ivić, Bourgain), and formalized derivation chains connecting exponent pairs to zero density bounds. See `Basic/ZeroDensityEstimate.lean`, `Literature/ZeroDensityClassical.lean`, `Transforms/ExponentPairToZeroDensity.lean`, and `Derived/ZeroDensityExamples.lean`.
 
 8. **Large value estimates** — Define `LargeValueEstimate` following `large_values.py` and axiomatize the transforms that connect these to other exponents.
 

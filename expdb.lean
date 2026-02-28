@@ -6,6 +6,7 @@ Authors: ANTEDB Contributors
 
 -- Basic definitions
 import expdb.Basic.ExponentPair
+import expdb.Basic.ZeroDensityEstimate
 
 -- Literature results (axiomatized)
 import expdb.Literature.Classical
@@ -18,12 +19,14 @@ import expdb.Literature.TrudgianYang
 -- Transforms
 import expdb.Transforms.VanDerCorputA
 import expdb.Transforms.VanDerCorputB
+import expdb.Transforms.ExponentPairToZeroDensity
 
 -- Tactics
 import expdb.Tactics.Chain
 
 -- Derived results
 import expdb.Derived.Examples
+import expdb.Derived.ZeroDensityExamples
 
 -- Original example file
 import expdb.Example
