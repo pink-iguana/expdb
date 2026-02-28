@@ -94,6 +94,7 @@ elab_rules : tactic
     evalTactic (← `(tactic| have $h₀ := $start))
     -- Step 2: Apply intermediate transforms using axioms directly.
     -- Each step builds on the previous, with Lean inferring k and l from the hypothesis type.
+    -- Loop covers steps[0] through steps[n-2]; the final step[n-1] is handled in Step 3.
     let mut prev := h₀
     for i in [:steps.length - 1] do
       let next := mkIdent (Name.mkSimple s!"_by_chain_{i + 1}")
