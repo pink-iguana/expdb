@@ -10,6 +10,10 @@ import expdb.Basic.ExponentPair
 -- Literature results (axiomatized)
 import expdb.Literature.Classical
 import expdb.Literature.Bourgain
+import expdb.Literature.HeathBrown
+import expdb.Literature.Huxley
+import expdb.Literature.RobertSargos
+import expdb.Literature.TrudgianYang
 
 -- Transforms
 import expdb.Transforms.VanDerCorputA
