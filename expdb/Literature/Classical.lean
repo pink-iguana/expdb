@@ -73,13 +73,16 @@ represents a fundamental improvement over Weyl's estimate in many applications.
 axiom classical_vdc_pair : IsExponentPair (1/6) (2/3)
 
 /-!
-## Future Additions
+## Related Literature Files
 
-As the formalization progresses, additional classical pairs will be added:
-* (1/5, 37/50) - Heath-Brown (1979)
-* (53/342, 55/114) - Huxley (1996)
-* (13/84, 55/84) - Bourgain (2017)
+Many additional exponent pairs from the literature have been formalized in separate files:
+* `Bourgain.lean` - Bourgain (2017) pair (13/84, 55/84)
+* `HeathBrown.lean` - Heath-Brown (2017) parametric family pairs
+* `Huxley.lean` - Huxley school pairs (1988-2005)
+* `RobertSargos.lean` - Robert-Sargos k-th derivative test pairs
+* `TrudgianYang.lean` - Trudgian-Yang (2025) pairs
 
-These will be added to separate files (`HeathBrown.lean`, `Huxley.lean`, `Bourgain.lean`)
-to maintain organization and make references clear.
+Future additions may include:
+* (1/5, 37/50) - Heath-Brown (1979), a separate result from the 2017 parametric family
+* (53/342, 55/114) - Huxley (1996), not yet axiomatized
 -/

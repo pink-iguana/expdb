@@ -14,4 +14,7 @@ print("All Polytope test cases passed.")
 import test_region
 print("All Region test cases passed.")
 
+import test_lean_bridge
+print("All Lean bridge test cases passed.")
+
 print("All test cases passed.")
