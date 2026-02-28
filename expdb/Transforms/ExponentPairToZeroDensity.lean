@@ -47,12 +47,12 @@ Given an exponent pair (k, l), this gives the zero density bound
 for σ in an appropriate range depending on the exponent pair.
 
 The formula for general m is A(σ) ≤ 3m/((3m-2)σ + (2-m)).
-For m = 2: A(σ) ≤ 6/(4σ + 0) = 3/(2σ).
+For m = 2: A(σ) ≤ 6/(4σ) = 3/(2σ).
 
 The lower bound on σ is given by:
   σ₀ = (12 + 18k + 22l) / (16 + 22k + 26l)
 
-For the classical pair (1/6, 2/3): σ₀ = (12 + 3 + 44/3) / (16 + 11/3 + 52/3) ≈ 0.80
+For the classical pair (1/6, 2/3): σ₀ = (89/3) / (111/3) = 89/111 ≈ 0.80
 
 **Reference**: Ivić (1980), "Exponent pairs and the zeta function of Riemann",
 Studia Sci. Math. Hung. 15, pages 157--181

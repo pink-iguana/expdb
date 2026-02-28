@@ -133,15 +133,12 @@ theorem ivic_from_weyl_at_9_10 : IsZeroDensityBound (5/3) (9/10) :=
   weyl_pair.toZeroDensityIvic (by norm_num) (by norm_num) (by norm_num) (by norm_num)
 
 /--
-Full derivation chain: trivial pair → A-process → Ivić zero density.
+Ivić's transform applied directly to the trivial pair (0, 1) at σ = 6/7.
 
-Starting from the trivial pair (0, 1) and applying A to get (0, 1)
-(since A(0,1) = (0,1) is a fixed point), then applying Ivić's transform.
-
-Chain: (0, 1) →A→ (0, 1) → Ivić(m=2) → A(σ) ≤ 3/(2σ)
+Chain: Trivial EP (0, 1) → via Ivić (m=2) → A(6/7) ≤ 3/(2·6/7) = 7/4
 
 Lower bound for (0, 1): (12 + 0 + 22) / (16 + 0 + 26) = 34/42 = 17/21 ≈ 0.810
-At σ = 6/7 ≈ 0.857: A(6/7) ≤ 3/(12/7) = 7/4.
+Since σ = 6/7 ≈ 0.857 > 17/21 ≈ 0.810, the bound is valid.
 -/
 theorem ivic_from_trivial_at_6_7 : IsZeroDensityBound (7/4) (6/7) :=
   trivial_pair.toZeroDensityIvic (by norm_num) (by norm_num) (by norm_num) (by norm_num)
