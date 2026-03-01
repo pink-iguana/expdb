@@ -150,19 +150,19 @@ These examples verify that specific literature bounds satisfy the domain constra
 
 /-- The L² bound at σ = 3/4, τ = 1 gives ρ = 1/2 -/
 example : LargeValueEstimate (3/4) 1 (1/2) :=
-  large_value_L2_branch1 (3/4) 1 (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
 
 /-- The L² bound at σ = 1/2, τ = 0 gives ρ = 1 -/
 example : LargeValueEstimate (1/2) 0 1 :=
-  large_value_L2_branch1 (1/2) 0 (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
 
 /-- Huxley's bound at σ = 3/4, τ = 2 gives ρ = 4 − 6·(3/4) + 2 = 3/2 -/
 example : LargeValueEstimate (3/4) 2 (3/2) :=
-  large_value_huxley (3/4) 2 (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
 
 /-- The L² second branch at σ = 1/2, τ = 1 gives ρ = 1 -/
 example : LargeValueEstimate (1/2) 1 1 :=
-  large_value_L2_branch2 (1/2) 1 (by norm_num) (by norm_num) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
 
 /-!
 ## Future Additions

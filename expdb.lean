@@ -60,35 +60,32 @@ The formalization is organized into several modules:
 
 ### Basic Definitions (`expdb.Basic`)
 - `ExponentPair` - Core definition of exponent pairs
-- `BetaFunction` - Beta bounds for exponential sums
-- `ZeroDensity` - Zero density estimates
-- `Moments` - Zeta function moment bounds
-- `LargeValues` - Large value estimates
+- `ZeroDensityEstimate` - Zero density estimates
+- `LargeValueEstimate` - Large value estimates
 
 ### Literature Results (`expdb.Literature`)
 - `Classical` - Classical exponent pairs (Weyl, van der Corput)
+- `Bourgain` - Bourgain's exponent pairs
 - `HeathBrown` - Heath-Brown's results
 - `Huxley` - Huxley's results
-- `Bourgain` - Bourgain's exponent pairs
-- `References` - Central registry of all axiomatized results
+- `RobertSargos` - Robert and Sargos k-th derivative pairs
+- `TrudgianYang` - Trudgian-Yang (2025) pairs
+- `ZeroDensityClassical` - Classical zero density estimates
+- `LargeValues` - Large value estimate axioms
 
 ### Transforms (`expdb.Transforms`)
 - `VanDerCorputA` - A-process transformation
 - `VanDerCorputB` - B-process transformation
-- `SargosC` - C-process (exponent pair → mu bound)
-- `SargosD` - D-process (exponent pair → beta bound)
-- `Convexity` - Convex combinations of pairs
-- `Duality` - Exponent pair ↔ beta function duality
+- `ExponentPairToZeroDensity` - EP → ZD transforms (Ivić, Bourgain)
+- `LargeValueRaisePower` - Raise-to-power transform for LV estimates
+
+### Tactics (`expdb.Tactics`)
+- `Chain` - `by_chain` tactic for automated A/B derivations
 
 ### Derived Results (`expdb.Derived`)
-- `ExponentPairs` - Formally proven derived pairs
-- `BetaBounds` - Derived beta bounds
-- `Examples` - Showcase proofs and derivation chains
-
-### Computational Verification (`expdb.Computation`)
-- `RationalArithmetic` - Exact rational operations
-- `Polytope` - Convex polytope algorithms
-- `ConvexHull` - Convex hull membership verification
+- `Examples` - Derived exponent pair proofs
+- `ZeroDensityExamples` - Derived zero density estimates
+- `LargeValueExamples` - Derived large value estimates
 
 ## Getting Started
 

@@ -98,7 +98,7 @@ elab_rules : tactic
     let mut prev := h₀
     for i in [:steps.length - 1] do
       let next := mkIdent (Name.mkSimple s!"_by_chain_{i + 1}")
-      match steps.get! i with
+      match steps[i]! with
       | 'A' =>
         evalTactic (← `(tactic| have $next := vanDerCorputA _ _ $prev))
       | 'B' =>

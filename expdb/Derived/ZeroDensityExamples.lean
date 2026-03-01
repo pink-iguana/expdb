@@ -48,7 +48,7 @@ Carlson's bound at σ = 3/4: A(3/4) ≤ 4 · 3/4 = 3.
 This is a direct instantiation of Carlson's 1921 zero density theorem.
 -/
 theorem carlson_at_3_4 : IsZeroDensityBound 3 (3/4) :=
-  carlson_zero_density (3/4) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num⟩
 
 /--
 Carlson's bound at σ = 1/2: A(1/2) ≤ 4 · 1/2 = 2.
@@ -56,7 +56,7 @@ Carlson's bound at σ = 1/2: A(1/2) ≤ 4 · 1/2 = 2.
 At the critical line, Carlson's bound gives A = 2, matching the density hypothesis.
 -/
 theorem carlson_at_1_2 : IsZeroDensityBound 2 (1/2) :=
-  carlson_zero_density (1/2) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num⟩
 
 /--
 Ingham's bound at σ = 3/4: A(3/4) ≤ 3/(2-3/4) = 3/(5/4) = 12/5.
@@ -64,7 +64,7 @@ Ingham's bound at σ = 3/4: A(3/4) ≤ 3/(2-3/4) = 3/(5/4) = 12/5.
 This improves on Carlson's A = 3 at σ = 3/4.
 -/
 theorem ingham_at_3_4 : IsZeroDensityBound (12/5) (3/4) :=
-  ingham_zero_density (3/4) (by norm_num) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num⟩
 
 /--
 Ingham's bound at σ = 1/2: A(1/2) ≤ 3/(2-1/2) = 3/(3/2) = 2.
@@ -72,13 +72,13 @@ Ingham's bound at σ = 1/2: A(1/2) ≤ 3/(2-1/2) = 3/(3/2) = 2.
 At the critical line, Ingham's bound also gives A = 2.
 -/
 theorem ingham_at_1_2 : IsZeroDensityBound 2 (1/2) :=
-  ingham_zero_density (1/2) (by norm_num) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num⟩
 
 /--
 Heath-Brown's bound at σ = 15/16: A(15/16) ≤ 4/(4·15/16-1) = 4/(60/16-1) = 4/(44/16) = 16/11.
 -/
 theorem heathbrown_at_15_16 : IsZeroDensityBound (16/11) (15/16) :=
-  heathbrown_zero_density (15/16) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num⟩
 
 /--
 Bourgain's density hypothesis for σ = 7/8: A(7/8) ≤ 2.
@@ -95,13 +95,13 @@ While not as strong as Ingham or Carlson at σ = 1/2, the Guth-Maynard bound
 is stronger for σ closer to 1.
 -/
 theorem guth_maynard_at_1_2 : IsZeroDensityBound (30/11) (1/2) :=
-  guth_maynard_zero_density (1/2) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num⟩
 
 /--
 Guth-Maynard bound at σ = 3/4: A(3/4) ≤ 15/(3+15/4) = 15/(27/4) = 60/27 = 20/9.
 -/
 theorem guth_maynard_at_3_4 : IsZeroDensityBound (20/9) (3/4) :=
-  guth_maynard_zero_density (3/4) (by norm_num) (by norm_num)
+  ⟨by norm_num, by norm_num, by norm_num⟩
 
 /-!
 ## Exponent Pair to Zero Density Chains

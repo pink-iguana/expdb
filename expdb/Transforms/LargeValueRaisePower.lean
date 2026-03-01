@@ -80,7 +80,7 @@ This is a sanity check: scaling by 1 should give back the same estimate.
 -/
 example {σ τ ρ : ℚ} (h : LargeValueEstimate σ τ ρ) :
     LargeValueEstimate σ τ ρ :=
-  h.ofRaisePower (by norm_num : (0:ℚ) < 1) (by ring) (by ring)
+  h.ofRaisePower (by norm_num : (0:ℚ) < 1) (by norm_num) (by norm_num)
 
 /--
 Raising to the power k = 2 doubles both τ and ρ.

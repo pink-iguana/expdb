@@ -131,7 +131,7 @@ Since σ = 5/6 ≈ 0.833 > 89/111 ≈ 0.802, the bound is valid.
 example (h : IsExponentPair (1/6) (2/3)) : IsZeroDensityBound (9/5) (5/6) :=
   h.toZeroDensityIvic (by norm_num) (by norm_num) (by norm_num) (by norm_num)
 
-/--
+/-
 Note on Bourgain's EP→ZD transform:
 
 The Bourgain pair (13/84, 55/84) satisfies k ≤ 1/5 and l ≥ 3/5, but does NOT

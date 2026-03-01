@@ -364,7 +364,7 @@ theorem LargeValueEstimate.ofRaisePower {σ τ ρ k τ' ρ' : ℚ}
 
 ### Axiom Inventory
 
-The formalization uses **25 literature axioms** and **2 transform axioms** (and nothing else — no `sorry` anywhere):
+The formalization uses **36 literature axioms** and **5 transform axioms** (and nothing else — no `sorry` anywhere):
 
 **Transform axioms:**
 
