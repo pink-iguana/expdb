@@ -68,7 +68,7 @@ syntax "by_chain" str term : tactic
 elab_rules : tactic
   | `(tactic| by_chain $chain:str $start:term) => do
     let chainStr := chain.getString
-    let chars := chainStr.data
+    let chars := chainStr.toList
     -- Validate the chain string
     if chars.isEmpty then
       throwError "by_chain: chain string cannot be empty"

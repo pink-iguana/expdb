@@ -49,7 +49,9 @@ The bound is independent of τ.
 -/
 theorem large_value_at_3_4_branch1 (τ : ℚ) (hτ : 0 ≤ τ) :
     LargeValueEstimate (3/4) τ (1/2) :=
-  ⟨by norm_num, by norm_num, hτ, by norm_num⟩
+  by
+    convert large_value_L2_branch1 (3/4) τ (by norm_num) (by norm_num) hτ (by norm_num) using 1;
+      norm_num
 
 /--
 The L² second branch at σ = 3/4, τ = 1: ρ ≤ 1 − 2·(3/4) + 1 = 1/2.
@@ -58,21 +60,29 @@ At this point, both branches of the L² estimate give the same value.
 -/
 theorem large_value_at_3_4_L2_branch2 :
     LargeValueEstimate (3/4) 1 (1/2) :=
-  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
+  by
+    convert
+      large_value_L2_branch2 (3/4) 1 (by norm_num) (by norm_num) (by norm_num) (by norm_num) using
+      1; norm_num
 
 /--
 Huxley's bound at σ = 3/4, τ = 2: ρ ≤ 4 − 6·(3/4) + 2 = 3/2.
 -/
 theorem large_value_huxley_at_3_4_tau_2 :
     LargeValueEstimate (3/4) 2 (3/2) :=
-  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
+  by
+    convert large_value_huxley (3/4) 2 (by norm_num) (by norm_num) (by norm_num) (by norm_num) using
+      1; norm_num
 
 /--
 Heath-Brown's bound at σ = 5/6, τ = 1: ρ ≤ 10 − 13·(5/6) + 1 = 1/6.
 -/
 theorem large_value_heath_brown_at_5_6 :
     LargeValueEstimate (5/6) 1 (1/6) :=
-  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
+  by
+    convert
+      large_value_heath_brown (5/6) 1 (by norm_num) (by norm_num) (by norm_num) (by norm_num) using
+      1; norm_num
 
 /-!
 ## Raise-to-Power Derivations
@@ -103,7 +113,7 @@ is applied to an existing large value estimate.
 theorem large_value_L2_raised_k3_example :
     LargeValueEstimate (3/4) 3 (3/2) := by
   have h1 : LargeValueEstimate (3/4) 1 (1/2) :=
-    ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
+    large_value_at_3_4_L2_branch2
   exact h1.ofRaisePower (by norm_num : (0:ℚ) < 3) (by norm_num) (by norm_num)
 
 /--
@@ -113,7 +123,9 @@ The second branch of the Guth-Maynard estimate, which is independent of τ.
 -/
 theorem large_value_guth_maynard_at_3_4 (τ : ℚ) (hτ : 0 ≤ τ) :
     LargeValueEstimate (3/4) τ (3/5) :=
-  ⟨by norm_num, by norm_num, hτ, by norm_num⟩
+  by
+    convert large_value_guth_maynard_branch2 (3/4) τ (by norm_num) (by norm_num) hτ (by norm_num) using
+      1; norm_num
 
 /--
 Guth-Maynard third branch at σ = 3/4, τ = 1: ρ ≤ 1 + 12/5 − 4·(3/4) = 17/5 − 3 = 2/5.
@@ -122,7 +134,10 @@ For this particular (σ, τ), the third branch gives a better bound than the sec
 -/
 theorem large_value_guth_maynard_branch3_at_3_4 :
     LargeValueEstimate (3/4) 1 (2/5) :=
-  ⟨by norm_num, by norm_num, by norm_num, by norm_num⟩
+  by
+    convert
+      large_value_guth_maynard_branch3 (3/4) 1 (by norm_num) (by norm_num) (by norm_num)
+        (by norm_num) using 1; norm_num
 
 /-!
 ## Future Work

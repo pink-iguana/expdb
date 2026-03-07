@@ -61,9 +61,11 @@ axiom weyl_pair : IsExponentPair (1/2) (1/2)
 /--
 The classical van der Corput exponent pair (1/6, 2/3).
 
-This is derived by applying Weyl differencing (the A-process) to the trivial pair,
-giving (0, 1) → (0, 1/2), and then applying the B-process to get (1/6, 2/3).
-More precisely: BA^2(0,1) = (1/6, 2/3).
+This can be obtained from Weyl's pair by one A-process:
+  A(1/2, 1/2) = (1/6, 2/3).
+Equivalently, starting from the trivial pair one has
+  (0, 1) →B→ (1/2, 1/2) →A→ (1/6, 2/3),
+so AB(0, 1) = (1/6, 2/3).
 
 This pair is optimal for certain exponential sums over smooth functions and
 represents a fundamental improvement over Weyl's estimate in many applications.

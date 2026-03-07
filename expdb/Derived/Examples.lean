@@ -154,8 +154,8 @@ theorem derived_pair_1_18_5_9 : IsExponentPair (1/18) (5/9) := by
 /-!
 ## Systematic Derivations from Trivial Pair
 
-These derivations start from (0, 1) and show the full dependency tree,
-demonstrating that complex exponent pairs can be built from first principles.
+These derivations start from the base axiom `(0, 1)` and show the full
+dependency tree of A/B transforms used by the Python code.
 -/
 
 /--
@@ -206,7 +206,7 @@ theorem derived_pair_2_7_4_7_from_trivial : IsExponentPair (2/7) (4/7) := by
   exact h3.ofB (by norm_num) (by norm_num)
 
 /--
-Extended derivation from trivial: (1/9, 13/18) = ABABAAB(0, 1)
+Extended derivation from trivial: (1/9, 13/18) = ABAAB(0, 1)
 
 Chain: (0,1) →B→ (1/2,1/2) →A→ (1/6,2/3) →A→ (1/14,11/14) →B→ (2/7,4/7)
        →A→ (1/9,13/18)
@@ -302,7 +302,7 @@ literature axioms.
 -/
 
 /--
-Extended chain from trivial: (2/9, 11/18) = BABAAAB(0, 1)
+Extended chain from trivial: (2/9, 11/18) = BABAAB(0, 1)
 
 This extends the previous chain further:
 (0,1) →B→ (1/2,1/2) →A→ (1/6,2/3) →A→ (1/14,11/14) →B→ (2/7,4/7)

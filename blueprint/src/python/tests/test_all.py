@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(__file__))
+
 # Tests will run as part of these imports
 import test_affine2
 print("All Affine2 test cases passed.")

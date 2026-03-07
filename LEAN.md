@@ -14,6 +14,12 @@ lake build         # builds all Lean files (first build downloads Mathlib, ~10-2
 
 The project uses **Lean 4** (v4.25.0-rc2) with **Mathlib** as a dependency. Configuration is in [`lakefile.toml`](lakefile.toml) and [`lean-toolchain`](lean-toolchain).
 
+The current Lean work should be read as a **phase-1 formalization layer**.
+It already gives machine-checked arithmetic for exponent-pair transform chains,
+but the zero-density and large-value predicates currently record admissible
+parameter ranges plus provenance through named axioms/transforms rather than the
+full analytic asymptotic statements themselves.
+
 ## What Has Been Formalized
 
 ### Directory Structure
@@ -230,14 +236,19 @@ theorem derived_pair_2_7_4_7_from_trivial : IsExponentPair (2/7) (4/7) := by
 
 #### Core Definitions (`Basic/ZeroDensityEstimate.lean`)
 
-The `IsZeroDensityBound` predicate encodes zero density estimates for the Riemann zeta function:
+The `IsZeroDensityBound` predicate currently records the admissible parameter
+range for a named zero density bound:
 
 ```lean
 def IsZeroDensityBound (A σ : ℚ) : Prop :=
   0 ≤ A ∧ 1/2 ≤ σ ∧ σ ≤ 1
 ```
 
-This asserts that `A` is a valid bound on the zero density exponent at `σ`, meaning N(σ, T) ≤ T^{A(1-σ) + o(1)}. There is also a `ZeroDensityEstimate` structure bundling the values with proofs.
+At the moment this only checks that `A` is nonnegative and `σ` lies in the
+critical strip. The analytic statement
+`N(σ, T) ≤ T^{A(1-σ) + o(1)}` is tracked by the surrounding axiom/theorem name
+and documentation, not by the predicate definition itself. There is also a
+`ZeroDensityEstimate` structure bundling the values with proofs.
 
 Key results:
 
@@ -281,7 +292,8 @@ theorem IsExponentPair.toZeroDensityBourgain ...
 
 #### Derived Zero Density Examples (`Derived/ZeroDensityExamples.lean`)
 
-Derived zero density bounds include direct instantiations and derivation chains:
+Derived zero density bounds include direct instantiations of the corresponding
+literature axioms and derivation chains through exponent-pair transforms:
 
 **Direct instantiations:**
 
@@ -316,12 +328,17 @@ theorem zd_chain_trivial_BA_ivic : IsZeroDensityBound (9/5) (5/6) := by
 
 #### Core Definitions (`Basic/LargeValueEstimate.lean`)
 
-The `LargeValueEstimate` predicate encodes bounds on how frequently a Dirichlet polynomial can be large:
+The `LargeValueEstimate` predicate currently records the admissible parameter
+range for a named large value estimate:
 
 ```lean
 def LargeValueEstimate (σ τ ρ : ℚ) : Prop :=
   1/2 ≤ σ ∧ σ ≤ 1 ∧ 0 ≤ τ ∧ 0 ≤ ρ
 ```
+
+At the moment this checks only that `σ` lies in `[1/2, 1]` and that `τ, ρ` are
+nonnegative. Which large value bound a triple is meant to represent is tracked
+by the axiom/theorem that produced it, not by the predicate definition alone.
 
 Key results in this file:
 
@@ -505,6 +522,7 @@ Following the paper's guidance, the formalization deliberately does **not** atte
 2. **Asymptotic analysis** (Big-O, little-o, limits as T → ∞) — we work with exponents directly, not the underlying estimates
 3. **Optimization algorithms** (LP solvers, convex hull computation) — kept in Python; Lean verifies individual results
 4. **Original literature proofs** (Weyl, Huxley, Bourgain etc.) — axiomatized, mirroring `literature.py`
+5. **Full analytic semantics for the current zero-density and large-value predicates** — those predicates presently track admissible parameter triples plus provenance, not the asymptotic estimates themselves
 
 ## Next Steps
 

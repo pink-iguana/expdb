@@ -44,15 +44,17 @@ This is the main entry point for the Lean formalization of the ANTEDB project.
 ## Project Overview
 
 The Analytic Number Theory Exponent Database (ANTEDB) systematically records theorems
-about exponents in analytic number theory, including:
+about exponents in analytic number theory. This Lean library currently covers:
 - Exponent pairs for exponential sum bounds
 - Zero-density estimates for the Riemann zeta function
-- Beta and mu functions for various number-theoretic problems
-- Relationships and transformations between these exponents
+- Large value estimates for Dirichlet polynomials
+- Relationships and transformations between these families of exponents
 
-This Lean formalization provides machine-checked proofs of derivations within the
-database, focusing on **conditional calculations** that derive one exponent from
-another through formal transformations.
+At this stage the formalization is best viewed as phase-1 infrastructure:
+it provides machine-checked arithmetic and dependency tracking for
+**conditional calculations** built from axiomatized literature results and
+transforms, rather than a full formalization of the underlying analytic
+estimates.
 
 ## Organization
 
