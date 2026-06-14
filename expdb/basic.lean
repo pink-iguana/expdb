@@ -3,13 +3,15 @@
   ===============================================
 -/
 
-import Mathlib.Analysis.SpecialFunctions.Complex.Circle
-import Mathlib.Topology.Algebra.Order.LiminfLimsup
-import Mathlib.Analysis.Normed.Field.Basic
-import Mathlib.Analysis.Asymptotics.Asymptotics
+import Mathlib.Analysis.Complex.Exponential
+import Mathlib.Analysis.Complex.Trigonometric
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+import Mathlib.Analysis.SpecificLimits.Basic
 import Mathlib.Data.EReal.Basic
-import Mathlib.Order.Filter.Basic
-import Mathlib.Topology.MetricSpace.Sequences
+import Mathlib.Order.CompleteLattice.Basic
+import Mathlib.Order.Filter.AtTopBot.Basic
+import Mathlib.Order.Monotone.Basic
+import Mathlib.Tactic
 
 open Filter Topology Asymptotics Real
 
@@ -21,41 +23,42 @@ open Filter Topology Asymptotics Real
 noncomputable def e (θ : ℝ) : ℂ :=
   Complex.exp (2 * Real.pi * θ * Complex.I)
 
-/-- Base case: e(0) = 1
+/-- Base case: e(0) = 1 -/
 lemma e_zero : e 0 = 1 := by
   simp [e]
 
 /-- Absolute value / Norm: |e(θ)| = 1 for all θ -/
-lemma norm_e (θ : ℝ) : Complex.abs (e θ) = 1 := by
-  have h : (2 * Real.pi * θ * Complex.I).re = 0 := by simp
-  rw [Complex.abs_exp, h, Real.exp_zero]
+lemma norm_e (θ : ℝ) : Norm.norm (e θ) = 1 := by
+  rw [e, Complex.norm_exp]
+  simp
 
 /-- Homomorphism property: e(θ₁ + θ₂) = e(θ₁) * e(θ₂) -/
 lemma e_add (θ₁ θ₂ : ℝ) : e (θ₁ + θ₂) = e θ₁ * e θ₂ := by
-  simp [e, ← Complex.exp_add]
+  rw [e, e, e, ← Complex.exp_add]
+  congr 1
+  push_cast; ring
 
 /-- Periodicity over integers: e(n) = 1 for any n : ℤ -/
 lemma e_int (n : ℤ) : e n = 1 := by
-  simp [e]
-  have h : (2 * Real.pi * (n : ℝ) * Complex.I) = (n : ℂ) * (2 * Real.pi * Complex.I) := by push_cast; ring
-  rw [h, Complex.exp_int_mul_two_pi_mul_I]
+  rw [e, show (2 * Real.pi * (n:ℝ) * Complex.I : ℂ) = (n:ℂ) * (2 * Real.pi * Complex.I) by push_cast; ring]
+  exact Complex.exp_int_mul_two_pi_mul_I n
 -- ===========================================================
--- Empty Supremum / Infimum Conventions 
+-- Empty Supremum / Infimum Conventions
 -- ===========================================================
 
 /-- Convention: empty supremum = -∞ (⊥ in EReal) -/
 lemma blueprintSup_empty_convention :
-    Sup (∅ : Set EReal) = ⊥ :=
-  EReal.sSup_empty
+    sSup (∅ : Set EReal) = ⊥ :=
+  sSup_empty
 
 /-- Convention: empty infimum = +∞ (⊤ in EReal) -/
 lemma blueprintInf_empty_convention :
-    Inf (∅ : Set EReal) = ⊤ :=
-  EReal.sInf_empty
+    sInf (∅ : Set EReal) = ⊤ :=
+  sInf_empty
 
 /-- sup_{σ₀ ≤ σ < σ₁} f(σ) = -∞ when σ₁ < σ₀ -/
 noncomputable def blueprintSup (σ₀ σ₁ : ℝ) (f : ℝ → EReal) : EReal :=
-  Sup (f '' {σ : ℝ | σ₀ ≤ σ ∧ σ < σ₁})
+  sSup (f '' {σ : ℝ | σ₀ ≤ σ ∧ σ < σ₁})
 
 lemma blueprintSup_empty {σ₀ σ₁ : ℝ} (f : ℝ → EReal) (h : σ₁ < σ₀) :
     blueprintSup σ₀ σ₁ f = ⊥ := by
@@ -65,10 +68,9 @@ lemma blueprintSup_empty {σ₀ σ₁ : ℝ} (f : ℝ → EReal) (h : σ₁ < σ
     intro ⟨h1, h2⟩
     linarith
   simp [blueprintSup, h_empty]
-  exact EReal.sSup_empty
 
 -- ===========================================================
--- N^(-∞) = 0 Convention 
+-- N^(-∞) = 0 Convention
 -- ===========================================================
 
 /-- Extended real power: handles N^r for r : EReal.
@@ -78,7 +80,9 @@ noncomputable def blueprintPower (N : ℝ) (r : EReal) : ℝ :=
   if r = ⊥ then 0
   else N ^ r.toReal
 
-/-- Blueprint convention: N^(-∞) = 0 for N > 1 -/
+/-- Blueprint convention: N^(-∞) = 0 for N > 1.
+    The hypothesis `hN : N > 1` is stated to match the blueprint, but it turns
+    out to be unnecessary: `blueprintPower N ⊥ = 0` holds for every `N`. -/
 lemma blueprintPower_bot {N : ℝ} (hN : N > 1) :
     blueprintPower N ⊥ = 0 := by
   simp [blueprintPower]
@@ -89,23 +93,23 @@ lemma blueprintPower_coe {N : ℝ} (r : ℝ) :
   simp [blueprintPower, EReal.coe_ne_bot, EReal.toReal_coe]
 
 -- ===========================================================
--- Indicator Function 
+-- Indicator Function
 -- ===========================================================
 
 /-- 1_I(n) = 1 if n ∈ I, else 0 -/
-def indicatorFunction {α : Type*} [DecidableEq α] (I : Set α) 
+def indicatorFunction {α : Type*} [DecidableEq α] (I : Set α)
     [DecidablePred (· ∈ I)] (n : α) : ℝ :=
   if n ∈ I then 1 else 0
 
 /-- Indicator is 0 or 1 -/
-lemma indicatorFunction_values {α : Type*} [DecidableEq α] 
+lemma indicatorFunction_values {α : Type*} [DecidableEq α]
     (I : Set α) [DecidablePred (· ∈ I)] (n : α) :
     indicatorFunction I n = 0 ∨ indicatorFunction I n = 1 := by
-  simp [indicatorFunction]
+  unfold indicatorFunction
   split_ifs <;> simp
 
 -- ===========================================================
--- Cardinality |W| for Finsets 
+-- Cardinality |W| for Finsets
 -- ===========================================================
 
 /-- We use Finset.card for cardinality, written |W| in the blueprint.
@@ -120,9 +124,9 @@ example (W : Finset ℝ) : W.card = Finset.card W := rfl
 def IsSeparated (W : Finset ℝ) : Prop :=
   ∀ t ∈ W, ∀ t' ∈ W, t ≠ t' → 1 ≤ |t - t'|
 
-/-- λ-Separated Sets: distance between distinct elements is at least λ -/
-def IsLambdaSeparated (λ : ℝ) (W : Finset ℝ) : Prop :=
-  ∀ t ∈ W, ∀ t' ∈ W, t ≠ t' → λ ≤ |t - t'|
+/-- λ-Separated Sets: distance between distinct elements is at least lam -/
+def IsLambdaSeparated (lam : ℝ) (W : Finset ℝ) : Prop :=
+  ∀ t ∈ W, ∀ t' ∈ W, t ≠ t' → lam ≤ |t - t'|
 
 /-- 1-separated is structurally identical to λ-separated with λ = 1 -/
 lemma isSeparated_iff_isLambdaSeparated_one (W : Finset ℝ) :
@@ -135,7 +139,7 @@ lemma isSeparated_iff_isLambdaSeparated_one (W : Finset ℝ) :
 
 /-- 1-Bounded complex sequence: |aₙ| ≤ 1 for all n -/
 def IsOneBounded (a : ℕ → ℂ) : Prop :=
-  ∀ n, Complex.abs (a n) ≤ 1
+  ∀ n, Norm.norm (a n) ≤ 1
 
 /-- The phase sequence e(θₙ) is always 1-bounded -/
 lemma e_is_one_bounded (θ : ℕ → ℝ) : IsOneBounded (fun n => e (θ n)) := by
@@ -143,7 +147,7 @@ lemma e_is_one_bounded (θ : ℕ → ℝ) : IsOneBounded (fun n => e (θ n)) := 
   rw [norm_e]
 
 -- ===========================================================
--- Asymptotic Notation 
+-- Asymptotic Notation
 -- ===========================================================
 
 /-- An infinitesimal sequence: a sequence that converges to 0 -/
@@ -153,7 +157,7 @@ def IsInfinitesimal (X : ℕ → ℝ) : Prop :=
 /-- X ≤ Y + o(1) in a strict sense:
     There exists an infinitesimal sequence ε_i such that x_i ≤ y_i + ε_i eventually. -/
 def EventuallyLeUpToInfinitesimal (X Y : ℕ → ℝ) : Prop :=
-  ∃ ε : ℕ → ℝ, IsInfinitesimal ε ∧ 
+  ∃ ε : ℕ → ℝ, IsInfinitesimal ε ∧
                (∀ᶠ i in atTop, X i ≤ Y i + ε i)
 
 -- Notation shorthand
@@ -172,78 +176,79 @@ private lemma extract_strictMono_subseq {P : ℕ → Prop}
     fun prev => let ⟨i, hi, hP⟩ := h (prev + 1); ⟨i, by omega, hP⟩
   let φ : ℕ → ℕ :=
     fun n => n.rec (h 0).choose (fun _ prev => (step prev).choose)
-  exact ⟨strictMono_nat_of_lt_succ fun n => (step (φ n)).choose_spec.1,
+  exact ⟨φ, strictMono_nat_of_lt_succ fun n => (step (φ n)).choose_spec.1,
          fun n => n.casesOn (h 0).choose_spec.2
                              (fun _ => (step (φ _)).choose_spec.2)⟩
 
 /-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
     with |f(φ n)(x n)| > n.  Used in the proof of Proposition 2.1(i). -/
 private lemma extract_bad_seq_i
-    (E : ℕ → Finset ℝ) (f : ∀ i, (E i : Set ℝ) → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (j : ℝ) < Complex.abs (f i x)) :
+    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (j : ℝ) < Norm.norm (f i x)) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, (n : ℝ) < Complex.abs (f (φ n) (x n)) := by
-  have step : ∀ n prev, ∃ i > prev, ∃ x : (E i : Set ℝ), (n : ℝ) < Complex.abs (f i x) :=
+    ∃ x : ∀ n, ↥(E (φ n) : Set ℝ), ∀ n : ℕ, (n : ℝ) < Norm.norm (f (φ n) (x n)) := by
+  have step : ∀ (n : ℕ) prev, ∃ i > prev, ∃ x : ↥(E i : Set ℝ), (n : ℝ) < Norm.norm (f i x) :=
     fun n prev => by
       obtain ⟨i, hi, x, hx⟩ := bad (max (prev + 1) n)
-      exact ⟨i, by linarith [le_max_left (prev+1) n, hi],
-             x, by exact_mod_cast lt_of_le_of_lt (le_max_right _ _) hx⟩
-  let data : ℕ → Σ i, (E i : Set ℝ) :=
+      exact ⟨i, by have := le_max_left (prev+1) n; omega,
+             x, lt_of_le_of_lt (by exact_mod_cast le_max_right (prev+1) n) hx⟩
+  let data : ℕ → Σ i, ↥(E i : Set ℝ) :=
     fun n => n.rec ⟨(step 0 0).choose, (step 0 0).choose_spec.2.choose⟩
       fun n p => ⟨(step (n+1) p.1).choose, (step (n+1) p.1).choose_spec.2.choose⟩
-  exact ⟨strictMono_nat_of_lt_succ fun n => (step (n+1) (data n).1).choose_spec.1,
+  exact ⟨fun n => (data n).1, strictMono_nat_of_lt_succ fun n => (step (n+1) (data n).1).choose_spec.1,
          fun n => (data n).2,
          fun n => n.casesOn (step 0 0).choose_spec.2.choose_spec
                              (fun _ => (step _ _).choose_spec.2.choose_spec)⟩
 
 /-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
-    with |f(φ n)(x n)| ≥ 1/(n+1).  Used in the proof of Proposition 2.1(ii). -/
-private lemma extract_bad_seq_ii
-    (E : ℕ → Finset ℝ) (f : ∀ i, (E i : Set ℝ) → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (1:ℝ)/(j+1) ≤ Complex.abs (f i x)) :
+    all of whose values have norm at least a fixed constant `c`.
+    Used in the proof of Proposition 2.1(ii). -/
+private lemma extract_bad_seq_const
+    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ) (c : ℝ)
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), c ≤ Norm.norm (f i x)) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, (1:ℝ)/(n+1) ≤ Complex.abs (f (φ n) (x n)) := by
-  have step : ∀ n prev, ∃ i > prev, ∃ x : (E i : Set ℝ), (1:ℝ)/(n+1) ≤ Complex.abs (f i x) :=
-    fun n prev => by
-      obtain ⟨i, hi, x, hx⟩ := bad (max (prev+1) n)
-      refine ⟨i, by linarith [le_max_left (prev+1) n, hi], x, ?_⟩
-      calc (1:ℝ)/(n+1) ≤ 1/(max (prev+1) n + 1) := by
-              gcongr; exact_mod_cast Nat.succ_le_succ (le_max_right _ _)
-           _ ≤ Complex.abs (f i x) := hx
-  let data : ℕ → Σ i, (E i : Set ℝ) :=
-    fun n => n.rec ⟨(step 0 0).choose, (step 0 0).choose_spec.2.choose⟩
-      fun n p => ⟨(step (n+1) p.1).choose, (step (n+1) p.1).choose_spec.2.choose⟩
-  exact ⟨strictMono_nat_of_lt_succ fun n => (step (n+1) (data n).1).choose_spec.1,
+    ∃ x : ∀ n, ↥(E (φ n) : Set ℝ), ∀ n : ℕ, c ≤ Norm.norm (f (φ n) (x n)) := by
+  have step : ∀ prev, ∃ i > prev, ∃ x : ↥(E i : Set ℝ), c ≤ Norm.norm (f i x) :=
+    fun prev => by
+      obtain ⟨i, hi, x, hx⟩ := bad (prev + 1)
+      exact ⟨i, by omega, x, hx⟩
+  let data : ℕ → Σ i, ↥(E i : Set ℝ) :=
+    fun n => n.rec ⟨(step 0).choose, (step 0).choose_spec.2.choose⟩
+      fun _ p => ⟨(step p.1).choose, (step p.1).choose_spec.2.choose⟩
+  exact ⟨fun n => (data n).1, strictMono_nat_of_lt_succ fun n => (step (data n).1).choose_spec.1,
          fun n => (data n).2,
-         fun n => n.casesOn (step 0 0).choose_spec.2.choose_spec
-                             (fun _ => (step _ _).choose_spec.2.choose_spec)⟩
+         fun n => n.casesOn (step 0).choose_spec.2.choose_spec
+                             (fun _ => (step _).choose_spec.2.choose_spec)⟩
 
 /-- Build a strictly increasing threshold sequence φ such that
     |f(φ n)(x)| ≤ 1/(n+1) for all x ∈ E(φ n). -/
 private lemma build_increasing_thresholds
-    (E : ℕ → Finset ℝ) (f : ∀ i, (E i : Set ℝ) → ℂ)
-    (scale : ∀ n, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : (E i : Set ℝ),
-             Complex.abs (f i x) ≤ 1/n) :
+    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
+    (scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : ↥(E i : Set ℝ),
+             Norm.norm (f i x) ≤ 1/(n:ℝ)) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∀ n, ∀ x : (E (φ n) : Set ℝ), Complex.abs (f (φ n) x) ≤ 1/(n+1) := by
+    ∀ n, ∀ x : ↥(E (φ n) : Set ℝ), Norm.norm (f (φ n) x) ≤ 1/((n:ℝ)+1) := by
   choose i_seq hi_seq using fun n => scale (n+1) (Nat.succ_pos n)
   let φ : ℕ → ℕ :=
     fun n => n.rec (i_seq 0) (fun k p => max (i_seq (k+1)) (p+1))
-  refine ⟨strictMono_nat_of_lt_succ fun n =>
+  refine ⟨φ, strictMono_nat_of_lt_succ fun n =>
            Nat.lt_of_lt_of_le (Nat.lt_succ_self _) (le_max_right _ _),
-         fun n x => hi_seq n (φ n) ?_ x⟩
-  cases n with
-  | zero => exact le_refl _
-  | succ n => exact le_max_left _ _
+         fun n x => ?_⟩
+  have hge : φ n ≥ i_seq n := by
+    cases n with
+    | zero => exact le_refl _
+    | succ n => exact le_max_left _ _
+  have hb := hi_seq n (φ n) hge x
+  rwa [Nat.cast_add, Nat.cast_one] at hb
 
 -- ===========================================================
--- Underspill Principle 
+-- Underspill Principle
 -- ===========================================================
 
 /-- Underspill Principle:
     X ≤ Y + o(1)  ↔  For every constant ε > 0, X ≤ Y + ε + o(1) -/
 theorem underspill (X Y : ℕ → ℝ) :
-    (X ≤o Y) ↔ 
+    (X ≤o Y) ↔
     (∀ ε : ℝ, ε > 0 → X ≤o (fun i => Y i + ε)) := by
   constructor
 
@@ -272,15 +277,15 @@ theorem underspill (X Y : ℕ → ℝ) :
     --   Therefore: x_i ≤ y_i + c
     -- This implies: x_i - y_i ≤ c for all c > 0
     -- We build the sequence explicitly.
-    
+
     -- For each n : ℕ, use ε = 1/(n+1)
     -- From the hypothesis, we obtain d^n_i such that x_i ≤ y_i + 1/(n+1) + d^n_i
     -- We define ε_i = inf_{n} (1/(n+1) + d^n_i)
     -- However, this is complex, so we use a more direct approach:
-    
+
     -- We define z_i = max(x_i - y_i, 0)
     -- and prove that z_i → 0
-    
+
     -- First, we prove: ∀ c > 0, ∀ᶠ i, x_i - y_i < c
     have key : ∀ c : ℝ, c > 0 → ∀ᶠ i in atTop, X i - Y i < c := by
       intro c hc
@@ -288,56 +293,35 @@ theorem underspill (X Y : ℕ → ℝ) :
       have hc2 : c / 2 > 0 := by linarith
       obtain ⟨dseq, hdseq_inf, hdseq_bound⟩ := h (c / 2) hc2
       -- dseq → 0, so ∀ᶠ i, |dseq i| < c/2
-      rw [Metric.tendsto_atTop] at hdseq_inf
-      have hdseq_small := hdseq_inf (c / 2) hc2
-      -- For sufficiently large i: x_i ≤ y_i + c/2 + dseq_i and |dseq_i| < c/2
+      have hdseq_small : ∀ᶠ i in atTop, dist (dseq i) 0 < c / 2 :=
+        Metric.tendsto_nhds.1 hdseq_inf (c / 2) hc2
       filter_upwards [hdseq_bound, hdseq_small] with i hi_bound hi_small
-      -- hi_bound : x_i ≤ y_i + c/2 + dseq_i
-      -- hi_small : dist (dseq i) 0 < c/2, i.e., |dseq_i| < c/2
-      rw [Real.dist_eq] at hi_small
-      simp at hi_small
-      -- dseq_i < c/2 follows from |dseq_i| < c/2
-      have hdseq_lt : dseq i < c / 2 := by
-        exact lt_of_abs_lt hi_small
+      rw [Real.dist_eq, sub_zero] at hi_small
+      have hdseq_lt : dseq i < c / 2 := lt_of_abs_lt hi_small
       linarith
-    
+
     -- Now we construct the infinitesimal sequence
     -- We use the sequence z_i = max(x_i - y_i, 0)
     -- and prove that it converges to 0
-    
+
     -- Alternatively, more simply: we use x_i - y_i directly
     -- and prove that (x_i - y_i)⁺ → 0, then conclude
-    
+
     -- For simplicity, we show the existence of ε_i = max(x_i - y_i, 1/i) approximately
     -- But the simplest proof uses the squeeze theorem
-    
+
     -- We define ε_i explicitly via: for any i, take 1/(i+1) as an approximation
     -- If x_i ≤ y_i + 1/(i+1) + d_i where d_i → 0
-    
+
     -- Direct proof: we show x_i - y_i → 0 by definition
     use fun i => max (X i - Y i) 0
     constructor
     · -- We prove that max(x_i - y_i, 0) → 0
-      rw [Metric.tendsto_atTop]
+      rw [IsInfinitesimal, Metric.tendsto_nhds]
       intro δ hδ
-      -- From key with c = δ
-      have h_ev := key δ hδ
-      -- We also need x_i - y_i > -δ, but this is not guaranteed
-      -- In fact, max(z, 0) ≤ |z|, so it suffices that |x_i - y_i| < δ
-      -- But key only provides x_i - y_i < δ
-      -- We use key with c = δ
-      filter_upwards [h_ev] with i hi
-      -- hi : x_i - y_i < δ
-      rw [Real.dist_eq]
-      simp
-      constructor
-      · -- max(x_i - y_i, 0) < δ
-        constructor
-        · linarith
-        · linarith
-      · -- -δ < max(x_i - y_i, 0)
-        have : max (X i - Y i) 0 ≥ 0 := le_max_right _ _
-        linarith
+      filter_upwards [key δ hδ] with i hi
+      rw [Real.dist_eq, sub_zero, abs_of_nonneg (le_max_right _ _)]
+      exact max_lt (by linarith) hδ
     · -- We prove x_i ≤ y_i + max(x_i - y_i, 0)
       apply Filter.Eventually.of_forall
       intro i
@@ -377,57 +361,67 @@ notation X " ≍ " Y => IsAsymptoticallyEquiv X Y
 /-- f is pointwise O(1): for every variable sequence (x_i) ∈ E_i,
     the values (f_i(x_i)) are eventually bounded. -/
 def IsPointwiseBounded (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
-  ∀ x : ∀ i, E i, ∃ C : ℝ, ∀ᶠ i in atTop, Complex.abs (f i (x i)) ≤ C
+  ∀ x : ∀ i, E i, ∃ C : ℝ, ∀ᶠ i in atTop, Norm.norm (f i (x i)) ≤ C
 
 /-- f is pointwise o(1): for every variable sequence (x_i) ∈ E_i,
     the values (f_i(x_i)) tend to 0. -/
 def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
-  ∀ x : ∀ i, E i, IsInfinitesimal (fun i => Complex.abs (f i (x i)))
+  ∀ x : ∀ i, E i, IsInfinitesimal (fun i => Norm.norm (f i (x i)))
 
 -- ============================================================
--- Proposition 2.1 — Automatic uniformity   
+-- Proposition 2.1 — Automatic uniformity
 -- ============================================================
 
 -- Helper: rewrite |f(φ m)(y(φ m))| as |f(φ m)(x_bad m)| avoiding cast issues.
+open Classical in
 private lemma abs_y_eq_abs_x_bad
-    {E : ℕ → Finset ℝ} {f : ∀ i, (E i : Set ℝ) → ℂ}
+    {E : ℕ → Finset ℝ} {f : ∀ i, ↥(E i : Set ℝ) → ℂ}
     {φ : ℕ → ℕ} (hφ : StrictMono φ)
-    {x_bad : ∀ n, (E (φ n) : Set ℝ)}
-    {default_elem : ∀ i, (E i : Set ℝ)}
+    {x_bad : ∀ n, ↥(E (φ n) : Set ℝ)}
+    {default_elem : ∀ i, ↥(E i : Set ℝ)}
     (m : ℕ) :
-    let y : ∀ j, (E j : Set ℝ) := fun j =>
+    let y : ∀ j, ↥(E j : Set ℝ) := fun j =>
       if h : ∃ n, φ n = j then
         (show (E (φ h.choose) : Set ℝ) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
       else default_elem j
-    Complex.abs (f (φ m) (y (φ m))) = Complex.abs (f (φ m) (x_bad m)) := by
-  simp only []
-  split_ifs with h
-  · generalize_proofs hp
-    have : h.choose = m := hφ.injective hp
-    rw [this]
-  · exact absurd ⟨m, rfl⟩ h
+    Norm.norm (f (φ m) (y (φ m))) = Norm.norm (f (φ m) (x_bad m)) := by
+  intro y
+  show Norm.norm (f (φ m) (y (φ m))) = _
+  have hh : ∃ n, φ n = φ m := ⟨m, rfl⟩
+  have hy : y (φ m) = x_bad m := by
+    show (if h : ∃ n, φ n = φ m then
+        (show (E (φ h.choose) : Set ℝ) = E (φ m) by rw [h.choose_spec]) ▸ x_bad h.choose
+      else default_elem (φ m)) = x_bad m
+    rw [dif_pos hh]
+    have hcm : hh.choose = m := hφ.injective hh.choose_spec
+    apply eq_of_heq
+    refine HEq.trans (eqRec_heq _ _) ?_
+    rw [hcm]
+  rw [hy]
 
 /-- **Proposition 2.1(i) — Automatic uniform bound.**
     If f(x) = O(1) for every variable x ∈ E, then after passing to a
     subsequence there exists a *fixed* C with |f(x)| ≤ C for all x ∈ E. -/
 theorem automatic_uniformity_i
     (E : ℕ → Finset ℝ) (hE : ∀ i, (E i).Nonempty)
-    (f : ∀ i, (E i : Set ℝ) → ℂ)
+    (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
     (hf : IsPointwiseBounded (fun i => (E i : Set ℝ)) f) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : (E (φ i) : Set ℝ),
-    Complex.abs (f (φ i) x) ≤ C := by
+    ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : ↥(E (φ i) : Set ℝ),
+    Norm.norm (f (φ i) x) ≤ C := by
   by_contra h_fail
   push_neg at h_fail
   -- Build a bad sequence: for each j find i ≥ j and x with |f i x| > j
-  have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (j:ℝ) < Complex.abs (f i x) := fun j => by
-    obtain ⟨i, hi, x, hx⟩ := (h_fail id strictMono_id j).exists; exact ⟨i, hi, x, hx⟩
+  have bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (j:ℝ) < Norm.norm (f i x) := fun j => by
+    obtain ⟨i, ⟨x, hx⟩, hi⟩ :=
+      ((h_fail id strictMono_id j).and_eventually (eventually_ge_atTop j)).exists
+    exact ⟨i, hi, x, hx⟩
   obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
   -- Extend x_bad to a full variable sequence y
-  let default_elem : ∀ i, (E i : Set ℝ) :=
-    fun i => ⟨(hE i).choose, (hE i).choose_mem⟩
+  let default_elem : ∀ i, ↥(E i : Set ℝ) :=
+    fun i => ⟨(hE i).choose, Finset.mem_coe.mpr (hE i).choose_spec⟩
   classical
-  let y : ∀ j, (E j : Set ℝ) := fun j =>
+  let y : ∀ j, ↥(E j : Set ℝ) := fun j =>
     if h : ∃ n, φ n = j then
       (show (E (φ h.choose) : Set ℝ) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
     else default_elem j
@@ -441,54 +435,53 @@ theorem automatic_uniformity_i
     obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
     exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
   -- Derive contradiction
-  have heq := abs_y_eq_abs_x_bad hφ m (default_elem := default_elem)
-  linarith [hj₀ (φ m) hm_ge (y (φ m)),
+  have heq := abs_y_eq_abs_x_bad (f := f) hφ (x_bad := x_bad) (default_elem := default_elem) m
+  linarith [hj₀ (φ m) hm_ge,
             hx_bad m,
-            show C_y < (m:ℝ) from by exact_mod_cast hm_large,
-            heq ▸ hj₀ (φ m) hm_ge (y (φ m))]
+            show C_y < (m:ℝ) from lt_trans hn₁ (by exact_mod_cast hm_large),
+            heq ▸ hj₀ (φ m) hm_ge]
 
 /-- **Proposition 2.1(ii) — Automatic uniform infinitesimal.**
     If f(x) = o(1) for every variable x ∈ E, then after passing to a
     subsequence there exists an *infinitesimal* c with |f(x)| ≤ c for all x ∈ E. -/
 theorem automatic_uniformity_ii
     (E : ℕ → Finset ℝ) (hE : ∀ i, (E i).Nonempty)
-    (f : ∀ i, (E i : Set ℝ) → ℂ)
+    (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
     (hf : IsPointwiseInfinitesimal (fun i => (E i : Set ℝ)) f) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ c : ℕ → ℝ, IsInfinitesimal c ∧
-    ∀ᶠ i in atTop, ∀ x : (E (φ i) : Set ℝ),
-    Complex.abs (f (φ i) x) ≤ c i := by
+    ∀ᶠ i in atTop, ∀ x : ↥(E (φ i) : Set ℝ),
+    Norm.norm (f (φ i) x) ≤ c i := by
   -- Step 1: for each n ≥ 1, the bound 1/n eventually holds uniformly
-  have scale : ∀ n, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : (E i : Set ℝ),
-      Complex.abs (f i x) ≤ 1/n := by
+  have scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : ↥(E i : Set ℝ),
+      Norm.norm (f i x) ≤ 1/(n:ℝ) := by
     intro n hn
+    have hn' : (0:ℝ) < n := by exact_mod_cast hn
     by_contra h_fail; push_neg at h_fail
-    have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (1:ℝ)/n < Complex.abs (f i x) :=
+    have bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (1:ℝ)/(n:ℝ) < Norm.norm (f i x) :=
       fun j => by obtain ⟨i, hi, x, hx⟩ := h_fail j; exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ :=
-      extract_bad_seq_ii E f (fun j => let ⟨i,hi,x,hx⟩ := bad j; ⟨i,hi,x,le_of_lt hx⟩)
-    let default_elem : ∀ i, (E i : Set ℝ) :=
-      fun i => ⟨(hE i).choose, (hE i).choose_mem⟩
+      extract_bad_seq_const E f (1/(n:ℝ)) (fun j => let ⟨i,hi,x,hx⟩ := bad j; ⟨i,hi,x,le_of_lt hx⟩)
+    let default_elem : ∀ i, ↥(E i : Set ℝ) :=
+      fun i => ⟨(hE i).choose, Finset.mem_coe.mpr (hE i).choose_spec⟩
     classical
-    let y : ∀ j, (E j : Set ℝ) := fun j =>
+    let y : ∀ j, ↥(E j : Set ℝ) := fun j =>
       if h : ∃ m, φ m = j then
         (show (E (φ h.choose) : Set ℝ) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
       else default_elem j
     have hfy := hf y
     rw [IsInfinitesimal, Metric.tendsto_atTop] at hfy
-    obtain ⟨N₀, hN₀⟩ := hfy (1/(2*n)) (by positivity)
+    obtain ⟨N₀, hN₀⟩ := hfy (1/(2*(n:ℝ))) (div_pos one_pos (by linarith))
     obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop N₀) |>.exists
-    have heq := abs_y_eq_abs_x_bad hφ m (default_elem := default_elem)
-    have h1 : Complex.abs (f (φ m) (y (φ m))) < 1/(2*n) := by
+    have heq := abs_y_eq_abs_x_bad (f := f) hφ (x_bad := x_bad) (default_elem := default_elem) m
+    have h1 : Norm.norm (f (φ m) (y (φ m))) < 1/(2*(n:ℝ)) := by
       have := hN₀ (φ m) hm
-      rwa [Real.dist_eq, abs_of_nonneg (Complex.abs.nonneg _), sub_zero] at this
-    linarith [hx_bad m, heq ▸ h1,
-              show (1:ℝ)/(2*n) < 1/n by
-                apply div_lt_div_of_pos_left one_pos (by positivity); linarith]
+      rwa [Real.dist_eq, sub_zero, abs_of_nonneg (norm_nonneg _)] at this
+    have h2 : (1:ℝ)/(2*(n:ℝ)) < 1/(n:ℝ) :=
+      one_div_lt_one_div_of_lt hn' (by linarith)
+    linarith [hx_bad m, heq ▸ h1, h2]
   -- Step 2: build strictly increasing thresholds and conclude
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
-  refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, Filter.eventually_atTop.mpr ⟨0, fun n _ x => hφ_bd n x⟩⟩
+  refine ⟨φ, hφ, fun n => 1/((n:ℝ)+1), ?_, Filter.eventually_atTop.mpr ⟨0, fun n _ x => hφ_bd n x⟩⟩
   rw [IsInfinitesimal]
-  exact (tendsto_const_nhds.div_atTop
-    (Filter.Tendsto.atTop_add tendsto_natCast_atTop_atTop tendsto_const_nhds)).congr
-    (fun n => by ring_nf)
+  exact tendsto_one_div_add_atTop_nhds_zero_nat
