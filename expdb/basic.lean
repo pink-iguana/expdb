@@ -6,7 +6,7 @@
 import Mathlib.Analysis.SpecialFunctions.Complex.Circle
 import Mathlib.Topology.Algebra.Order.LiminfLimsup
 import Mathlib.Analysis.Normed.Field.Basic
-import Mathlib.Analysis.Asymptotics.Asymptotics
+import Mathlib.Analysis.Asymptotics.Defs
 import Mathlib.Data.EReal.Basic
 import Mathlib.Order.Filter.Basic
 import Mathlib.Topology.MetricSpace.Sequences
@@ -21,7 +21,7 @@ open Filter Topology Asymptotics Real
 noncomputable def e (θ : ℝ) : ℂ :=
   Complex.exp (2 * Real.pi * θ * Complex.I)
 
-/-- Base case: e(0) = 1
+/-- Base case: e(0) = 1 -/
 lemma e_zero : e 0 = 1 := by
   simp [e]
 
