@@ -287,7 +287,7 @@ theorem underspill (X Y : ℕ → ℝ) :
       have hc2 : c / 2 > 0 := by linarith
       obtain ⟨dseq, hdseq_inf, hdseq_bound⟩ := h (c / 2) hc2
       -- dseq → 0, so ∀ᶠ i, |dseq i| < c/2
-      rw [Metric.tendsto_atTop] at hdseq_inf
+      rw [IsInfinitesimal, Metric.tendsto_nhds] at hdseq_inf
       have hdseq_small := hdseq_inf (c / 2) hc2
       -- For sufficiently large i: x_i ≤ y_i + c/2 + dseq_i and |dseq_i| < c/2
       filter_upwards [hdseq_bound, hdseq_small] with i hi_bound hi_small
@@ -317,7 +317,7 @@ theorem underspill (X Y : ℕ → ℝ) :
     use fun i => max (X i - Y i) 0
     constructor
     · -- We prove that max(x_i - y_i, 0) → 0
-      rw [Metric.tendsto_atTop]
+      rw [IsInfinitesimal, Metric.tendsto_nhds]
       intro δ hδ
       -- From key with c = δ
       have h_ev := key δ hδ
@@ -327,16 +327,8 @@ theorem underspill (X Y : ℕ → ℝ) :
       -- We use key with c = δ
       filter_upwards [h_ev] with i hi
       -- hi : x_i - y_i < δ
-      rw [Real.dist_eq]
-      simp
-      constructor
-      · -- max(x_i - y_i, 0) < δ
-        constructor
-        · linarith
-        · linarith
-      · -- -δ < max(x_i - y_i, 0)
-        have : max (X i - Y i) 0 ≥ 0 := le_max_right _ _
-        linarith
+      rw [Real.dist_eq, sub_zero, abs_of_nonneg (le_max_right _ _)]
+      exact max_lt hi hδ
     · -- We prove x_i ≤ y_i + max(x_i - y_i, 0)
       apply Filter.Eventually.of_forall
       intro i
