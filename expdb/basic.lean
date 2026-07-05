@@ -176,26 +176,27 @@ private lemma extract_strictMono_subseq {P : ℕ → Prop}
     fun prev => let ⟨i, hi, hP⟩ := h (prev + 1); ⟨i, by omega, hP⟩
   let φ : ℕ → ℕ :=
     fun n => n.rec (h 0).choose (fun _ prev => (step prev).choose)
-  exact ⟨strictMono_nat_of_lt_succ fun n => (step (φ n)).choose_spec.1,
+  exact ⟨φ, strictMono_nat_of_lt_succ fun n => (step (φ n)).choose_spec.1,
          fun n => n.casesOn (h 0).choose_spec.2
                              (fun _ => (step (φ _)).choose_spec.2)⟩
 
 /-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
     with |f(φ n)(x n)| > n.  Used in the proof of Proposition 2.1(i). -/
 private lemma extract_bad_seq_i
-    (E : ℕ → Finset ℝ) (f : ∀ i, (E i : Set ℝ) → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (j : ℝ) < Complex.abs (f i x)) :
+    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (j : ℝ) < ‖f i x‖):
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, (n : ℝ) < Complex.abs (f (φ n) (x n)) := by
-  have step : ∀ n prev, ∃ i > prev, ∃ x : (E i : Set ℝ), (n : ℝ) < Complex.abs (f i x) :=
+    ∃ x : ∀ n, ↥(E (φ n) : Set ℝ), ∀ n : ℕ, (n : ℝ) < ‖f (φ n) (x n)‖ := by
+  have step : ∀ (n prev : ℕ), ∃ i > prev, ∃ x : ↥(E i : Set ℝ), (n : ℝ) < ‖f i x‖ :=
     fun n prev => by
       obtain ⟨i, hi, x, hx⟩ := bad (max (prev + 1) n)
-      exact ⟨i, by linarith [le_max_left (prev+1) n, hi],
-             x, by exact_mod_cast lt_of_le_of_lt (le_max_right _ _) hx⟩
-  let data : ℕ → Σ i, (E i : Set ℝ) :=
+      exact ⟨i, by have := le_max_left (prev+1) n; omega,
+             x, lt_of_le_of_lt (by exact_mod_cast le_max_right (prev+1) n) hx⟩
+  let data : ℕ → Σ i, ↥(E i : Set ℝ) :=
     fun n => n.rec ⟨(step 0 0).choose, (step 0 0).choose_spec.2.choose⟩
       fun n p => ⟨(step (n+1) p.1).choose, (step (n+1) p.1).choose_spec.2.choose⟩
-  exact ⟨strictMono_nat_of_lt_succ fun n => (step (n+1) (data n).1).choose_spec.1,
+  exact ⟨fun n => (data n).1,
+         strictMono_nat_of_lt_succ fun n => (step (n+1) (data n).1).choose_spec.1,
          fun n => (data n).2,
          fun n => n.casesOn (step 0 0).choose_spec.2.choose_spec
                              (fun _ => (step _ _).choose_spec.2.choose_spec)⟩
