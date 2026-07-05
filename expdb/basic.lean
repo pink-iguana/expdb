@@ -186,13 +186,13 @@ private lemma extract_bad_seq_i
     (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
     (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (j : ℝ) < ‖f i x‖):
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, ↥(E (φ n) : Set ℝ), ∀ n : ℕ, (n : ℝ) < ‖f (φ n) (x n)‖ := by
-  have step : ∀ (n prev : ℕ), ∃ i > prev, ∃ x : ↥(E i : Set ℝ), (n : ℝ) < ‖f i x‖ :=
+    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, n < ‖f (φ n) (x n)‖ := by
+  have step : ∀ (n prev : ℕ), ∃ i > prev, ∃ x : (E i : Set ℝ), (n : ℝ) < ‖f i x‖ :=
     fun n prev => by
       obtain ⟨i, hi, x, hx⟩ := bad (max (prev + 1) n)
       exact ⟨i, by have := le_max_left (prev+1) n; omega,
              x, lt_of_le_of_lt (by exact_mod_cast le_max_right (prev+1) n) hx⟩
-  let data : ℕ → Σ i, ↥(E i : Set ℝ) :=
+  let data : ℕ → Σ i, (E i : Set ℝ) :=
     fun n => n.rec ⟨(step 0 0).choose, (step 0 0).choose_spec.2.choose⟩
       fun n p => ⟨(step (n+1) p.1).choose, (step (n+1) p.1).choose_spec.2.choose⟩
   exact ⟨fun n => (data n).1,
@@ -204,17 +204,17 @@ private lemma extract_bad_seq_i
 /-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
     with |f(φ n)(x n)| ≥ 1/(n+1).  Used in the proof of Proposition 2.1(ii). -/
 private lemma extract_bad_seq_ii
-    (E : ℕ → Finset ℝ) (f : ∀ i, (E i : Set ℝ) → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (1:ℝ)/(j+1) ≤ Complex.abs (f i x)) :
+    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (1:ℝ)/(j+1) ≤ ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, (1:ℝ)/(n+1) ≤ Complex.abs (f (φ n) (x n)) := by
-  have step : ∀ n prev, ∃ i > prev, ∃ x : (E i : Set ℝ), (1:ℝ)/(n+1) ≤ Complex.abs (f i x) :=
+    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, (1:ℝ)/(n+1) ≤ ‖f (φ n) (x n)‖ := by
+  have step : ∀ (n prev: ℕ), ∃ i > prev, ∃ x : (E i : Set ℝ), (1:ℝ)/(n+1) ≤ ‖f i x‖ :=
     fun n prev => by
       obtain ⟨i, hi, x, hx⟩ := bad (max (prev+1) n)
       refine ⟨i, by linarith [le_max_left (prev+1) n, hi], x, ?_⟩
       calc (1:ℝ)/(n+1) ≤ 1/(max (prev+1) n + 1) := by
               gcongr; exact_mod_cast Nat.succ_le_succ (le_max_right _ _)
-           _ ≤ Complex.abs (f i x) := hx
+           _ ≤ ‖f i x‖ := hx
   let data : ℕ → Σ i, (E i : Set ℝ) :=
     fun n => n.rec ⟨(step 0 0).choose, (step 0 0).choose_spec.2.choose⟩
       fun n p => ⟨(step (n+1) p.1).choose, (step (n+1) p.1).choose_spec.2.choose⟩
@@ -226,20 +226,23 @@ private lemma extract_bad_seq_ii
 /-- Build a strictly increasing threshold sequence φ such that
     |f(φ n)(x)| ≤ 1/(n+1) for all x ∈ E(φ n). -/
 private lemma build_increasing_thresholds
-    (E : ℕ → Finset ℝ) (f : ∀ i, (E i : Set ℝ) → ℂ)
-    (scale : ∀ n, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : (E i : Set ℝ),
-             Complex.abs (f i x) ≤ 1/n) :
+    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
+    (scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : ↥(E i : Set ℝ),
+             ‖f i x‖ ≤ 1/n) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∀ n, ∀ x : (E (φ n) : Set ℝ), Complex.abs (f (φ n) x) ≤ 1/(n+1) := by
+    ∀ n, ∀ x : (E (φ n) : Set ℝ), ‖f (φ n) x‖ ≤ 1/(n+1) := by
   choose i_seq hi_seq using fun n => scale (n+1) (Nat.succ_pos n)
   let φ : ℕ → ℕ :=
     fun n => n.rec (i_seq 0) (fun k p => max (i_seq (k+1)) (p+1))
-  refine ⟨strictMono_nat_of_lt_succ fun n =>
+  refine ⟨φ, strictMono_nat_of_lt_succ fun n =>
            Nat.lt_of_lt_of_le (Nat.lt_succ_self _) (le_max_right _ _),
-         fun n x => hi_seq n (φ n) ?_ x⟩
-  cases n with
-  | zero => exact le_refl _
-  | succ n => exact le_max_left _ _
+         fun n x => ?_⟩
+  have hge : φ n ≥ i_seq n := by
+    cases n with
+    | zero => exact le_refl _
+    | succ n => exact le_max_left _ _
+  have hb := hi_seq n (φ n) hge x
+  rwa [Nat.cast_add, Nat.cast_one] at hb
 
 -- ===========================================================
 -- Underspill Principle
@@ -394,8 +397,9 @@ def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Pr
 -- ============================================================
 
 -- Helper: rewrite |f(φ m)(y(φ m))| as |f(φ m)(x_bad m)| avoiding cast issues.
+open Classical in
 private lemma abs_y_eq_abs_x_bad
-    {E : ℕ → Finset ℝ} {f : ∀ i, (E i : Set ℝ) → ℂ}
+    {E : ℕ → Finset ℝ} {f : ∀ i, ↥(E i : Set ℝ) → ℂ}
     {φ : ℕ → ℕ} (hφ : StrictMono φ)
     {x_bad : ∀ n, (E (φ n) : Set ℝ)}
     {default_elem : ∀ i, (E i : Set ℝ)}
@@ -404,12 +408,15 @@ private lemma abs_y_eq_abs_x_bad
       if h : ∃ n, φ n = j then
         (show (E (φ h.choose) : Set ℝ) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
       else default_elem j
-    Complex.abs (f (φ m) (y (φ m))) = Complex.abs (f (φ m) (x_bad m)) := by
+    ‖f (φ m) (y (φ m))‖ = ‖f (φ m) (x_bad m)‖ := by
   simp only []
   split_ifs with h
-  · generalize_proofs hp
-    have : h.choose = m := hφ.injective hp
-    rw [this]
+  · have hm : h.choose = m := hφ.injective h.choose_spec
+    have hx : x_bad h.choose ≍ x_bad m := by rw [hm]
+    apply congrArg
+    apply congrArg
+    apply eq_of_heq
+    exact rec_heq_of_heq _ hx
   · exact absurd ⟨m, rfl⟩ h
 
 /-- **Proposition 2.1(i) — Automatic uniform bound.**
@@ -417,15 +424,15 @@ private lemma abs_y_eq_abs_x_bad
     subsequence there exists a *fixed* C with |f(x)| ≤ C for all x ∈ E. -/
 theorem automatic_uniformity_i
     (E : ℕ → Finset ℝ) (hE : ∀ i, (E i).Nonempty)
-    (f : ∀ i, (E i : Set ℝ) → ℂ)
+    (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
     (hf : IsPointwiseBounded (fun i => (E i : Set ℝ)) f) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : (E (φ i) : Set ℝ),
-    Complex.abs (f (φ i) x) ≤ C := by
+    ‖f (φ i) x‖ ≤ C := by
   by_contra h_fail
   push_neg at h_fail
   -- Build a bad sequence: for each j find i ≥ j and x with |f i x| > j
-  have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (j:ℝ) < Complex.abs (f i x) := fun j => by
+  have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (j:ℝ) < ‖f i x‖ := fun j => by
     obtain ⟨i, hi, x, hx⟩ := (h_fail id strictMono_id j).exists; exact ⟨i, hi, x, hx⟩
   obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
   -- Extend x_bad to a full variable sequence y
@@ -457,18 +464,18 @@ theorem automatic_uniformity_i
     subsequence there exists an *infinitesimal* c with |f(x)| ≤ c for all x ∈ E. -/
 theorem automatic_uniformity_ii
     (E : ℕ → Finset ℝ) (hE : ∀ i, (E i).Nonempty)
-    (f : ∀ i, (E i : Set ℝ) → ℂ)
+    (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
     (hf : IsPointwiseInfinitesimal (fun i => (E i : Set ℝ)) f) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ c : ℕ → ℝ, IsInfinitesimal c ∧
     ∀ᶠ i in atTop, ∀ x : (E (φ i) : Set ℝ),
-    Complex.abs (f (φ i) x) ≤ c i := by
+    ‖f (φ i) x‖ ≤ c i := by
   -- Step 1: for each n ≥ 1, the bound 1/n eventually holds uniformly
   have scale : ∀ n, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : (E i : Set ℝ),
-      Complex.abs (f i x) ≤ 1/n := by
+      ‖f i x‖ ≤ 1/n := by
     intro n hn
     by_contra h_fail; push_neg at h_fail
-    have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (1:ℝ)/n < Complex.abs (f i x) :=
+    have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (1:ℝ)/n < ‖f i x‖ :=
       fun j => by obtain ⟨i, hi, x, hx⟩ := h_fail j; exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ :=
       extract_bad_seq_ii E f (fun j => let ⟨i,hi,x,hx⟩ := bad j; ⟨i,hi,x,le_of_lt hx⟩)
