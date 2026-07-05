@@ -433,11 +433,12 @@ theorem automatic_uniformity_i
   push_neg at h_fail
   -- Build a bad sequence: for each j find i ≥ j and x with |f i x| > j
   have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (j:ℝ) < ‖f i x‖ := fun j => by
-    obtain ⟨i, hi, x, hx⟩ := (h_fail id strictMono_id j).exists; exact ⟨i, hi, x, hx⟩
+    rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
+    exact ⟨i, hi, x, hx⟩
   obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
   -- Extend x_bad to a full variable sequence y
   let default_elem : ∀ i, (E i : Set ℝ) :=
-    fun i => ⟨(hE i).choose, (hE i).choose_mem⟩
+    fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
   classical
   let y : ∀ j, (E j : Set ℝ) := fun j =>
     if h : ∃ n, φ n = j then
@@ -453,11 +454,14 @@ theorem automatic_uniformity_i
     obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
     exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
   -- Derive contradiction
-  have heq := abs_y_eq_abs_x_bad hφ m (default_elem := default_elem)
-  linarith [hj₀ (φ m) hm_ge (y (φ m)),
+  have heq :=
+    abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
+      (default_elem := default_elem) hφ m
+  linarith [hj₀ (φ m) hm_ge,
             hx_bad m,
-            show C_y < (m:ℝ) from by exact_mod_cast hm_large,
-            heq ▸ hj₀ (φ m) hm_ge (y (φ m))]
+            show C_y < (m:ℝ) from
+            lt_trans hn₁ (by exact_mod_cast hm_large),
+            heq ▸ hj₀ (φ m) hm_ge]
 
 /-- **Proposition 2.1(ii) — Automatic uniform infinitesimal.**
     If f(x) = o(1) for every variable x ∈ E, then after passing to a
