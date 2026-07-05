@@ -201,27 +201,18 @@ private lemma extract_bad_seq_i
          fun n => n.casesOn (step 0 0).choose_spec.2.choose_spec
                              (fun _ => (step _ _).choose_spec.2.choose_spec)⟩
 
-/-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
-    with |f(φ n)(x n)| ≥ 1/(n+1).  Used in the proof of Proposition 2.1(ii). -/
+/-- For a fixed threshold ε, extract a strictly increasing φ and bad elements
+    x(n) ∈ E(φ n) with |f(φ n)(x n)| > ε. Used in Proposition 2.1(ii). -/
 private lemma extract_bad_seq_ii
     (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (1:ℝ)/(j+1) ≤ ‖f i x‖) :
+    {ε : ℝ}
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), ε < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, (1:ℝ)/(n+1) ≤ ‖f (φ n) (x n)‖ := by
-  have step : ∀ (n prev: ℕ), ∃ i > prev, ∃ x : (E i : Set ℝ), (1:ℝ)/(n+1) ≤ ‖f i x‖ :=
-    fun n prev => by
-      obtain ⟨i, hi, x, hx⟩ := bad (max (prev+1) n)
-      refine ⟨i, by linarith [le_max_left (prev+1) n, hi], x, ?_⟩
-      calc (1:ℝ)/(n+1) ≤ 1/(max (prev+1) n + 1) := by
-              gcongr; exact_mod_cast Nat.succ_le_succ (le_max_right _ _)
-           _ ≤ ‖f i x‖ := hx
-  let data : ℕ → Σ i, (E i : Set ℝ) :=
-    fun n => n.rec ⟨(step 0 0).choose, (step 0 0).choose_spec.2.choose⟩
-      fun n p => ⟨(step (n+1) p.1).choose, (step (n+1) p.1).choose_spec.2.choose⟩
-  exact ⟨strictMono_nat_of_lt_succ fun n => (step (n+1) (data n).1).choose_spec.1,
-         fun n => (data n).2,
-         fun n => n.casesOn (step 0 0).choose_spec.2.choose_spec
-                             (fun _ => (step _ _).choose_spec.2.choose_spec)⟩
+    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, ε < ‖f (φ n) (x n)‖ := by
+  obtain ⟨φ, hφ, hbad⟩ := extract_strictMono_subseq
+    (P := fun i => ∃ x : (E i : Set ℝ), ε < ‖f i x‖) bad
+  choose x hx using hbad
+  exact ⟨φ, hφ, x, hx⟩
 
 /-- Build a strictly increasing threshold sequence φ such that
     |f(φ n)(x)| ≤ 1/(n+1) for all x ∈ E(φ n). -/
@@ -475,16 +466,16 @@ theorem automatic_uniformity_ii
     ∀ᶠ i in atTop, ∀ x : (E (φ i) : Set ℝ),
     ‖f (φ i) x‖ ≤ c i := by
   -- Step 1: for each n ≥ 1, the bound 1/n eventually holds uniformly
-  have scale : ∀ n, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : (E i : Set ℝ),
+  have scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : (E i : Set ℝ),
       ‖f i x‖ ≤ 1/n := by
     intro n hn
     by_contra h_fail; push_neg at h_fail
     have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (1:ℝ)/n < ‖f i x‖ :=
       fun j => by obtain ⟨i, hi, x, hx⟩ := h_fail j; exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ :=
-      extract_bad_seq_ii E f (fun j => let ⟨i,hi,x,hx⟩ := bad j; ⟨i,hi,x,le_of_lt hx⟩)
+      extract_bad_seq_ii E f bad
     let default_elem : ∀ i, (E i : Set ℝ) :=
-      fun i => ⟨(hE i).choose, (hE i).choose_mem⟩
+      fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
     classical
     let y : ∀ j, (E j : Set ℝ) := fun j =>
       if h : ∃ m, φ m = j then
@@ -494,17 +485,18 @@ theorem automatic_uniformity_ii
     rw [IsInfinitesimal, Metric.tendsto_atTop] at hfy
     obtain ⟨N₀, hN₀⟩ := hfy (1/(2*n)) (by positivity)
     obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop N₀) |>.exists
-    have heq := abs_y_eq_abs_x_bad hφ m (default_elem := default_elem)
-    have h1 : Complex.abs (f (φ m) (y (φ m))) < 1/(2*n) := by
+    have heq :=
+      abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
+      (default_elem := default_elem) hφ m
+    have h1 : ‖f (φ m) (y (φ m))‖ < 1/(2*n) := by
       have := hN₀ (φ m) hm
-      rwa [Real.dist_eq, abs_of_nonneg (Complex.abs.nonneg _), sub_zero] at this
+      rwa [Real.dist_eq, sub_zero, abs_of_nonneg (norm_nonneg _)] at this
     linarith [hx_bad m, heq ▸ h1,
               show (1:ℝ)/(2*n) < 1/n by
-                apply div_lt_div_of_pos_left one_pos (by positivity); linarith]
+                have hn : (0 : ℝ) < n := by positivity
+                exact one_div_lt_one_div_of_lt hn (by nlinarith)]
   -- Step 2: build strictly increasing thresholds and conclude
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
   refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, Filter.eventually_atTop.mpr ⟨0, fun n _ x => hφ_bd n x⟩⟩
   rw [IsInfinitesimal]
-  exact (tendsto_const_nhds.div_atTop
-    (Filter.Tendsto.atTop_add tendsto_natCast_atTop_atTop tendsto_const_nhds)).congr
-    (fun n => by ring_nf)
+  exact tendsto_one_div_add_atTop_nhds_zero_nat
