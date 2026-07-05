@@ -183,16 +183,16 @@ private lemma extract_strictMono_subseq {P : ℕ → Prop}
 /-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
     with |f(φ n)(x n)| > n.  Used in the proof of Proposition 2.1(i). -/
 private lemma extract_bad_seq_i
-    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), (j : ℝ) < ‖f i x‖):
+    (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ)
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j : ℝ) < ‖f i x‖):
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, n < ‖f (φ n) (x n)‖ := by
-  have step : ∀ (n prev : ℕ), ∃ i > prev, ∃ x : (E i : Set ℝ), (n : ℝ) < ‖f i x‖ :=
+    ∃ x : ∀ n, E (φ n), ∀ n, n < ‖f (φ n) (x n)‖ := by
+  have step : ∀ (n prev : ℕ), ∃ i > prev, ∃ x : E i, (n : ℝ) < ‖f i x‖ :=
     fun n prev => by
       obtain ⟨i, hi, x, hx⟩ := bad (max (prev + 1) n)
       exact ⟨i, by have := le_max_left (prev+1) n; omega,
              x, lt_of_le_of_lt (by exact_mod_cast le_max_right (prev+1) n) hx⟩
-  let data : ℕ → Σ i, (E i : Set ℝ) :=
+  let data : ℕ → Σ i, E i :=
     fun n => n.rec ⟨(step 0 0).choose, (step 0 0).choose_spec.2.choose⟩
       fun n p => ⟨(step (n+1) p.1).choose, (step (n+1) p.1).choose_spec.2.choose⟩
   exact ⟨fun n => (data n).1,
@@ -204,24 +204,24 @@ private lemma extract_bad_seq_i
 /-- For a fixed threshold ε, extract a strictly increasing φ and bad elements
     x(n) ∈ E(φ n) with |f(φ n)(x n)| > ε. Used in Proposition 2.1(ii). -/
 private lemma extract_bad_seq_ii
-    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
+    (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ)
     {ε : ℝ}
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : ↥(E i : Set ℝ), ε < ‖f i x‖) :
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, ε < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ x : ∀ n, (E (φ n) : Set ℝ), ∀ n, ε < ‖f (φ n) (x n)‖ := by
+    ∃ x : ∀ n, E (φ n), ∀ n, ε < ‖f (φ n) (x n)‖ := by
   obtain ⟨φ, hφ, hbad⟩ := extract_strictMono_subseq
-    (P := fun i => ∃ x : (E i : Set ℝ), ε < ‖f i x‖) bad
+    (P := fun i => ∃ x : E i, ε < ‖f i x‖) bad
   choose x hx using hbad
   exact ⟨φ, hφ, x, hx⟩
 
 /-- Build a strictly increasing threshold sequence φ such that
     |f(φ n)(x)| ≤ 1/(n+1) for all x ∈ E(φ n). -/
 private lemma build_increasing_thresholds
-    (E : ℕ → Finset ℝ) (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
-    (scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : ↥(E i : Set ℝ),
+    (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ)
+    (scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : E i,
              ‖f i x‖ ≤ 1/n) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∀ n, ∀ x : (E (φ n) : Set ℝ), ‖f (φ n) x‖ ≤ 1/(n+1) := by
+    ∀ n, ∀ x : E (φ n), ‖f (φ n) x‖ ≤ 1/(n+1) := by
   choose i_seq hi_seq using fun n => scale (n+1) (Nat.succ_pos n)
   let φ : ℕ → ℕ :=
     fun n => n.rec (i_seq 0) (fun k p => max (i_seq (k+1)) (p+1))
@@ -382,14 +382,14 @@ def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Pr
 -- Helper: rewrite |f(φ m)(y(φ m))| as |f(φ m)(x_bad m)| avoiding cast issues.
 open Classical in
 private lemma abs_y_eq_abs_x_bad
-    {E : ℕ → Finset ℝ} {f : ∀ i, ↥(E i : Set ℝ) → ℂ}
+    {E : ℕ → Set ℝ} {f : ∀ i, E i → ℂ}
     {φ : ℕ → ℕ} (hφ : StrictMono φ)
-    {x_bad : ∀ n, (E (φ n) : Set ℝ)}
-    {default_elem : ∀ i, (E i : Set ℝ)}
+    {x_bad : ∀ n, E (φ n)}
+    {default_elem : ∀ i, E i}
     (m : ℕ) :
-    let y : ∀ j, (E j : Set ℝ) := fun j =>
+    let y : ∀ j, E j := fun j =>
       if h : ∃ n, φ n = j then
-        (show (E (φ h.choose) : Set ℝ) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
+        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
       else default_elem j
     ‖f (φ m) (y (φ m))‖ = ‖f (φ m) (x_bad m)‖ := by
   simp only []
@@ -406,72 +406,83 @@ private lemma abs_y_eq_abs_x_bad
     If f(x) = O(1) for every variable x ∈ E, then after passing to a
     subsequence there exists a *fixed* C with |f(x)| ≤ C for all x ∈ E. -/
 theorem automatic_uniformity_i
-    (E : ℕ → Finset ℝ) (hE : ∀ i, (E i).Nonempty)
-    (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
-    (hf : IsPointwiseBounded (fun i => (E i : Set ℝ)) f) :
+    (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
+    (f : ∀ i, E i → ℂ)
+    (hf : IsPointwiseBounded E f) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : (E (φ i) : Set ℝ),
+    ∃ C : ℝ, ∀ i, ∀ x : E (φ i),
     ‖f (φ i) x‖ ≤ C := by
-  by_contra h_fail
-  push_neg at h_fail
-  -- Build a bad sequence: for each j find i ≥ j and x with |f i x| > j
-  have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (j:ℝ) < ‖f i x‖ := fun j => by
-    rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
-    exact ⟨i, hi, x, hx⟩
-  obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
-  -- Extend x_bad to a full variable sequence y
-  let default_elem : ∀ i, (E i : Set ℝ) :=
-    fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
-  classical
-  let y : ∀ j, (E j : Set ℝ) := fun j =>
-    if h : ∃ n, φ n = j then
-      (show (E (φ h.choose) : Set ℝ) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
-    else default_elem j
-  -- Apply pointwise bound to y
-  obtain ⟨C_y, hC_y⟩ := hf y
-  rw [Filter.eventually_atTop] at hC_y
-  obtain ⟨j₀, hj₀⟩ := hC_y
-  obtain ⟨n₁, hn₁⟩ := exists_nat_gt C_y
-  -- Find m with φ(m) ≥ j₀ and m > n₁
-  obtain ⟨m, hm_ge, hm_large⟩ : ∃ m, φ m ≥ j₀ ∧ m > n₁ := by
-    obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
-    exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
-  -- Derive contradiction
-  have heq :=
-    abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
-      (default_elem := default_elem) hφ m
-  linarith [hj₀ (φ m) hm_ge,
-            hx_bad m,
-            show C_y < (m:ℝ) from
-            lt_trans hn₁ (by exact_mod_cast hm_large),
-            heq ▸ hj₀ (φ m) hm_ge]
+  have h_eventual :
+      ∃ φ : ℕ → ℕ, StrictMono φ ∧
+      ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : E (φ i), ‖f (φ i) x‖ ≤ C := by
+    by_contra h_fail
+    push_neg at h_fail
+    -- Build a bad sequence: for each j find i ≥ j and x with |f i x| > j
+    have bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j:ℝ) < ‖f i x‖ := fun j => by
+      rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
+      exact ⟨i, hi, x, hx⟩
+    obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
+    -- Extend x_bad to a full variable sequence y
+    let default_elem : ∀ i, E i :=
+      fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
+    classical
+    let y : ∀ j, E j := fun j =>
+      if h : ∃ n, φ n = j then
+        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
+      else default_elem j
+    -- Apply pointwise bound to y
+    obtain ⟨C_y, hC_y⟩ := hf y
+    rw [Filter.eventually_atTop] at hC_y
+    obtain ⟨j₀, hj₀⟩ := hC_y
+    obtain ⟨n₁, hn₁⟩ := exists_nat_gt C_y
+    -- Find m with φ(m) ≥ j₀ and m > n₁
+    obtain ⟨m, hm_ge, hm_large⟩ : ∃ m, φ m ≥ j₀ ∧ m > n₁ := by
+      obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
+      exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
+    -- Derive contradiction
+    have heq :=
+      abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
+        (default_elem := default_elem) hφ m
+    linarith [hj₀ (φ m) hm_ge,
+              hx_bad m,
+              show C_y < (m:ℝ) from
+              lt_trans hn₁ (by exact_mod_cast hm_large),
+              heq ▸ hj₀ (φ m) hm_ge]
+  obtain ⟨φ, hφ, C, hC⟩ := h_eventual
+  rw [Filter.eventually_atTop] at hC
+  obtain ⟨N, hN⟩ := hC
+  refine ⟨fun n => φ (n + N), ?_, C, ?_⟩
+  · intro m n hmn
+    exact hφ (Nat.add_lt_add_right hmn N)
+  · intro n x
+    exact hN (n + N) (by omega) x
 
 /-- **Proposition 2.1(ii) — Automatic uniform infinitesimal.**
     If f(x) = o(1) for every variable x ∈ E, then after passing to a
     subsequence there exists an *infinitesimal* c with |f(x)| ≤ c for all x ∈ E. -/
 theorem automatic_uniformity_ii
-    (E : ℕ → Finset ℝ) (hE : ∀ i, (E i).Nonempty)
-    (f : ∀ i, ↥(E i : Set ℝ) → ℂ)
-    (hf : IsPointwiseInfinitesimal (fun i => (E i : Set ℝ)) f) :
+    (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
+    (f : ∀ i, E i → ℂ)
+    (hf : IsPointwiseInfinitesimal E f) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ c : ℕ → ℝ, IsInfinitesimal c ∧
-    ∀ᶠ i in atTop, ∀ x : (E (φ i) : Set ℝ),
+    ∀ i, ∀ x : E (φ i),
     ‖f (φ i) x‖ ≤ c i := by
   -- Step 1: for each n ≥ 1, the bound 1/n eventually holds uniformly
-  have scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : (E i : Set ℝ),
+  have scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : E i,
       ‖f i x‖ ≤ 1/n := by
     intro n hn
     by_contra h_fail; push_neg at h_fail
-    have bad : ∀ j, ∃ i ≥ j, ∃ x : (E i : Set ℝ), (1:ℝ)/n < ‖f i x‖ :=
+    have bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (1:ℝ)/n < ‖f i x‖ :=
       fun j => by obtain ⟨i, hi, x, hx⟩ := h_fail j; exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ :=
       extract_bad_seq_ii E f bad
-    let default_elem : ∀ i, (E i : Set ℝ) :=
+    let default_elem : ∀ i, E i :=
       fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
     classical
-    let y : ∀ j, (E j : Set ℝ) := fun j =>
+    let y : ∀ j, E j := fun j =>
       if h : ∃ m, φ m = j then
-        (show (E (φ h.choose) : Set ℝ) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
+        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
       else default_elem j
     have hfy := hf y
     rw [IsInfinitesimal, Metric.tendsto_atTop] at hfy
@@ -489,6 +500,6 @@ theorem automatic_uniformity_ii
                 exact one_div_lt_one_div_of_lt hn (by nlinarith)]
   -- Step 2: build strictly increasing thresholds and conclude
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
-  refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, Filter.eventually_atTop.mpr ⟨0, fun n _ x => hφ_bd n x⟩⟩
+  refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, hφ_bd⟩
   rw [IsInfinitesimal]
   exact tendsto_one_div_add_atTop_nhds_zero_nat
