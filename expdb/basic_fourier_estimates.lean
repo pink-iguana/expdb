@@ -690,7 +690,7 @@ theorem goal6 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
             apply Finset.sum_le_sum_of_subset; simp
           }
       _ = 2 * (C₃ * C₅ * N) * ∑ ℓ in Finset.range (L + 1), (2:ℝ)^(-(9:ℝ)*ℓ)  := by
-  have hstep : ∀ ℓ : ℕ, (2^(ℓ+1) : ℝ) * (C₃ * N) * (C₅ * (2^ℓ)^(-(10:ℝ))) = 
+  have hstep : ∀ ℓ : ℕ, (2^(ℓ+1) : ℝ) * (C₃ * N) * (C₅ * (2^ℓ)^(-(10:ℝ))) =
       2 * (C₃ * C₅ * N) * (2^(-(9:ℝ)))^ℓ := by
     intro ℓ
     have h1 : (2 : ℝ)^(ℓ+1) = 2 * 2^ℓ := by ring

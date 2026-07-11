@@ -40,7 +40,7 @@ lemma e_int (n : ℤ) : e n = 1 := by
   have h : (2 * Real.pi * (n : ℝ) * Complex.I) = (n : ℂ) * (2 * Real.pi * Complex.I) := by push_cast; ring
   rw [h, Complex.exp_int_mul_two_pi_mul_I]
 -- ===========================================================
--- Empty Supremum / Infimum Conventions 
+-- Empty Supremum / Infimum Conventions
 -- ===========================================================
 
 /-- Convention: empty supremum = -∞ (⊥ in EReal) -/
@@ -68,7 +68,7 @@ lemma blueprintSup_empty {σ₀ σ₁ : ℝ} (f : ℝ → EReal) (h : σ₁ < σ
   exact EReal.sSup_empty
 
 -- ===========================================================
--- N^(-∞) = 0 Convention 
+-- N^(-∞) = 0 Convention
 -- ===========================================================
 
 /-- Extended real power: handles N^r for r : EReal.
@@ -89,23 +89,23 @@ lemma blueprintPower_coe {N : ℝ} (r : ℝ) :
   simp [blueprintPower, EReal.coe_ne_bot, EReal.toReal_coe]
 
 -- ===========================================================
--- Indicator Function 
+-- Indicator Function
 -- ===========================================================
 
 /-- 1_I(n) = 1 if n ∈ I, else 0 -/
-def indicatorFunction {α : Type*} [DecidableEq α] (I : Set α) 
+def indicatorFunction {α : Type*} [DecidableEq α] (I : Set α)
     [DecidablePred (· ∈ I)] (n : α) : ℝ :=
   if n ∈ I then 1 else 0
 
 /-- Indicator is 0 or 1 -/
-lemma indicatorFunction_values {α : Type*} [DecidableEq α] 
+lemma indicatorFunction_values {α : Type*} [DecidableEq α]
     (I : Set α) [DecidablePred (· ∈ I)] (n : α) :
     indicatorFunction I n = 0 ∨ indicatorFunction I n = 1 := by
   simp [indicatorFunction]
   split_ifs <;> simp
 
 -- ===========================================================
--- Cardinality |W| for Finsets 
+-- Cardinality |W| for Finsets
 -- ===========================================================
 
 /-- We use Finset.card for cardinality, written |W| in the blueprint.
@@ -143,7 +143,7 @@ lemma e_is_one_bounded (θ : ℕ → ℝ) : IsOneBounded (fun n => e (θ n)) := 
   rw [norm_e]
 
 -- ===========================================================
--- Asymptotic Notation 
+-- Asymptotic Notation
 -- ===========================================================
 
 /-- An infinitesimal sequence: a sequence that converges to 0 -/
@@ -153,7 +153,7 @@ def IsInfinitesimal (X : ℕ → ℝ) : Prop :=
 /-- X ≤ Y + o(1) in a strict sense:
     There exists an infinitesimal sequence ε_i such that x_i ≤ y_i + ε_i eventually. -/
 def EventuallyLeUpToInfinitesimal (X Y : ℕ → ℝ) : Prop :=
-  ∃ ε : ℕ → ℝ, IsInfinitesimal ε ∧ 
+  ∃ ε : ℕ → ℝ, IsInfinitesimal ε ∧
                (∀ᶠ i in atTop, X i ≤ Y i + ε i)
 
 -- Notation shorthand
@@ -237,13 +237,13 @@ private lemma build_increasing_thresholds
   | succ n => exact le_max_left _ _
 
 -- ===========================================================
--- Underspill Principle 
+-- Underspill Principle
 -- ===========================================================
 
 /-- Underspill Principle:
     X ≤ Y + o(1)  ↔  For every constant ε > 0, X ≤ Y + ε + o(1) -/
 theorem underspill (X Y : ℕ → ℝ) :
-    (X ≤o Y) ↔ 
+    (X ≤o Y) ↔
     (∀ ε : ℝ, ε > 0 → X ≤o (fun i => Y i + ε)) := by
   constructor
 
@@ -272,15 +272,15 @@ theorem underspill (X Y : ℕ → ℝ) :
     --   Therefore: x_i ≤ y_i + c
     -- This implies: x_i - y_i ≤ c for all c > 0
     -- We build the sequence explicitly.
-    
+
     -- For each n : ℕ, use ε = 1/(n+1)
     -- From the hypothesis, we obtain d^n_i such that x_i ≤ y_i + 1/(n+1) + d^n_i
     -- We define ε_i = inf_{n} (1/(n+1) + d^n_i)
     -- However, this is complex, so we use a more direct approach:
-    
+
     -- We define z_i = max(x_i - y_i, 0)
     -- and prove that z_i → 0
-    
+
     -- First, we prove: ∀ c > 0, ∀ᶠ i, x_i - y_i < c
     have key : ∀ c : ℝ, c > 0 → ∀ᶠ i in atTop, X i - Y i < c := by
       intro c hc
@@ -300,20 +300,20 @@ theorem underspill (X Y : ℕ → ℝ) :
       have hdseq_lt : dseq i < c / 2 := by
         exact lt_of_abs_lt hi_small
       linarith
-    
+
     -- Now we construct the infinitesimal sequence
     -- We use the sequence z_i = max(x_i - y_i, 0)
     -- and prove that it converges to 0
-    
+
     -- Alternatively, more simply: we use x_i - y_i directly
     -- and prove that (x_i - y_i)⁺ → 0, then conclude
-    
+
     -- For simplicity, we show the existence of ε_i = max(x_i - y_i, 1/i) approximately
     -- But the simplest proof uses the squeeze theorem
-    
+
     -- We define ε_i explicitly via: for any i, take 1/(i+1) as an approximation
     -- If x_i ≤ y_i + 1/(i+1) + d_i where d_i → 0
-    
+
     -- Direct proof: we show x_i - y_i → 0 by definition
     use fun i => max (X i - Y i) 0
     constructor
@@ -385,7 +385,7 @@ def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Pr
   ∀ x : ∀ i, E i, IsInfinitesimal (fun i => Complex.abs (f i (x i)))
 
 -- ============================================================
--- Proposition 2.1 — Automatic uniformity   
+-- Proposition 2.1 — Automatic uniformity
 -- ============================================================
 
 -- Helper: rewrite |f(φ m)(y(φ m))| as |f(φ m)(x_bad m)| avoiding cast issues.

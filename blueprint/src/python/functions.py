@@ -774,7 +774,7 @@ class RationalFunction:
         # Direct test if result is numeric
         if isinstance(res, numbers.Number):
             return res == 0
-        
+
         # Symbolic test otherwise
         return res.equals(0)
 
