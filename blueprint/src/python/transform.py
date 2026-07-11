@@ -4,7 +4,7 @@
 # van der Corput A/B transform: 'Exponent pair' -> 'Exponent pair'
 # zeta LV theorem transform: 'Large value estimate' -> 'Zeta large value estimate'
 # 
-# This is only used to simple transformations that takes 1 instance of the 
+# This is only used for simple transformations that takes 1 instance of the 
 # input Hypothesis object. For instance, computing bounds on beta via computation
 # of a convex hull combines many Hypothesis, and thus will not be implemented 
 # as a Transform (instead, it is implemented as a method in the bound_beta
