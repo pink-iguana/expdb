@@ -131,7 +131,7 @@ def derived_additive_energy_estimate(
     ) -> Hypothesis:
 
     """
-    Construct a additive energy estimate Hypothesis object. 
+    Construct an additive energy estimate Hypothesis object. 
 
     Parameters 
     ----------
@@ -420,7 +420,7 @@ def lver_to_lv(hypothesis: Hypothesis) -> Hypothesis:
 def lver_to_energy(hypothesis: Hypothesis) -> Hypothesis:
 
     """
-    Computes a additive energy region from a large value energy region by taking the 
+    Computes an additive energy region from a large value energy region by taking the 
     projection (σ, τ, ρ, ρ*, s) -> (σ, τ, ρ*). 
 
     Parameters
