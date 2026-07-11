@@ -647,12 +647,12 @@ def approx_bourgain_ep_to_zd(exp_pairs):
 #   - 11/85 < k < 1/5
 #   - s0 = (144k - 11l - 11)/(170k - 22)
 def bourgain_ep_to_zd(hypotheses=None, exp_pairs=None):
-   
+
     # --- Determine which pairs to use ---
     if exp_pairs is None:
         if hypotheses is None:
             raise ValueError("Must supply either hypotheses or exp_pairs.")
-        
+
         # Dynamically compute the current exponent pair hull
         hypotheses.add_hypotheses(
             ep.compute_exp_pairs(hypotheses, search_depth=5, prune=True)
@@ -660,7 +660,7 @@ def bourgain_ep_to_zd(hypotheses=None, exp_pairs=None):
         hypotheses.add_hypotheses(ep.exponent_pairs_to_beta_bounds(hypotheses))
         hypotheses.add_hypotheses(ep.compute_best_beta_bounds(hypotheses))
         ep_hyps = ep.beta_bounds_to_exponent_pairs(hypotheses)
-        
+
         # Filter to Bourgain-valid pairs
         pair_objs = [
             h for h in ep_hyps
@@ -680,7 +680,7 @@ def bourgain_ep_to_zd(hypotheses=None, exp_pairs=None):
     for h in pair_objs:
         k, l = h.data.k, h.data.l
         s0_base = max(frac(1, 2), (l + 1) / (2 * (k + 1)))
-        
+
         if k <= frac(11, 85):
             s0 = s0_base
         else:
@@ -688,10 +688,10 @@ def bourgain_ep_to_zd(hypotheses=None, exp_pairs=None):
                 s0_base,
                 frac(144 * k - 11 * l - 11, 170 * k - 22)
             )
-            
+
         if s0 >= 1:
             continue
-            
+
         func = RF([4 * k], [2 * (1 + k), -1 - l])
         bounds.append((func, Interval(s0, 1), h))
 
@@ -705,7 +705,7 @@ def bourgain_ep_to_zd(hypotheses=None, exp_pairs=None):
         func_i, int_i, _ = bounds[i]
         crits.add(int_i.x0)
         crits.add(int_i.x1)
-        
+
         for j in range(i + 1, len(bounds)):
             func_j, int_j, _ = bounds[j]
             common = Interval(
@@ -724,14 +724,14 @@ def bourgain_ep_to_zd(hypotheses=None, exp_pairs=None):
         s1, s2 = crits[idx], crits[idx + 1]
         if s2 <= s1 or s1 < frac(1, 2):
             continue
-            
+
         interval = Interval(s1, s2)
         test_sigma = (s1 + s2) / 2
-        
+
         best_value = None
         best_func = None
         best_h = None
-        
+
         for func, intv, h in bounds:
             if intv.contains(test_sigma):
                 val = func.at(test_sigma)
@@ -739,7 +739,7 @@ def bourgain_ep_to_zd(hypotheses=None, exp_pairs=None):
                     best_value = val
                     best_func = func
                     best_h = h
-                    
+
         if best_func is not None:
             soln.append((best_func, Interval(s1, s2), best_h))
 
