@@ -1,4 +1,9 @@
- import Mathlib
+import expdb.basic
+import Mathlib.Analysis.Fourier.FourierTransform
+import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
+import Mathlib.Tactic
 
 open MeasureTheory Real Complex Filter Topology BigOperators
 
@@ -35,12 +40,12 @@ namespace BumpData
 -- ψ has compact support
 lemma hasCompactSupport (B : BumpData) : HasCompactSupport B.ψ :=
   HasCompactSupport.of_support_subset_isCompact
-    (isCompact_Icc (a := -1/4) (b := 1/4))
+    (isCompact_Icc (a := -1 / 4) (b := 1 / 4))
     (fun x hx => by
       simp only [Function.mem_support] at hx
       have h := B.supp x hx
       simp only [Set.mem_Icc, abs_le] at h ⊢
-      exact ⟨h.1, h.2⟩)
+      simpa only [neg_div] using h)
 
 -- ψ̂(u) = ∫_ℝ ψ(x) e(-xu) dx
 def psiHat (ψ : ℝ → ℝ) (u : ℝ) : ℂ :=
