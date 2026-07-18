@@ -57,15 +57,22 @@ lemma integrable (B : BumpData) : Integrable B.ψ :=
 
 -- ∫ ψ > 0  (from proof: "ψ(t) ≥ 0 and ‖ψ‖_{L²} = 1 so ψ ≢ 0")
 lemma integral_pos (B : BumpData) : 0 < ∫ x : ℝ, B.ψ x := by
-  apply integral_pos_of_ne_zero_of_nonneg B.nonneg
-  intro h
-  have : ∫ x : ℝ, (B.ψ x) ^ 2 = 0 := by
-    calc ∫ x : ℝ, (B.ψ x) ^ 2
-        = ∫ x : ℝ, (0 : ℝ) ^ 2 := by
-          congr 1; ext x; rw [show B.ψ x = 0 from by
-            have := congr_fun h x; simp [abs_eq_zero] at this; exact this]
-      _ = 0 := by simp
-  linarith [B.l2norm]
+  have hne : ∃ x, B.ψ x ≠ 0 := by
+    by_contra h
+    push_neg at h
+    have hsquare : ∫ x : ℝ, (B.ψ x) ^ 2 = 0 := by
+      calc
+        ∫ x : ℝ, (B.ψ x) ^ 2
+            = ∫ x : ℝ, (0 : ℝ) ^ 2 := by
+              congr 1
+              ext x
+              rw [h x]
+        _ = 0 := by simp
+    linarith [B.l2norm, hsquare]
+
+  obtain ⟨x, hx⟩ := hne
+  exact integral_pos_of_integrable_nonneg_nonzero
+    B.smooth.continuous B.integrable B.nonneg hx
 
 end BumpData
 
@@ -77,10 +84,13 @@ end BumpData
 lemma goal1 {R : ℕ} (a : Fin R → ℂ) (M : ℝ) (hM : M = ∑ r, ‖a r‖ ^ 2)
     (hpos : 0 < M) :
     ∑ r, ‖(fun r => a r / (Real.sqrt M : ℂ)) r‖ ^ 2 = 1 := by
-  simp only [norm_div, Complex.norm_ofReal,
-             abs_of_nonneg (Real.sqrt_nonneg M)]
-  rw [Finset.sum_div, Real.sq_sqrt hpos.le]
-  simp [← hM, div_self (ne_of_gt hpos)]
+  simp_rw [norm_div]
+  simp only [norm_real, Real.norm_eq_abs,
+    abs_of_nonneg (Real.sqrt_nonneg M)]
+  simp_rw [div_pow]
+  rw [← Finset.sum_div]
+  rw [← hM, Real.sq_sqrt hpos.le]
+  exact div_self (ne_of_gt hpos)
 
 -- ============================================================
 -- Plancherel: ‖ψ̂‖_{L²} = ‖ψ‖_{L²} = 1
