@@ -1,11 +1,12 @@
 import expdb.basic
-import Mathlib.Analysis.Fourier.FourierTransform
 import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Distribution.FourierSchwartz
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 import Mathlib.Tactic
 
 open MeasureTheory Real Complex Filter Topology BigOperators
+open scoped FourierTransform SchwartzMap ContDiff
 
 noncomputable section
 
@@ -76,6 +77,8 @@ lemma integral_pos (B : BumpData) : 0 < ∫ x : ℝ, B.ψ x := by
 
 end BumpData
 
+open BumpData
+
 -- ============================================================
 -- GOAL 1: WLOG ∑|aᵣ|² = 1
 -- "Let M = ∑|aᵣ|², let Aᵣ = aᵣ/M^{1/2} → ∑|Aᵣ|² = 1"
@@ -99,16 +102,35 @@ lemma goal1 {R : ℕ} (a : Fin R → ℂ) (M : ℝ) (hM : M = ∑ r, ‖a r‖ ^
 -- ============================================================
 
 lemma psiHat_l2 (B : BumpData) :
-    ∫ u : ℝ, ‖psiHat B.ψ u‖ ^ 2 = 1 := by
-  -- Plancherel: ∫|ψ̂|² = ∫|ψ|²
-  have hP : ∫ u : ℝ, ‖psiHat B.ψ u‖ ^ 2 = ∫ x : ℝ, (B.ψ x) ^ 2 := by
-    simp only [psiHat]
-    rw [← MeasureTheory.integral_norm_sq_eq_integral_sq_norm_fourier]
-    · congr 1; ext u
-      congr 1; ext x
-      simp [e_def, Complex.norm_ofReal, norm_e]
-    · exact B.integrable.ofReal
-  rw [hP, B.l2norm]
+      ∫ u : ℝ, ‖psiHat B.ψ u‖ ^ 2 = 1 := by
+    have hcomp : HasCompactSupport (fun x : ℝ => (B.ψ x : ℂ)) :=
+      HasCompactSupport.of_support_subset_isCompact
+        (isCompact_Icc (a := -1 / 4) (b := 1 / 4)) (by
+          intro x hx
+          simp only [Function.mem_support] at hx
+          have h := B.supp x (by exact_mod_cast hx)
+          simp only [Set.mem_Icc, abs_le] at h ⊢
+          simpa only [neg_div] using h)
+
+    have hsmooth : ContDiff ℝ ∞ (fun x : ℝ => (B.ψ x : ℂ)) := by
+      simpa only [ContinuousLinearMap.coe_comp', Function.comp_apply,
+        Complex.ofRealCLM_apply] using
+        (Complex.ofRealCLM.contDiff (n := ∞)).comp
+          (B.smooth.of_le (by simp))
+
+    let f : 𝓢(ℝ, ℂ) := hcomp.toSchwartzMap hsmooth
+
+    have hfourier : (fun u : ℝ => psiHat B.ψ u) = 𝓕 (f : ℝ → ℂ) := by
+      funext u
+      rw [Real.fourier_real_eq]
+      simp [f, psiHat, e, Circle.smul_def, Real.fourierChar_apply]
+      apply integral_congr_ae
+      filter_upwards with x
+      ring
+
+    simp_rw [show psiHat B.ψ = 𝓕 (f : ℝ → ℂ) from hfourier]
+    rw [← SchwartzMap.fourier_coe, SchwartzMap.integral_norm_sq_fourier]
+    simpa [f, Real.norm_eq_abs, abs_of_nonneg (B.nonneg _)] using B.l2norm
 
 -- ============================================================
 -- ψ̂ is rapidly decaying
