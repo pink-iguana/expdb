@@ -128,6 +128,14 @@ lemma goal1 {R : ℕ} (a : Fin R → ℂ) (M : ℝ) (hM : M = ∑ r, ‖a r‖ ^
   rw [← hM, Real.sq_sqrt hpos.le]
   exact div_self (ne_of_gt hpos)
 
+/-- The exponential sum occurring in the $L^2$ integral estimate. -/
+def expSum {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℂ :=
+  ∑ r, a r * e (ξ r * t)
+
+/-- The squared modulus of `expSum`. -/
+def expSumSq {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℝ :=
+  ‖expSum a ξ t‖ ^ 2
+
 -- ============================================================
 -- Plancherel: ‖ψ̂‖_{L²} = ‖ψ‖_{L²} = 1
 -- From proof: "∑|aᵣ|² ∫|ψ̂((t-t₀)/N)|² dt, let u=(t-t₀)/N
@@ -250,106 +258,284 @@ lemma psiHat_lower_bound :
 --                        forces |q|≤1/(2N), contradiction)
 -- ============================================================
 
+-- Package translates of the concrete bump as Schwartz functions so that the
+-- off-diagonal Fourier integrals can be evaluated by Plancherel.
+private def psiShift (w : ℝ) : 𝓢(ℝ, ℂ) := by
+  let f : ℝ → ℂ := fun x => (ψ (x + w) : ℂ)
+  have hcomp : HasCompactSupport f := by
+    apply HasCompactSupport.of_support_subset_isCompact
+      (isCompact_Icc (a := -w - 1 / 4) (b := -w + 1 / 4))
+    intro x hx
+    change (ψ (x + w) : ℂ) ≠ 0 at hx
+    have hx' : ψ (x + w) ≠ 0 := by exact_mod_cast hx
+    have h := abs_le.mp (psi_supp (x + w) hx')
+    constructor <;> linarith
+  have hsmooth : ContDiff ℝ ∞ f := by
+    simpa only [f, Function.comp_apply] using
+      psi_complex_smooth.comp (contDiff_id.add contDiff_const)
+  exact hcomp.toSchwartzMap hsmooth
+
+private lemma psiShift_apply (w x : ℝ) : psiShift w x = ψ (x + w) := rfl
+
+private lemma fourier_psiShift (w u : ℝ) :
+    (𝓕 (psiShift w : ℝ → ℂ)) u = e (w * u) * psiHat u := by
+  have hcoe : (psiShift w : ℝ → ℂ) = fun x : ℝ => (ψ (x + w) : ℂ) := by
+    ext x
+    exact_mod_cast psiShift_apply w x
+  rw [hcoe, Real.fourier_real_eq]
+  have hpsi : psiHat u = ∫ x : ℝ, e (-(x * u)) * (ψ x : ℂ) := by
+    simp only [psiHat]
+    apply integral_congr_ae
+    filter_upwards with x
+    ring
+  rw [hpsi]
+  have ht := congr_fun
+    (Fourier.fourierIntegral_comp_add_right 𝐞 volume (fun x : ℝ => (ψ x : ℂ)) w) u
+  simpa [Fourier.fourierIntegral_def, Circle.smul_def, e, Real.fourierChar_apply] using ht
+
+private lemma psiShift_inner_eq_zero {w : ℝ} (hw : 1 ≤ |w|) :
+    ∫ x : ℝ, inner ℂ (psiSchwartz x) (psiShift w x) = 0 := by
+  apply integral_eq_zero_of_ae
+  filter_upwards with x
+  by_cases hx : ψ x = 0
+  · simp [psiSchwartz, hx]
+  by_cases hxw : ψ (x + w) = 0
+  · simp [psiShift_apply, hxw]
+  exfalso
+  have h1 := psi_supp x hx
+  have h2 := psi_supp (x + w) hxw
+  have hbound : |w| ≤ 1 / 2 := by
+    calc
+      |w| = |(x + w) - x| := by ring_nf
+      _ = |(x + w) + (-x)| := by ring
+      _ ≤ |x + w| + |-x| := abs_add_le _ _
+      _ = |x + w| + |x| := by rw [abs_neg]
+      _ ≤ 1 / 4 + 1 / 4 := by linarith
+      _ = 1 / 2 := by norm_num
+  linarith
+
+private lemma psiHat_orthogonal {w : ℝ} (hw : 1 ≤ |w|) :
+    ∫ u : ℝ, e (w * u) * ‖psiHat u‖ ^ 2 = 0 := by
+  have hpl := SchwartzMap.integral_inner_fourier_fourier psiSchwartz (psiShift w)
+  rw [psiShift_inner_eq_zero hw] at hpl
+  have hshift : ((𝓕 (psiShift w) : 𝓢(ℝ, ℂ)) : ℝ → ℂ) =
+      fun u => e (w * u) * psiHat u := by
+    rw [SchwartzMap.fourier_coe]
+    ext u
+    exact fourier_psiShift w u
+  have hbase : ((𝓕 psiSchwartz : 𝓢(ℝ, ℂ)) : ℝ → ℂ) = psiHat := by
+    rw [SchwartzMap.fourier_coe]
+    exact psiHat_eq_fourier.symm
+  have hleft : (fun u : ℝ => inner ℂ (𝓕 psiSchwartz u) (𝓕 (psiShift w) u)) =
+      fun u => e (w * u) * ‖psiHat u‖ ^ 2 := by
+    funext u
+    rw [RCLike.inner_apply, hshift, hbase]
+    change (e (w * u) * psiHat u) * (starRingEnd ℂ) (psiHat u) = _
+    rw [mul_assoc, Complex.mul_conj']
+  rw [hleft] at hpl
+  exact hpl
+
+private lemma scaled_psiHat_orthogonal {q N t₀ : ℝ} (hN : 0 < N)
+    (hq : 1 / N ≤ |q|) :
+    ∫ t : ℝ, e (q * t) * (((‖psiHat ((t - t₀) / N)‖ ^ 2 : ℝ) : ℂ)) = 0 := by
+  have hqN : 1 ≤ |q * N| := by
+    rw [abs_mul, abs_of_pos hN]
+    calc
+      1 = (1 / N) * N := by field_simp
+      _ ≤ |q| * N := mul_le_mul_of_nonneg_right hq hN.le
+  let F : ℝ → ℂ := fun u => e (q * (N * u + t₀)) * (((‖psiHat u‖ ^ 2 : ℝ) : ℂ))
+  have hrewrite : (fun t : ℝ =>
+      e (q * t) * (((‖psiHat ((t - t₀) / N)‖ ^ 2 : ℝ) : ℂ))) =
+      fun t => F ((1 / N) * t + (-t₀ / N)) := by
+    funext t
+    simp only [F]
+    rw [show (1 / N) * t + -t₀ / N = (t - t₀) / N by
+      field_simp
+      ring]
+    congr 2
+    field_simp
+    ring
+  rw [hrewrite]
+  let H : ℝ → ℂ := fun x => F (x + (-t₀ / N))
+  change ∫ t : ℝ, H ((1 / N) * t) = 0
+  rw [Measure.integral_comp_mul_left H (1 / N)]
+  rw [show (∫ y : ℝ, H y) = ∫ y : ℝ, F y by
+    exact integral_add_right_eq_self F (-t₀ / N)]
+  have hF : (fun u : ℝ => F u) =
+      fun u => e (q * t₀) *
+        (e ((q * N) * u) * (((‖psiHat u‖ ^ 2 : ℝ) : ℂ))) := by
+    funext u
+    simp only [F]
+    rw [show q * (N * u + t₀) = q * t₀ + (q * N) * u by ring, e_add]
+    ring
+  have hFint : ∫ u : ℝ, F u = 0 := by
+    rw [hF, integral_const_mul]
+    rw [show (∫ u : ℝ,
+        e ((q * N) * u) * (((‖psiHat u‖ ^ 2 : ℝ) : ℂ))) = 0 by
+      simpa only [Complex.ofReal_pow] using psiHat_orthogonal hqN]
+    simp
+  rw [hFint]
+  simp
+
+private lemma star_e (x : ℝ) : starRingEnd ℂ (e x) = e (-x) := by
+  unfold e
+  rw [← Complex.exp_conj]
+  simp only [map_mul, map_ofNat, Complex.conj_ofReal, Complex.conj_I]
+  congr 1
+  push_cast
+  ring
+
+-- Scaling and integrability facts used to exchange the finite sums and integral
+-- in `goal2`.
+private lemma scaled_psiHat_l2 (N t₀ : ℝ) (hN : 0 < N) :
+    ∫ t : ℝ, ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
+  let F : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
+  let H : ℝ → ℝ := fun x => F (x + (-t₀ / N))
+  have hrewrite : (fun t : ℝ => ‖psiHat ((t - t₀) / N)‖ ^ 2) =
+      fun t => H ((1 / N) * t) := by
+    funext t
+    simp only [H, F]
+    congr 2
+    field_simp
+    ring
+  rw [hrewrite, Measure.integral_comp_mul_left H (1 / N)]
+  rw [show (∫ y : ℝ, H y) = ∫ y : ℝ, F y by
+    exact integral_add_right_eq_self F (-t₀ / N)]
+  rw [show (∫ y : ℝ, F y) = 1 by exact psiHat_l2]
+  simp [abs_of_pos hN]
+
+private lemma psiHat_sq_integrable : Integrable (fun u : ℝ => ‖psiHat u‖ ^ 2) := by
+  by_contra h
+  have hz := integral_undef h
+  rw [psiHat_l2] at hz
+  norm_num at hz
+
+private lemma scaled_psiHat_sq_integrable (N t₀ : ℝ) (hN : 0 < N) :
+    Integrable (fun t : ℝ => ‖psiHat ((t - t₀) / N)‖ ^ 2) := by
+  have h := (psiHat_sq_integrable.comp_add_right (-t₀ / N)).comp_mul_left'
+    (show 1 / N ≠ 0 by positivity)
+  convert h using 1
+  ext t
+  congr 2
+  field_simp
+  ring
+
+private lemma scaled_phase_integrable (q N t₀ : ℝ) (hN : 0 < N) :
+    Integrable (fun t : ℝ =>
+      e (q * t) * (((‖psiHat ((t - t₀) / N)‖ ^ 2 : ℝ) : ℂ))) := by
+  refine (scaled_psiHat_sq_integrable N t₀ hN).ofReal.bdd_mul
+    (f := fun t => e (q * t)) (c := 1) ?_ ?_
+  · apply Continuous.aestronglyMeasurable
+    unfold e
+    fun_prop
+  · filter_upwards with t
+    rw [norm_e]
+
 theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N) (t₀ : ℝ)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : Separated N ξ) :
+    (hsep : IsSeparatedFamily (1 / N) ξ) :
     ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
-  simp only [expSumSq]
-  -- Expand |∑ aᵣ e(ξᵣt)|² = ∑ᵣ ∑ₛ aᵣ·ā_s·e((ξᵣ-ξₛ)t)
+  let W : ℝ → ℝ := fun t => ‖psiHat ((t - t₀) / N)‖ ^ 2
+  let B : Fin R → Fin R → ℝ → ℂ := fun r s t =>
+    a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t) * (W t : ℂ)
   have hexpand : ∀ t : ℝ,
-      ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
+      expSumSq a ξ t =
       (∑ r : Fin R, ∑ s : Fin R,
         a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t)).re := by
     intro t
-    rw [← Complex.normSq_eq_sq]
-    simp [Complex.normSq_apply, Finset.sum_mul, Finset.mul_sum,
-          ← Complex.exp_add, e_def]
-    congr 1; ext r; congr 1; ext s
-    congr 1; push_cast; ring
-  -- Substitute the expansion
-  simp_rw [hexpand]
-  -- Split diagonal (r=s) and off-diagonal (r≠s)
-  have hdiag_offdiag : ∀ t : ℝ,
-      (∑ r : Fin R, ∑ s : Fin R,
-        a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t)).re =
-      ∑ r : Fin R, ‖a r‖ ^ 2 +
-      (∑ r : Fin R, ∑ s ∈ (Finset.univ (α := Fin R)).filter (· ≠ r),
-        a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t)).re := by
-    intro t
-    simp [Finset.sum_add_sum_compl, Complex.add_re]
-    congr 1
-    · simp [map_mul, Complex.normSq_eq_conj_mul_self, Complex.normSq_apply]
-    · apply Finset.sum_congr rfl; intro r _
-      rw [← Finset.sum_filter]
-  simp_rw [hdiag_offdiag]
-  rw [integral_add]
-  -- STEP 1 (r=s): = ∑|aᵣ|² · N = N
-  · simp_rw [integral_add]
-    · -- ∑|aᵣ|² · ∫|ψ̂((t-t₀)/N)|² dt = N
-      conv_lhs =>
-        arg 1
-        ext t
-        rw [show ∑ r : Fin R, ‖a r‖ ^ 2 = (1 : ℝ) from hnorm]
-      rw [one_mul]
-      -- Substitute u = (t-t₀)/N: ∫|ψ̂((t-t₀)/N)|² dt = N·∫|ψ̂(u)|² du = N
-      have : ∫ t : ℝ, ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
-        rw [show (fun t => ‖psiHat ((t - t₀) / N)‖ ^ 2) =
-            fun t => ‖psiHat ((1/N) * t + (-t₀/N))‖ ^ 2 from by
-          ext t; congr 2; field_simp; ring]
-        rw [integral_comp_mul_add _ (1/N) (-t₀/N) (by simp [hN.ne'])]
-        simp [abs_of_pos (by positivity : (0:ℝ) < 1/N)]
-        rw [psiHat_l2, mul_one]
-      exact this
-    · exact integrable_const
-    · exact (Continuous.integrable_of_hasCompactSupport (by continuity)
-        (HasCompactSupport.of_support_subset_isCompact (isCompact_Icc)
-          (fun t _ => Set.mem_Icc.mpr ⟨by norm_num, by norm_num⟩)))
-  -- STEP 2 (r≠s): = 0  [support analysis]
-  · -- For each r ≠ s, show ∫ aᵣā_s e((ξᵣ-ξₛ)t)|ψ̂((t-t₀)/N)|² dt = 0
-    -- by showing the convolution ∫ ψ(v)ψ(v-qN)dv = 0 when |q|≥1/N
-    rw [integral_re]
-    apply integral_eq_zero_of_forall_eq_zero
-    · intro t
-      simp only [Finset.sum_re, Complex.re_sum, Finset.sum_eq_zero_iff]
-      intro r _
-      apply Finset.sum_eq_zero
-      intro s hs
-      simp only [Finset.mem_filter] at hs
-      set q := ξ r - ξ s
-      have hq : |q| ≥ 1 / N := hsep r s hs.2
-      -- Key: ∫ ψ(v)ψ(v-qN) dv = 0 when |qN| > 1/2
-      have hconv : ∫ v : ℝ, ψ v * ψ (v - q * N) = 0 := by
-        apply integral_eq_zero_of_forall_eq_zero
-        intro v
-        by_cases h1 : ψ v = 0
-        · simp [h1]
-        · by_cases h2 : ψ (v - q * N) = 0
-          · simp [h2]
-          · exfalso
-            -- |v| ≤ 1/4 and |v - qN| ≤ 1/4 → |qN| ≤ 1/2
-            have hv := psi_supp v h1
-            have hvq := psi_supp (v - q * N) h2
-            have hcontra : |q * N| ≤ 1/2 := by
-              calc |q * N| = |v - (v - q * N)| := by ring_nf
-                _ ≤ |v| + |v - q * N| := abs_sub_abs_le_abs_sub _ _
-                _ ≤ 1/4 + 1/4 := by linarith
-                _ = 1/2 := by norm_num
-            -- But |q| ≥ 1/N → |qN| ≥ 1
-            have hbig : |q * N| ≥ 1 := by
-              rw [abs_mul, abs_of_pos hN]
-              have := mul_le_mul_of_nonneg_right hq (abs_nonneg N)
-              simp [abs_of_pos hN] at this ⊢; linarith
-            linarith
-      -- Connect hconv to the original integral via Fourier analysis
-      simp [hconv]
-    · exact (integrable_const 1).mono (ae_of_all _ (fun t => by simp [expSumSq]; positivity))
-  · exact integrable_const
-  · apply integrable_finset_sum; intro r _
-    apply integrable_finset_sum; intro s _
-    apply Integrable.re
-    apply Integrable.const_mul
-    exact (integrable_const 1).mono (ae_of_all _ (fun t => by simp [norm_e]; positivity))
+    simp only [expSumSq, expSum]
+    rw [show ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
+        ((∑ r, a r * e (ξ r * t)) * starRingEnd ℂ (∑ r, a r * e (ξ r * t))).re by
+          rw [Complex.sq_norm, Complex.mul_conj]
+          exact (Complex.ofReal_re _).symm]
+    apply congrArg Complex.re
+    rw [map_sum, Finset.sum_mul]
+    simp_rw [Finset.mul_sum]
+    apply Finset.sum_congr rfl
+    intro r _
+    apply Finset.sum_congr rfl
+    intro s _
+    rw [map_mul, star_e]
+    calc
+      a r * e (ξ r * t) * ((starRingEnd ℂ) (a s) * e (-(ξ s * t))) =
+          a r * (starRingEnd ℂ) (a s) * (e (ξ r * t) * e (-(ξ s * t))) := by ring
+      _ = a r * (starRingEnd ℂ) (a s) * e ((ξ r - ξ s) * t) := by
+        rw [← e_add]
+        congr 1
+        ring
+  have hBint (r s : Fin R) : Integrable (B r s) := by
+    convert (scaled_phase_integrable (ξ r - ξ s) N t₀ hN).const_mul
+      (a r * starRingEnd ℂ (a s)) using 1
+    simp [B, W, mul_assoc]
+  have hsumInt : Integrable (fun t : ℝ => ∑ r : Fin R, ∑ s : Fin R, B r s t) := by
+    apply integrable_finset_sum
+    intro r _
+    apply integrable_finset_sum
+    intro s _
+    exact hBint r s
+  have hpair (r s : Fin R) :
+      ∫ t : ℝ, B r s t =
+        if r = s then (N : ℂ) * ((‖a r‖ ^ 2 : ℝ) : ℂ) else 0 := by
+    have hfactor :
+        (∫ t : ℝ, B r s t) =
+          (a r * starRingEnd ℂ (a s)) *
+            ∫ t : ℝ, e ((ξ r - ξ s) * t) * (W t : ℂ) := by
+      rw [show B r s = fun t : ℝ =>
+          (a r * starRingEnd ℂ (a s)) *
+            (e ((ξ r - ξ s) * t) * (W t : ℂ)) by
+        funext t
+        simp only [B]
+        ring]
+      rw [integral_const_mul]
+    by_cases hrs : r = s
+    · subst s
+      rw [if_pos rfl]
+      rw [hfactor]
+      simp only [sub_self, zero_mul, e_zero, one_mul]
+      rw [show (∫ t : ℝ, (W t : ℂ)) = (N : ℂ) by
+        calc
+          (∫ t : ℝ, (W t : ℂ)) = (((∫ t : ℝ, W t) : ℝ) : ℂ) := integral_ofReal
+          _ = (N : ℂ) := congrArg (fun x : ℝ => (x : ℂ))
+            (by simpa only [W] using scaled_psiHat_l2 N t₀ hN)]
+      rw [Complex.mul_conj']
+      rw [← Complex.ofReal_pow]
+      ring
+    · rw [if_neg hrs]
+      rw [hfactor]
+      rw [show (∫ t : ℝ, e ((ξ r - ξ s) * t) * (W t : ℂ)) = 0 by
+        simpa only [W] using scaled_psiHat_orthogonal hN (hsep r s hrs)]
+      simp
+  have hcomplex : (∫ t : ℝ, ∑ r : Fin R, ∑ s : Fin R, B r s t) = (N : ℂ) := by
+    rw [integral_finset_sum Finset.univ (fun r _ => by
+      apply integrable_finset_sum
+      intro s _
+      exact hBint r s)]
+    simp_rw [integral_finset_sum Finset.univ (fun s _ => hBint _ s), hpair]
+    simp only [Finset.sum_ite_eq, Finset.mem_univ, if_true]
+    rw [← Finset.mul_sum, show
+      (∑ r : Fin R, (((‖a r‖ ^ 2 : ℝ) : ℂ))) = 1 by exact_mod_cast hnorm, mul_one]
+  calc
+    ∫ t : ℝ, expSumSq a ξ t * W t =
+        ∫ t : ℝ, (∑ r : Fin R, ∑ s : Fin R, B r s t).re := by
+          apply integral_congr_ae
+          filter_upwards with t
+          rw [hexpand]
+          have hBsum :
+              (∑ r : Fin R, ∑ s : Fin R, B r s t) =
+                (∑ r : Fin R, ∑ s : Fin R,
+                  a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t)) * (W t : ℂ) := by
+            simp only [B]
+            symm
+            rw [Finset.sum_mul]
+            apply Finset.sum_congr rfl
+            intro r _
+            rw [Finset.sum_mul]
+          rw [hBsum]
+          simp only [Complex.mul_re, Complex.ofReal_re, Complex.ofReal_im, mul_zero, sub_zero]
+    _ = (∫ t : ℝ, ∑ r : Fin R, ∑ s : Fin R, B r s t).re :=
+      integral_re hsumInt
+    _ = N := by simpa using congrArg Complex.re hcomplex
 
 -- ============================================================
 -- GOAL 3: ∫_J |∑ aᵣ e(ξᵣ t)|² dt ≪ N for |J| = N  [eq (3.2)]
@@ -361,7 +547,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : Separated N ξ)
+    (hsep : IsSeparatedFamily (1 / N) ξ)
     (a₀ : ℝ) :
     ∃ C : ℝ, 0 < C ∧
     ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ C * N := by
@@ -420,7 +606,7 @@ def kernelE (N : ℝ) (a₀ b₀ : ℝ) (t : ℝ) : ℝ :=
 theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : Separated N ξ)
+    (hsep : IsSeparatedFamily (1 / N) ξ)
     (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
     ∫ t in Set.Icc a₀ b₀, expSumSq a ξ t =
     T - ∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t := by
@@ -651,7 +837,7 @@ have hint : Integrable (fun u => ‖psiHat u‖ ^ 2) := by
 theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : Separated N ξ)
+    (hsep : IsSeparatedFamily (1 / N) ξ)
     (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
     ∃ C : ℝ, 0 < C ∧
     |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t| ≤ C * N := by
@@ -762,7 +948,7 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 -- ============================================================
 
 theorem lemma3_1 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
-    (N : ℝ) (hN : 0 < N) (hsep : Separated N ξ)
+    (N : ℝ) (hN : 0 < N) (hsep : IsSeparatedFamily (1 / N) ξ)
     (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
     ∃ C : ℝ, 0 < C ∧ ∃ θ : ℝ, |θ| ≤ C ∧
     ∫ t in Set.Icc a₀ b₀, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =

@@ -117,29 +117,38 @@ lemma indicatorFunction_values {α : Type*} [DecidableEq α]
 example (W : Finset ℝ) : W.card = Finset.card W := rfl
 
 -- ===========================================================
---  Separated Sequences
+--  Separated families and sets
 -- ===========================================================
 
-/-- 1-Separated Sets: distance between distinct elements is at least 1 -/
-def IsSeparated (W : Finset ℝ) : Prop :=
-  ∀ t ∈ W, ∀ t' ∈ W, t ≠ t' → 1 ≤ |t - t'|
+/-- A family of real numbers is `δ`-separated when distinct indices have values at least
+`δ` apart. -/
+def IsSeparatedFamily {ι : Type*} (δ : ℝ) (x : ι → ℝ) : Prop :=
+  ∀ i j, i ≠ j → δ ≤ |x i - x j|
 
 /-- λ-Separated Sets: distance between distinct elements is at least λ -/
 def IsLambdaSeparated (lam : ℝ) (W : Finset ℝ) : Prop :=
-  ∀ t ∈ W, ∀ t' ∈ W, t ≠ t' → lam ≤ |t - t'|
+  IsSeparatedFamily lam fun t : W.attach => (t : ℝ)
+
+/-- 1-Separated Sets: distance between distinct elements is at least 1. -/
+abbrev IsOneSeparated (W : Finset ℝ) : Prop :=
+  IsLambdaSeparated 1 W
 
 /-- 1-separated is structurally identical to λ-separated with λ = 1 -/
-lemma isSeparated_iff_isLambdaSeparated_one (W : Finset ℝ) :
-    IsSeparated W ↔ IsLambdaSeparated 1 W := by
+lemma isOneSeparated_iff_isLambdaSeparated_one (W : Finset ℝ) :
+    IsOneSeparated W ↔ IsLambdaSeparated 1 W := by
   rfl
 
 -- ===========================================================
--- 1-Bounded Sequences
+-- Bounded families
 -- ===========================================================
 
-/-- 1-Bounded complex sequence: |aₙ| ≤ 1 for all n -/
-def IsOneBounded (a : ℕ → ℂ) : Prop :=
-  ∀ n, ‖a n‖ ≤ 1
+/-- A complex family is `C`-bounded when every value has norm at most `C`. -/
+def IsBoundedFamily {ι : Type*} (C : ℝ) (a : ι → ℂ) : Prop :=
+  ∀ i, ‖a i‖ ≤ C
+
+/-- A complex family is 1-bounded. -/
+abbrev IsOneBounded {ι : Type*} (a : ι → ℂ) : Prop :=
+  IsBoundedFamily 1 a
 
 /-- The phase sequence e(θₙ) is always 1-bounded -/
 lemma e_is_one_bounded (θ : ℕ → ℝ) : IsOneBounded (fun n => e (θ n)) := by
