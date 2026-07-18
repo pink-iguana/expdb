@@ -397,7 +397,7 @@ private lemma scaled_psiHat_l2 (N t₀ : ℝ) (hN : 0 < N) :
     simp only [H, F]
     congr 2
     field_simp
-    ring
+    ring_nf
   rw [hrewrite, Measure.integral_comp_mul_left H (1 / N)]
   rw [show (∫ y : ℝ, H y) = ∫ y : ℝ, F y by
     exact integral_add_right_eq_self F (-t₀ / N)]
@@ -418,7 +418,7 @@ private lemma scaled_psiHat_sq_integrable (N t₀ : ℝ) (hN : 0 < N) :
   ext t
   congr 2
   field_simp
-  ring
+  ring_nf
 
 private lemma scaled_phase_integrable (q N t₀ : ℝ) (hN : 0 < N) :
     Integrable (fun t : ℝ =>
@@ -463,7 +463,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       _ = a r * (starRingEnd ℂ) (a s) * e ((ξ r - ξ s) * t) := by
         rw [← e_add]
         congr 1
-        ring
+        ring_nf
   have hBint (r s : Fin R) : Integrable (B r s) := by
     convert (scaled_phase_integrable (ξ r - ξ s) N t₀ hN).const_mul
       (a r * starRingEnd ℂ (a s)) using 1
