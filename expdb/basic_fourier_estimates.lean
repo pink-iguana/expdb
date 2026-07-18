@@ -1,5 +1,6 @@
 import expdb.basic
 import Mathlib.Analysis.Calculus.Deriv.Basic
+import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.Distribution.FourierSchwartz
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
@@ -25,59 +26,91 @@ Proof structure:
   Goal 7: Assembly → Lemma 3.1
 -/
 -- ============================================================
--- BumpData: ψ smooth, supported on [-1/4,1/4], L²-norm = 1
--- ψ(t) ≥ 0 (from handwritten proof: "we can choose ψ s.t. ψ(t) ≥ 0")
+-- A fixed smooth bump ψ, supported on [-1/4, 1/4], with L²-norm 1.
 -- ============================================================
 
-structure BumpData where
-  ψ       : ℝ → ℝ
-  smooth  : ContDiff ℝ ⊤ ψ
-  supp    : ∀ x, ψ x ≠ 0 → |x| ≤ 1 / 4
-  nonneg  : ∀ x, 0 ≤ ψ x
-  l2norm  : ∫ x : ℝ, (ψ x) ^ 2 = 1
+private def rawBump : ContDiffBump (0 : ℝ) :=
+  ⟨1 / 8, 1 / 4, by norm_num, by norm_num⟩
 
-namespace BumpData
+private def rawL2 : ℝ := ∫ x : ℝ, (rawBump x) ^ 2
 
--- ψ has compact support
-lemma hasCompactSupport (B : BumpData) : HasCompactSupport B.ψ :=
-  HasCompactSupport.of_support_subset_isCompact
-    (isCompact_Icc (a := -1 / 4) (b := 1 / 4))
-    (fun x hx => by
-      simp only [Function.mem_support] at hx
-      have h := B.supp x hx
-      simp only [Set.mem_Icc, abs_le] at h ⊢
-      simpa only [neg_div] using h)
+private lemma rawL2_pos : 0 < rawL2 := by
+  apply integral_pos_of_integrable_nonneg_nonzero (x := 0)
+  · simpa using ((rawBump.contDiff (n := ⊤)).continuous.pow 2)
+  · apply ((rawBump.contDiff (n := ⊤)).continuous.pow 2).integrable_of_hasCompactSupport
+    apply HasCompactSupport.of_support_subset_isCompact rawBump.hasCompactSupport.isCompact
+    simpa only [Function.support_pow rawBump (by norm_num : 2 ≠ 0)] using
+      (subset_tsupport (rawBump : ℝ → ℝ))
+  · intro x
+    positivity
+  · have hzero : (rawBump : ℝ → ℝ) 0 = 1 := by
+      apply rawBump.one_of_mem_closedBall
+      simp [rawBump, Metric.mem_closedBall]
+    simp [hzero]
+
+def ψ (x : ℝ) : ℝ := rawBump x / Real.sqrt rawL2
+
+lemma psi_smooth : ContDiff ℝ ∞ ψ := by
+  simpa [ψ] using (rawBump.contDiff (n := ⊤)).div_const (Real.sqrt rawL2)
+
+lemma psi_hasCompactSupport : HasCompactSupport ψ := by
+  apply HasCompactSupport.of_support_subset_isCompact rawBump.hasCompactSupport.isCompact
+  intro x hx
+  apply subset_tsupport rawBump
+  simp only [Function.mem_support] at hx ⊢
+  intro hzero
+  apply hx
+  simp [ψ, hzero]
+
+lemma psi_supp (x : ℝ) (hx : ψ x ≠ 0) : |x| ≤ 1 / 4 := by
+  have hraw : (rawBump : ℝ → ℝ) x ≠ 0 := by
+    intro hzero
+    apply hx
+    simp [ψ, hzero]
+  have hmem : x ∈ Metric.ball (0 : ℝ) rawBump.rOut := by
+    rw [← rawBump.support_eq]
+    exact hraw
+  have : |x| < 1 / 4 := by
+    simpa [rawBump, Metric.mem_ball, Real.dist_eq] using hmem
+  exact this.le
+
+lemma psi_nonneg (x : ℝ) : 0 ≤ ψ x :=
+  div_nonneg (rawBump.nonneg' x) (Real.sqrt_nonneg rawL2)
+
+lemma psi_l2norm : ∫ x : ℝ, (ψ x) ^ 2 = 1 := by
+  rw [show (fun x : ℝ => (ψ x) ^ 2) = fun x => (rawBump x) ^ 2 / rawL2 by
+        funext x
+        simp only [ψ, div_pow]
+        rw [Real.sq_sqrt rawL2_pos.le]]
+  rw [integral_div]
+  exact div_self (ne_of_gt rawL2_pos)
 
 -- ψ̂(u) = ∫_ℝ ψ(x) e(-xu) dx
-def psiHat (ψ : ℝ → ℝ) (u : ℝ) : ℂ :=
+def psiHat (u : ℝ) : ℂ :=
   ∫ x : ℝ, (ψ x : ℂ) * e (-(x * u))
 
 -- ψ is integrable
-lemma integrable (B : BumpData) : Integrable B.ψ :=
-  B.smooth.continuous.integrable_of_hasCompactSupport B.hasCompactSupport
+lemma psi_integrable : Integrable ψ :=
+  psi_smooth.continuous.integrable_of_hasCompactSupport psi_hasCompactSupport
 
 -- ∫ ψ > 0  (from proof: "ψ(t) ≥ 0 and ‖ψ‖_{L²} = 1 so ψ ≢ 0")
-lemma integral_pos (B : BumpData) : 0 < ∫ x : ℝ, B.ψ x := by
-  have hne : ∃ x, B.ψ x ≠ 0 := by
+lemma psi_integral_pos : 0 < ∫ x : ℝ, ψ x := by
+  have hne : ∃ x, ψ x ≠ 0 := by
     by_contra h
     push_neg at h
-    have hsquare : ∫ x : ℝ, (B.ψ x) ^ 2 = 0 := by
+    have hsquare : ∫ x : ℝ, (ψ x) ^ 2 = 0 := by
       calc
-        ∫ x : ℝ, (B.ψ x) ^ 2
+        ∫ x : ℝ, (ψ x) ^ 2
             = ∫ x : ℝ, (0 : ℝ) ^ 2 := by
               congr 1
               ext x
               rw [h x]
         _ = 0 := by simp
-    linarith [B.l2norm, hsquare]
+    linarith [psi_l2norm, hsquare]
 
   obtain ⟨x, hx⟩ := hne
   exact integral_pos_of_integrable_nonneg_nonzero
-    B.smooth.continuous B.integrable B.nonneg hx
-
-end BumpData
-
-open BumpData
+    psi_smooth.continuous psi_integrable psi_nonneg hx
 
 -- ============================================================
 -- GOAL 1: WLOG ∑|aᵣ|² = 1
@@ -101,36 +134,34 @@ lemma goal1 {R : ℕ} (a : Fin R → ℂ) (M : ℝ) (hM : M = ∑ r, ‖a r‖ ^
 --             = N ∫|ψ̂(u)|² du = N  (by Plancherel, ‖ψ‖=1)"
 -- ============================================================
 
-lemma psiHat_l2 (B : BumpData) :
-      ∫ u : ℝ, ‖psiHat B.ψ u‖ ^ 2 = 1 := by
-    have hcomp : HasCompactSupport (fun x : ℝ => (B.ψ x : ℂ)) :=
-      HasCompactSupport.of_support_subset_isCompact
-        (isCompact_Icc (a := -1 / 4) (b := 1 / 4)) (by
-          intro x hx
-          simp only [Function.mem_support] at hx
-          have h := B.supp x (by exact_mod_cast hx)
-          simp only [Set.mem_Icc, abs_le] at h ⊢
-          simpa only [neg_div] using h)
+private lemma psi_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ => (ψ x : ℂ)) :=
+  HasCompactSupport.of_support_subset_isCompact
+    (isCompact_Icc (a := -1 / 4) (b := 1 / 4)) (by
+      intro x hx
+      simp only [Function.mem_support] at hx
+      have h := psi_supp x (by exact_mod_cast hx)
+      simp only [Set.mem_Icc, abs_le] at h ⊢
+      simpa only [neg_div] using h)
 
-    have hsmooth : ContDiff ℝ ∞ (fun x : ℝ => (B.ψ x : ℂ)) := by
-      simpa only [ContinuousLinearMap.coe_comp', Function.comp_apply,
-        Complex.ofRealCLM_apply] using
-        (Complex.ofRealCLM.contDiff (n := ∞)).comp
-          (B.smooth.of_le (by simp))
+private lemma psi_complex_smooth : ContDiff ℝ ∞ (fun x : ℝ => (ψ x : ℂ)) := by
+  simpa only [ContinuousLinearMap.coe_comp', Function.comp_apply, Complex.ofRealCLM_apply] using
+    (Complex.ofRealCLM.contDiff (n := ∞)).comp psi_smooth
 
-    let f : 𝓢(ℝ, ℂ) := hcomp.toSchwartzMap hsmooth
+private def psiSchwartz : 𝓢(ℝ, ℂ) :=
+  psi_complex_hasCompactSupport.toSchwartzMap psi_complex_smooth
 
-    have hfourier : (fun u : ℝ => psiHat B.ψ u) = 𝓕 (f : ℝ → ℂ) := by
-      funext u
-      rw [Real.fourier_real_eq]
-      simp [f, psiHat, e, Circle.smul_def, Real.fourierChar_apply]
-      apply integral_congr_ae
-      filter_upwards with x
-      ring
+private lemma psiHat_eq_fourier : psiHat = 𝓕 (psiSchwartz : ℝ → ℂ) := by
+  funext u
+  rw [Real.fourier_real_eq]
+  simp [psiSchwartz, psiHat, e, Circle.smul_def, Real.fourierChar_apply]
+  apply integral_congr_ae
+  filter_upwards with x
+  ring
 
-    simp_rw [show psiHat B.ψ = 𝓕 (f : ℝ → ℂ) from hfourier]
-    rw [← SchwartzMap.fourier_coe, SchwartzMap.integral_norm_sq_fourier]
-    simpa [f, Real.norm_eq_abs, abs_of_nonneg (B.nonneg _)] using B.l2norm
+lemma psiHat_l2 : ∫ u : ℝ, ‖psiHat u‖ ^ 2 = 1 := by
+  simp_rw [psiHat_eq_fourier]
+  rw [← SchwartzMap.fourier_coe, SchwartzMap.integral_norm_sq_fourier]
+  simpa [psiSchwartz, Real.norm_eq_abs, abs_of_nonneg (psi_nonneg _)] using psi_l2norm
 
 -- ============================================================
 -- ψ̂ is rapidly decaying
@@ -138,71 +169,32 @@ lemma psiHat_l2 (B : BumpData) :
 -- "ψ̂(u) = 1/(2πiu) ψ̂'(u), repeat k times → |ψ̂(u)| ≪ Cₖ/(1+|u|)ᵏ"
 -- ============================================================
 
-lemma psiHat_decay (B : BumpData) (K : ℕ) :
-    ∃ C : ℝ, 0 < C ∧ ∀ u : ℝ, ‖psiHat B.ψ u‖ ≤ C * (1 + |u|) ^ (-(K : ℝ)) := by
-  induction K with
-  | zero =>
-    -- K=0: |ψ̂(u)| ≤ ∫|ψ| (trivial bound)
-    refine ⟨∫ x : ℝ, |B.ψ x|, by
-      apply integral_pos_of_ne_zero_of_nonneg (fun x => abs_nonneg _)
-      intro h; have : ∫ x : ℝ, (B.ψ x)^2 = 0 := by
-        calc ∫ x : ℝ, (B.ψ x)^2
-            = ∫ x : ℝ, (0:ℝ)^2 := by
-              congr 1; ext x
-              have := congr_fun h x; simp [abs_eq_zero] at this
-              rw [this]
-          _ = 0 := by simp
-      linarith [B.l2norm], ?_⟩
+lemma psiHat_decay (K : ℕ) :
+    ∃ C : ℝ, 0 < C ∧ ∀ u : ℝ, ‖psiHat u‖ ≤ C * (1 + |u|) ^ (-(K : ℝ)) := by
+  let g : 𝓢(ℝ, ℂ) := 𝓕 psiSchwartz
+  have hfourier : ∀ u : ℝ, psiHat u = g u := by
     intro u
-    simp only [Nat.cast_zero, neg_zero, Real.rpow_zero, mul_one]
-    calc ‖psiHat B.ψ u‖
-        ≤ ∫ x : ℝ, ‖(B.ψ x : ℂ) * e (-(x * u))‖ :=
-          norm_integral_le_integral_norm _
-      _ = ∫ x : ℝ, |B.ψ x| := by
-          congr 1; ext x
-          simp [norm_e, Complex.norm_ofReal]
-  | succ k ih =>
-    -- K → K+1: use IBP: ψ̂(u) = 1/(2πiu) \widehat{ψ'}(u)
-    obtain ⟨C, hC, hk⟩ := ih
-    -- apply IBP to get the derivative bound
-    refine ⟨C / (2 * π), by positivity, ?_⟩
-    intro u
-    by_cases hu : u = 0
-    · subst hu; simp
-      calc ‖psiHat B.ψ 0‖
-          ≤ ∫ x : ℝ, |B.ψ x| :=
-            norm_integral_le_integral_norm _ |>.trans (by
-              congr 1; ext x; simp [norm_e, Complex.norm_ofReal])
-        _ ≤ _ := by positivity
-    · -- IBP: ψ̂(u) = 1/(2πiu) \widehat{ψ'}(u)
-      have hIBP : psiHat B.ψ u =
-          (1 / (2 * π * Complex.I * u)) * psiHat (deriv B.ψ) u := by
-        simp [psiHat, e_def]
-        rw [← integral_mul_left]
-        apply integral_congr_ae
-        apply ae_of_all
-        intro x
-        -- Integration by parts (compact support → boundary terms vanish)
-        field_simp
-        ring
-      rw [hIBP, norm_mul]
-      have hnorm_coeff : ‖(1 : ℂ) / (2 * π * Complex.I * u)‖ = 1 / (2 * π * |u|) := by
-        simp [Complex.norm_div, Complex.norm_mul, Complex.norm_ofReal,
-              Complex.norm_I, abs_of_pos Real.pi_pos]
-        field_simp
-      rw [hnorm_coeff]
-      calc 1 / (2 * π * |u|) * ‖psiHat (deriv B.ψ) u‖
-          ≤ 1 / (2 * π * |u|) * (C * (1 + |u|) ^ (-(k : ℝ))) :=
-            mul_le_mul_of_nonneg_left (hk u) (by positivity)
-        _ = C / (2 * π) * ((1 + |u|) ^ (-(k : ℝ)) / |u|) := by ring
-        _ ≤ C / (2 * π) * (1 + |u|) ^ (-((k : ℝ) + 1)) := by
-            apply mul_le_mul_of_nonneg_left _ (by positivity)
-            -- (1+|u|)^{-k} / |u| ≤ (1+|u|)^{-(k+1)}
-            rw [Real.rpow_add (by linarith [abs_pos.mpr hu])]
-            apply div_le_iff_le_mul (abs_pos.mpr hu) |>.mpr
-            rw [← mul_assoc, Real.rpow_neg_one]
-            apply mul_le_mul_of_nonneg_right _ (by positivity)
-            linarith [le_abs_self u]
+    exact congr_fun psiHat_eq_fourier u
+  let c : ℝ := 2 ^ K * (Finset.Iic (K, 0)).sup
+    (fun m => SchwartzMap.seminorm ℝ m.1 m.2) g
+  refine ⟨|c| + 1, by positivity, ?_⟩
+  intro u
+  have hweight : (1 + |u|) ^ K * ‖psiHat u‖ ≤ c := by
+    have hw := SchwartzMap.one_add_le_sup_seminorm_apply
+      (𝕜 := ℝ) (m := (K, 0)) (k := K) (n := 0) le_rfl le_rfl g u
+    rw [norm_iteratedFDeriv_zero, ← hfourier u] at hw
+    simpa [c, Real.norm_eq_abs] using hw
+  have hbase : 0 < 1 + |u| := by positivity
+  have hpow : 0 < (1 + |u|) ^ K := by positivity
+  have hrpow : (1 + |u|) ^ (-(K : ℝ)) = ((1 + |u|) ^ K)⁻¹ := by
+    rw [← Real.rpow_natCast, Real.rpow_neg hbase.le]
+  rw [hrpow, ← div_eq_mul_inv]
+  apply (le_div_iff₀ hpow).2
+  calc
+    ‖psiHat u‖ * (1 + |u|) ^ K =
+        (1 + |u|) ^ K * ‖psiHat u‖ := by ring
+    _ ≤ c := hweight
+    _ ≤ |c| + 1 := by linarith [le_abs_self c]
 
 -- ============================================================
 -- ψ̂ has positive lower bound near 0
@@ -211,41 +203,43 @@ lemma psiHat_decay (B : BumpData) (K : ℕ) :
 --  → ψ̂(u) > ψ̂(0)/2 for |u| < δ → |ψ̂(u)|² ≥ c·1_{[-δ/2,δ/2]}(u)"
 -- ============================================================
 
-lemma psiHat_lower_bound (B : BumpData) :
+lemma psiHat_lower_bound :
     ∃ c δ : ℝ, 0 < c ∧ 0 < δ ∧
-    ∀ u : ℝ, |u| ≤ δ → c ≤ ‖psiHat B.ψ u‖ ^ 2 := by
-  -- Step 1: ψ̂ is continuous (proved from differentiability in notes)
-  have hcts : Continuous (psiHat B.ψ) := by
-    apply continuous_of_dominated
-    · intro u
-      exact ((B.smooth.continuous.ofReal.mul (continuous_const)).integral_comp_right)
-    · exact fun u x => by simp [norm_e, Complex.norm_ofReal, abs_le]
-    · exact B.integrable.norm
-    · exact measurable_const
-  -- Step 2: ψ̂(0) = ∫ψ > 0
-  have hpsi0 : 0 < (psiHat B.ψ 0).re := by
-    have : (psiHat B.ψ 0).re = ∫ x : ℝ, B.ψ x := by
-      simp [psiHat, e_def, Complex.ofReal_re]
-    rw [this]; exact B.integral_pos
-  -- Step 3: By continuity, choose δ with ψ̂(u) > ψ̂(0)/2 for |u| < δ
-  have hpos : 0 < ‖psiHat B.ψ 0‖ := by
-    rw [Complex.norm_pos_iff]
-    intro h; simp [h] at hpsi0
-  set v₀ := ‖psiHat B.ψ 0‖
-  obtain ⟨δ, hδ, hball⟩ := (hcts.continuousAt (x := 0)).eventually
-    (Ioo_mem_nhds (by linarith : v₀/2 < v₀) (by linarith : v₀ < v₀ + 1)) |>.exists
-  -- c = (v₀/2)², δ as above
-  refine ⟨(v₀ / 2) ^ 2, δ, by positivity, hδ, ?_⟩
+    ∀ u : ℝ, |u| ≤ δ → c ≤ ‖psiHat u‖ ^ 2 := by
+  have hcts : Continuous psiHat := by
+    rw [psiHat_eq_fourier]
+    exact (𝓕 psiSchwartz).continuous
+  have hpsi0_eq : (psiHat 0).re = ∫ x : ℝ, ψ x := by
+    simp only [psiHat, mul_zero, neg_zero, e_zero, mul_one]
+    have hψc : Integrable (fun x : ℝ => (ψ x : ℂ)) := psi_integrable.ofReal
+    simpa using (integral_re hψc).symm
+  have hpsi0 : 0 < (psiHat 0).re := by
+    rw [hpsi0_eq]
+    exact psi_integral_pos
+  have hpos : 0 < ‖psiHat 0‖ := by
+    rw [norm_pos_iff]
+    intro hzero
+    have : (psiHat 0).re = 0 := by rw [hzero]; rfl
+    linarith
+  set v₀ := ‖psiHat 0‖
+  obtain ⟨δ, hδ, hball⟩ :=
+    (Metric.continuousAt_iff.mp hcts.continuousAt) (v₀ / 2) (by linarith)
+  refine ⟨(v₀ / 2) ^ 2, δ / 2, by positivity, by positivity, ?_⟩
   intro u hu
-  have hball' : ‖psiHat B.ψ u‖ > v₀ / 2 := by
-    have hdist : dist (psiHat B.ψ u) (psiHat B.ψ 0) < v₀ / 2 := by
-      apply hball
-      simp [Real.dist_eq, abs_lt]
-      exact ⟨by linarith [neg_abs_le u, hu], by linarith [le_abs_self u, hu]⟩
-    have := norm_sub_norm_le (psiHat B.ψ 0) (psiHat B.ψ u)
-    rw [Real.dist_eq] at hdist
-    linarith [abs_sub_comm ‖psiHat B.ψ 0‖ ‖psiHat B.ψ u‖ ▸ hdist]
-  nlinarith [norm_nonneg (psiHat B.ψ u)]
+  have hdist : dist (psiHat u) (psiHat 0) < v₀ / 2 := by
+    apply hball
+    rw [Real.dist_eq]
+    simp only [sub_zero]
+    exact lt_of_le_of_lt hu (by linarith)
+  have hbound : v₀ - ‖psiHat u‖ < v₀ / 2 := by
+    calc
+      v₀ - ‖psiHat u‖ = ‖psiHat 0‖ - ‖psiHat u‖ := rfl
+      _ ≤ ‖psiHat 0 - psiHat u‖ := norm_sub_norm_le _ _
+      _ = dist (psiHat u) (psiHat 0) := by
+        rw [dist_eq_norm_sub, norm_sub_rev]
+      _ < v₀ / 2 := hdist
+  have hball' : v₀ / 2 < ‖psiHat u‖ := by linarith
+  nlinarith [norm_nonneg (psiHat u)]
 
 -- ============================================================
 -- GOAL 2: ∫_ℝ F(t) |ψ̂((t-t₀)/N)|² dt = N   [equation (3.1)]
@@ -256,11 +250,11 @@ lemma psiHat_lower_bound (B : BumpData) :
 --                        forces |q|≤1/(2N), contradiction)
 -- ============================================================
 
-theorem goal2 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N) (t₀ : ℝ)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : Separated N ξ) :
-    ∫ t : ℝ, expSumSq a ξ t * ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 = N := by
+    ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
   simp only [expSumSq]
   -- Expand |∑ aᵣ e(ξᵣt)|² = ∑ᵣ ∑ₛ aᵣ·ā_s·e((ξᵣ-ξₛ)t)
   have hexpand : ∀ t : ℝ,
@@ -299,9 +293,9 @@ theorem goal2 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
         rw [show ∑ r : Fin R, ‖a r‖ ^ 2 = (1 : ℝ) from hnorm]
       rw [one_mul]
       -- Substitute u = (t-t₀)/N: ∫|ψ̂((t-t₀)/N)|² dt = N·∫|ψ̂(u)|² du = N
-      have : ∫ t : ℝ, ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 = N := by
-        rw [show (fun t => ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2) =
-            fun t => ‖psiHat B.ψ ((1/N) * t + (-t₀/N))‖ ^ 2 from by
+      have : ∫ t : ℝ, ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
+        rw [show (fun t => ‖psiHat ((t - t₀) / N)‖ ^ 2) =
+            fun t => ‖psiHat ((1/N) * t + (-t₀/N))‖ ^ 2 from by
           ext t; congr 2; field_simp; ring]
         rw [integral_comp_mul_add _ (1/N) (-t₀/N) (by simp [hN.ne'])]
         simp [abs_of_pos (by positivity : (0:ℝ) < 1/N)]
@@ -325,17 +319,17 @@ theorem goal2 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       set q := ξ r - ξ s
       have hq : |q| ≥ 1 / N := hsep r s hs.2
       -- Key: ∫ ψ(v)ψ(v-qN) dv = 0 when |qN| > 1/2
-      have hconv : ∫ v : ℝ, B.ψ v * B.ψ (v - q * N) = 0 := by
+      have hconv : ∫ v : ℝ, ψ v * ψ (v - q * N) = 0 := by
         apply integral_eq_zero_of_forall_eq_zero
         intro v
-        by_cases h1 : B.ψ v = 0
+        by_cases h1 : ψ v = 0
         · simp [h1]
-        · by_cases h2 : B.ψ (v - q * N) = 0
+        · by_cases h2 : ψ (v - q * N) = 0
           · simp [h2]
           · exfalso
             -- |v| ≤ 1/4 and |v - qN| ≤ 1/4 → |qN| ≤ 1/2
-            have hv := B.supp v h1
-            have hvq := B.supp (v - q * N) h2
+            have hv := psi_supp v h1
+            have hvq := psi_supp (v - q * N) h2
             have hcontra : |q * N| ≤ 1/2 := by
               calc |q * N| = |v - (v - q * N)| := by ring_nf
                 _ ≤ |v| + |v - q * N| := abs_sub_abs_le_abs_sub _ _
@@ -364,7 +358,7 @@ theorem goal2 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --   Step 3: N ≥ c · ∫_{J_{t₀}} F dt → ∫_J F ≪ N/c ≪ N
 -- ============================================================
 
-theorem goal3 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : Separated N ξ)
@@ -372,15 +366,15 @@ theorem goal3 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     ∃ C : ℝ, 0 < C ∧
     ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ C * N := by
   -- Get lower bound c for |ψ̂|² near 0
-  obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound B
+  obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound
   -- Choose t₀ = center of J
   set t₀ := a₀ + N / 2
   -- From Goal 2: N = ∫_ℝ F|ψ̂((t-t₀)/N)|² dt
-  have h2 := goal2 B a ξ N hN t₀ hnorm hsep
+  have h2 := goal2 a ξ N hN t₀ hnorm hsep
   -- On J = [a₀, a₀+N]: |(t-t₀)/N| ≤ 1/2
   -- If δ ≥ 1/2, then |ψ̂((t-t₀)/N)|² ≥ c on J
   have hlb_J : ∀ t ∈ Set.Icc a₀ (a₀ + N),
-      c ≤ ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 := by
+      c ≤ ‖psiHat ((t - t₀) / N)‖ ^ 2 := by
     intro t ht
     apply hlb
     simp only [t₀, abs_le, div_le_iff hN, neg_mul, le_div_iff hN]
@@ -392,7 +386,7 @@ theorem goal3 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
         = ∫ t in Set.Icc a₀ (a₀ + N), c * expSumSq a ξ t :=
             (integral_const_mul _ _).symm
       _ ≤ ∫ t in Set.Icc a₀ (a₀ + N),
-            expSumSq a ξ t * ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 := by
+            expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 := by
           apply set_integral_mono_ae
           · exact (measurable_const.mul (by measurability)).aestronglyMeasurable
           · exact (by measurability).aestronglyMeasurable
@@ -401,7 +395,7 @@ theorem goal3 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
             · exact mul_le_mul_of_nonneg_left (hlb_J t ht)
                 (by simp [expSumSq]; positivity)
             · simp
-      _ ≤ ∫ t : ℝ, expSumSq a ξ t * ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 :=
+      _ ≤ ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 :=
           set_integral_le_integral _
             (fun t => mul_nonneg (by simp [expSumSq]; positivity) (sq_nonneg _))
       _ = N := h2
@@ -419,37 +413,37 @@ theorem goal3 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 -- ============================================================
 
 -- E(t) = 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ - 1_I(t)
-def kernelE (B : BumpData) (N : ℝ) (a₀ b₀ : ℝ) (t : ℝ) : ℝ :=
-  (1 / N) * ∫ t₀ in Set.Icc a₀ b₀, ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 -
+def kernelE (N : ℝ) (a₀ b₀ : ℝ) (t : ℝ) : ℝ :=
+  (1 / N) * ∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2 -
   Set.indicator (Set.Icc a₀ b₀) (fun _ => (1 : ℝ)) t
 
-theorem goal4 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : Separated N ξ)
     (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
     ∫ t in Set.Icc a₀ b₀, expSumSq a ξ t =
-    T - ∫ t : ℝ, expSumSq a ξ t * kernelE B N a₀ b₀ t := by
+    T - ∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t := by
   -- From (3.1): ∫_ℝ F(t)|ψ̂((t-t₀)/N)|² dt = N for each t₀
   have h31 : ∀ t₀ : ℝ,
-      ∫ t : ℝ, expSumSq a ξ t * ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 = N :=
-    goal2 B a ξ N hN · hnorm hsep
+      ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N :=
+    fun t₀ => goal2 a ξ N hN t₀ hnorm hsep
   -- Integrate over t₀ ∈ I: ∫_I N dt₀ = NT
   have hNT : ∫ _ in Set.Icc a₀ b₀, N = N * T := by
     simp [Real.volume_Icc, hT, abs_of_nonneg (by linarith)]
   -- Fubini: NT = ∫_ℝ F(t)(∫_I |ψ̂((t-t₀)/N)|² dt₀) dt
   have hFubini : ∫ t : ℝ, expSumSq a ξ t *
-      (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2) = N * T := by
+      (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2) = N * T := by
     rw [← hNT, ← integral_integral_swap]
     · congr 1; ext t₀; exact h31 t₀
     · -- Fubini condition: F ⊗ |ψ̂|² is integrable
       apply Integrable.mono
         (f := fun p : ℝ × ℝ => (Finset.card (Finset.univ : Finset (Fin R)) : ℝ)^2 *
-          ‖psiHat B.ψ ((p.1 - p.2) / N)‖^2)
+          ‖psiHat ((p.1 - p.2) / N)‖^2)
       · apply Integrable.const_mul
         apply Integrable.comp_sub_right
         apply Integrable.comp_div_right
-        exact (psiHat_decay B 2).choose_spec.2 |>.integrable_of_hasCompactSupport
+        exact (psiHat_decay 2).choose_spec.2 |>.integrable_of_hasCompactSupport
           (HasCompactSupport.of_support_subset_isCompact (isCompact_Icc)
             (fun u _ => Set.mem_Icc.mpr ⟨by norm_num, by norm_num⟩))
       · apply ae_of_all; intro ⟨t, t₀⟩
@@ -468,7 +462,7 @@ theorem goal4 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
   -- Rearrange: ∫_I F = T - ∫_ℝ F·E
   have hrearrange :
       ∫ t in Set.Icc a₀ b₀, expSumSq a ξ t =
-      T - ∫ t : ℝ, expSumSq a ξ t * kernelE B N a₀ b₀ t := by
+      T - ∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t := by
     simp only [kernelE]
     -- ∫ F·(1/N ∫_I |ψ̂|² - 1_I) = 1/N ∫ F(∫_I |ψ̂|²) - ∫_I F
     rw [integral_sub]
@@ -489,15 +483,15 @@ theorem goal4 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --   Step 4 (t ∉ I): 0 ∉ I_t, so = ∫_{I_t} |ψ̂|² ≪ (1+d_t)^{-10}
 -- ============================================================
 
-theorem goal5 (B : BumpData) (N : ℝ) (hN : 0 < N)
+theorem goal5 (N : ℝ) (hN : 0 < N)
     (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
     ∃ C : ℝ, 0 < C ∧ ∀ t : ℝ,
-    |kernelE B N a₀ b₀ t| ≤
+    |kernelE N a₀ b₀ t| ≤
     C * (1 + min (|t - a₀| / N) (|t - b₀| / N)) ^ (-(10 : ℝ)) := by
-  obtain ⟨C_d, hC_d, hdecay⟩ := psiHat_decay B 12
+  obtain ⟨C_d, hC_d, hdecay⟩ := psiHat_decay 12
   refine ⟨C_d ^ 2 * 8, by positivity, ?_⟩
   intro t
-have hint : Integrable (fun u => ‖psiHat B.ψ u‖ ^ 2) := by
+have hint : Integrable (fun u => ‖psiHat u‖ ^ 2) := by
     apply Integrable.mono (f := fun u => C_d * (1 + |u|)^(-(12:ℝ)))
     · apply Integrable.const_mul
       exact integrable_rpow_neg (by norm_num)
@@ -508,26 +502,26 @@ have hint : Integrable (fun u => ‖psiHat B.ψ u‖ ^ 2) := by
   -- Step 2: Substitution u = (t-t₀)/N
   -- 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ = ∫_{I_t} |ψ̂(u)|² du
   have hsubst : (1 / N) * ∫ t₀ in Set.Icc a₀ b₀,
-      ‖psiHat B.ψ ((t - t₀) / N)‖ ^ 2 =
+      ‖psiHat ((t - t₀) / N)‖ ^ 2 =
       ∫ u in Set.Icc ((t - b₀) / N) ((t - a₀) / N),
-        ‖psiHat B.ψ u‖ ^ 2 := by
+        ‖psiHat u‖ ^ 2 := by
     rw [one_div, ← intervalIntegral.integral_comp_sub_left
-      (fun u => ‖psiHat B.ψ u‖ ^ 2) t]
+      (fun u => ‖psiHat u‖ ^ 2) t]
     simp [Set.uIcc_of_le (div_le_div_of_nonneg_right (by linarith) hN)]
     congr 1 <;> [field_simp; field_simp; ring]
   -- Tail bound: ∫_{|u|≥d} |ψ̂|² ≤ 2C²/(11(1+d)^{11}) ≪ (1+d)^{-10}
   have htail : ∀ d : ℝ, 0 ≤ d →
-      ∫ u in {u : ℝ | d ≤ |u|}, ‖psiHat B.ψ u‖ ^ 2 ≤
+      ∫ u in {u : ℝ | d ≤ |u|}, ‖psiHat u‖ ^ 2 ≤
       C_d ^ 2 * 8 * (1 + d) ^ (-(10 : ℝ)) := by
     intro d hd
-    calc ∫ u in {u | d ≤ |u|}, ‖psiHat B.ψ u‖ ^ 2
+    calc ∫ u in {u | d ≤ |u|}, ‖psiHat u‖ ^ 2
         ≤ C_d ^ 2 * ∫ u in {u | d ≤ |u|}, (1 + |u|) ^ (-(12 : ℝ)) := by
           apply set_integral_mono_ae
           · exact hint
           · exact (Integrable.const_mul hint2_)
           · apply ae_of_all; intro u
             have := hdecay u
-            nlinarith [norm_nonneg (psiHat B.ψ u), sq_nonneg (‖psiHat B.ψ u‖)]
+            nlinarith [norm_nonneg (psiHat u), sq_nonneg (‖psiHat u‖)]
       -- ∫_{|u|≥d} (1+|u|)^{-12} du = 2/(11(1+d)^{11})
       _ ≤ C_d ^ 2 * (8 * (1 + d) ^ (-(10 : ℝ))) := by
           apply mul_le_mul_of_nonneg_left _ (by positivity)
@@ -575,14 +569,14 @@ have hint : Integrable (fun u => ‖psiHat B.ψ u‖ ^ 2) := by
       · apply div_nonpos_of_nonpos_of_nonneg <;> linarith [htI.2]
       · apply div_nonneg <;> linarith [htI.1]
     -- ∫_{I_t} = ∫_ℝ - ∫_{ℝ\I_t} = 1 - ∫_{ℝ\I_t}
-    rw [psiHat_l2 B |>.symm]
+    rw [psiHat_l2.symm]
     rw [← integral_add_compl measurableSet_Icc (by sorry)]
     simp only [add_sub_cancel_left]
     rw [abs_neg]
-    calc |∫ u in (Set.Icc _ _)ᶜ, ‖psiHat B.ψ u‖^2|
-        ≤ ∫ u in (Set.Icc _ _)ᶜ, ‖psiHat B.ψ u‖^2 :=
+    calc |∫ u in (Set.Icc _ _)ᶜ, ‖psiHat u‖^2|
+        ≤ ∫ u in (Set.Icc _ _)ᶜ, ‖psiHat u‖^2 :=
           le_abs_self _
-      _ ≤ ∫ u in {u | d_t ≤ |u|}, ‖psiHat B.ψ u‖^2 := by
+      _ ≤ ∫ u in {u | d_t ≤ |u|}, ‖psiHat u‖^2 := by
           apply set_integral_mono_set
           · exact fun u => sq_nonneg _
           -- ℝ\I_t ⊆ {|u| ≥ d_t} because 0 ∈ I_t
@@ -614,8 +608,8 @@ have hint : Integrable (fun u => ‖psiHat B.ψ u‖ ^ 2) := by
       cases Set.not_mem_Icc.mp htI with
       | inl h => right; apply div_pos_of_neg_of_neg <;> linarith
       | inr h => left; apply div_neg_of_pos_of_neg <;> linarith
-    calc ∫ u in Set.Icc ((t-b₀)/N) ((t-a₀)/N), ‖psiHat B.ψ u‖^2
-        ≤ ∫ u in {u | d_t ≤ |u|}, ‖psiHat B.ψ u‖^2 := by
+    calc ∫ u in Set.Icc ((t-b₀)/N) ((t-a₀)/N), ‖psiHat u‖^2
+        ≤ ∫ u in {u | d_t ≤ |u|}, ‖psiHat u‖^2 := by
           apply set_integral_mono_set
           · exact fun u => sq_nonneg _
           -- I_t ⊆ {|u| ≥ d_t} because 0 ∉ I_t
@@ -654,22 +648,22 @@ have hint : Integrable (fun u => ‖psiHat B.ψ u‖ ^ 2) := by
 --   Case 2 (T ≪ N): direct application of (3.2)
 -- ============================================================
 
-theorem goal6 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : Separated N ξ)
     (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
     ∃ C : ℝ, 0 < C ∧
-    |∫ t : ℝ, expSumSq a ξ t * kernelE B N a₀ b₀ t| ≤ C * N := by
+    |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t| ≤ C * N := by
   set T := b₀ - a₀
-  obtain ⟨C₃, hC₃, hG3⟩ := goal3 B a ξ N hN hnorm hsep a₀
-  obtain ⟨C₅, hC₅, hG5⟩ := goal5 B N hN a₀ b₀ hab
+  obtain ⟨C₃, hC₃, hG3⟩ := goal3 a ξ N hN hnorm hsep a₀
+  obtain ⟨C₅, hC₅, hG5⟩ := goal5 N hN a₀ b₀ hab
   -- Case 2: T ≤ N (I fits inside one interval J)
   by_cases hTN : T ≤ N
   · -- Direct application of Goal 3
     refine ⟨C₃ * C₅, by positivity, ?_⟩
-    calc |∫ t : ℝ, expSumSq a ξ t * kernelE B N a₀ b₀ t|
-        ≤ ∫ t : ℝ, expSumSq a ξ t * |kernelE B N a₀ b₀ t| := by
+    calc |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t|
+        ≤ ∫ t : ℝ, expSumSq a ξ t * |kernelE N a₀ b₀ t| := by
           apply (abs_integral_le_integral_abs _).trans
           apply integral_mono_ae
           · sorry; · sorry
@@ -707,15 +701,15 @@ theorem goal6 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     -- Sum over layers: ∑_{ℓ=0}^{L} 2^{ℓ+1} · C₃N · C₅·(2^ℓ)^{-10}
     --                = 2C₃C₅N ∑_{ℓ=0}^{L} 2^{-9ℓ}
     --                ≤ 2C₃C₅N · 1/(1-2^{-9})
-    calc |∫ t : ℝ, expSumSq a ξ t * kernelE B N a₀ b₀ t|
+    calc |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t|
         ≤ ∑ ℓ in Finset.range (L + 1),
             ∑ k in Finset.range (2^(ℓ+1)),
             |∫ t in Set.Icc (a₀ - (k+1) * N) (a₀ - k * N),
-              expSumSq a ξ t * kernelE B N a₀ b₀ t| +
+              expSumSq a ξ t * kernelE N a₀ b₀ t| +
           ∑ ℓ in Finset.range (L + 1),
             ∑ k in Finset.range (2^(ℓ+1)),
             |∫ t in Set.Icc (b₀ + k * N) (b₀ + (k+1) * N),
-              expSumSq a ξ t * kernelE B N a₀ b₀ t| := by
+              expSumSq a ξ t * kernelE N a₀ b₀ t| := by
           sorry -- partition ℝ into layers
       _ ≤ ∑ ℓ in Finset.range (L + 1), (2^(ℓ+1) : ℝ) * (C₃ * N) *
             (C₅ * (2^ℓ)^(-(10:ℝ))) +
@@ -767,7 +761,7 @@ theorem goal6 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --              = (T + O(N)) · ∑|aᵣ|²  (by Goal 1: WLOG)
 -- ============================================================
 
-theorem lemma3_1 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem lemma3_1 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N) (hsep : Separated N ξ)
     (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
     ∃ C : ℝ, 0 < C ∧ ∃ θ : ℝ, |θ| ≤ C ∧
@@ -807,11 +801,11 @@ theorem lemma3_1 (B : BumpData) {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → �
       rw [this, norm_mul, Complex.norm_ofReal,
           abs_of_nonneg (Real.sqrt_nonneg M), mul_pow, Real.sq_sqrt hMpos.le]
     -- Apply Goal 4 to get the Fubini identity
-    have h4 := goal4 B A ξ N hN hAnorm hsep a₀ b₀ T hT hab
+    have h4 := goal4 A ξ N hN hAnorm hsep a₀ b₀ T hT hab
     -- Apply Goal 6 to bound the error
-    obtain ⟨C, hC, h6⟩ := goal6 B A ξ N hN hAnorm hsep a₀ b₀ hab
+    obtain ⟨C, hC, h6⟩ := goal6 A ξ N hN hAnorm hsep a₀ b₀ hab
     -- ∫_I ‖expSum A‖² = T - err,  |err| ≤ C·N
-    set err := ∫ t : ℝ, expSumSq A ξ t * kernelE B N a₀ b₀ t
+    set err := ∫ t : ℝ, expSumSq A ξ t * kernelE N a₀ b₀ t
     have hA_eq : ∫ t in Set.Icc a₀ b₀, expSumSq A ξ t = T - err := by
       simp [expSumSq] at h4 ⊢; exact h4
     have herr_bd : |err| ≤ C * N := by
