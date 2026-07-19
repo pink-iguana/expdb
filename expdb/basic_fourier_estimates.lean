@@ -538,7 +538,7 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 
 -- E(t) = 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ - 1_I(t)
 def kernelE (N : ℝ) (a₀ b₀ : ℝ) (t : ℝ) : ℝ :=
-  (1 / N) * ∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2 -
+  (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2) -
   Set.indicator (Set.Icc a₀ b₀) (fun _ => (1 : ℝ)) t
 
 theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
@@ -548,54 +548,98 @@ theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
     ∫ t in Set.Icc a₀ b₀, expSumSq a ξ t =
     T - ∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t := by
-  -- From (3.1): ∫_ℝ F(t)|ψ̂((t-t₀)/N)|² dt = N for each t₀
+  let F : ℝ → ℝ := expSumSq a ξ
+  let K : ℝ → ℝ → ℝ := fun t₀ t => ‖psiHat ((t - t₀) / N)‖ ^ 2
+  let H : ℝ × ℝ → ℝ := fun p => F p.2 * K p.1 p.2
+  have hF_nonneg : ∀ t, 0 ≤ F t := fun t => sq_nonneg _
+  have hK_nonneg : ∀ t₀ t, 0 ≤ K t₀ t := fun t₀ t => sq_nonneg _
+  have hH_nonneg : ∀ p, 0 ≤ H p := fun p =>
+    mul_nonneg (hF_nonneg p.2) (hK_nonneg p.1 p.2)
+  have hF_cont : Continuous F := by
+    dsimp [F]
+    unfold expSumSq expSum e
+    fun_prop
+  have hpsiHat_cont : Continuous psiHat := by
+    rw [psiHat_eq_fourier]
+    exact (𝓕 psiSchwartz).continuous
+  have hK_cont : Continuous (fun p : ℝ × ℝ => K p.1 p.2) := by
+    exact ((hpsiHat_cont.comp
+      ((continuous_snd.sub continuous_fst).div_const N)).norm.pow 2)
+  have hH_cont : Continuous H :=
+    (hF_cont.comp continuous_snd).mul hK_cont
+  -- From (3.1): ∫_ℝ F(t)|ψ̂((t-t₀)/N)|² dt = N for each t₀.
   have h31 : ∀ t₀ : ℝ,
-      ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N :=
-    fun t₀ => goal2 a ξ N hN t₀ hnorm hsep
-  -- Integrate over t₀ ∈ I: ∫_I N dt₀ = NT
+      ∫ t : ℝ, H (t₀, t) = N := by
+    intro t₀
+    simpa only [H, F, K] using goal2 a ξ N hN t₀ hnorm hsep
+  have hslice : ∀ t₀ : ℝ, Integrable (fun t => H (t₀, t)) := by
+    intro t₀
+    by_contra h
+    have hzero := h31 t₀
+    rw [integral_undef h] at hzero
+    linarith
+  -- The product-space integrability follows from the already evaluated slices.
+  have hH_int : Integrable H ((volume.restrict (Set.Icc a₀ b₀)).prod volume) := by
+    apply (integrable_prod_iff hH_cont.aestronglyMeasurable).2
+    constructor
+    · exact ae_of_all _ hslice
+    · have hmarginal : (fun t₀ : ℝ => ∫ t : ℝ, ‖H (t₀, t)‖) = fun _ => N := by
+        funext t₀
+        rw [show (fun t : ℝ => ‖H (t₀, t)‖) = fun t => H (t₀, t) by
+          funext t
+          exact Real.norm_of_nonneg (hH_nonneg (t₀, t))]
+        exact h31 t₀
+      rw [hmarginal]
+      exact integrableOn_const measure_Icc_lt_top.ne
+  -- Integrate the constant marginal over t₀ ∈ I.
   have hNT : ∫ _ in Set.Icc a₀ b₀, N = N * T := by
-    simp [Real.volume_Icc, hT, abs_of_nonneg (by linarith)]
-  -- Fubini: NT = ∫_ℝ F(t)(∫_I |ψ̂((t-t₀)/N)|² dt₀) dt
-  have hFubini : ∫ t : ℝ, expSumSq a ξ t *
-      (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2) = N * T := by
-    rw [← hNT, ← integral_integral_swap]
-    · congr 1; ext t₀; exact h31 t₀
-    · -- Fubini condition: F ⊗ |ψ̂|² is integrable
-      apply Integrable.mono
-        (f := fun p : ℝ × ℝ => (Finset.card (Finset.univ : Finset (Fin R)) : ℝ)^2 *
-          ‖psiHat ((p.1 - p.2) / N)‖^2)
-      · apply Integrable.const_mul
-        apply Integrable.comp_sub_right
-        apply Integrable.comp_div_right
-        exact (psiHat_decay 2).choose_spec.2 |>.integrable_of_hasCompactSupport
-          (HasCompactSupport.of_support_subset_isCompact (isCompact_Icc)
-            (fun u _ => Set.mem_Icc.mpr ⟨by norm_num, by norm_num⟩))
-      · apply ae_of_all; intro ⟨t, t₀⟩
-        simp [expSumSq]
-        apply mul_le_mul_of_nonneg_right _ (sq_nonneg _)
-        calc ‖∑ r, a r * e (ξ r * t)‖
-            ≤ ∑ r, ‖a r * e (ξ r * t)‖ := norm_sum_le _ _
-          _ = ∑ r, ‖a r‖ := by simp [norm_e]
-          _ ≤ _ := by
-              calc ∑ r, ‖a r‖
-                  ≤ Real.sqrt (Finset.card Finset.univ) *
-                    Real.sqrt (∑ r, ‖a r‖^2) := by
-                      apply (Finset.inner_mul_le_norm_sq_mul_norm_sq _ _).trans
-                      simp
-                _ = _ := by simp [hnorm, Real.sqrt_one]
-  -- Rearrange: ∫_I F = T - ∫_ℝ F·E
-  have hrearrange :
-      ∫ t in Set.Icc a₀ b₀, expSumSq a ξ t =
-      T - ∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t := by
-    simp only [kernelE]
-    -- ∫ F·(1/N ∫_I |ψ̂|² - 1_I) = 1/N ∫ F(∫_I |ψ̂|²) - ∫_I F
-    rw [integral_sub]
-    · rw [integral_const_mul, mul_comm N, hFubini]
-      rw [integral_indicator measurableSet_Icc]
-      simp; ring
-    · exact (integrable_const _).mul_right _
-    · exact (integrable_indicator measurableSet_Icc).mul_left _
-  exact hrearrange
+    rw [setIntegral_const, Real.volume_real_Icc_of_le hab, smul_eq_mul, hT]
+    ring
+  -- Fubini, with the interval restriction built into the first measure.
+  have hswap :
+      (∫ t₀ in Set.Icc a₀ b₀, ∫ t : ℝ, H (t₀, t)) =
+      ∫ t : ℝ, ∫ t₀ in Set.Icc a₀ b₀, H (t₀, t) := by
+    exact integral_integral_swap hH_int
+  have hFubini : ∫ t : ℝ, F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t) = N * T := by
+    calc
+      ∫ t : ℝ, F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t) =
+          ∫ t : ℝ, ∫ t₀ in Set.Icc a₀ b₀, H (t₀, t) := by
+            congr 1
+            ext t
+            change F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t) =
+              ∫ t₀ in Set.Icc a₀ b₀, F t * K t₀ t
+            rw [integral_const_mul]
+      _ = ∫ t₀ in Set.Icc a₀ b₀, ∫ t : ℝ, H (t₀, t) := hswap.symm
+      _ = ∫ _ in Set.Icc a₀ b₀, N := by
+        apply setIntegral_congr_fun measurableSet_Icc
+        intro t₀ _
+        exact h31 t₀
+      _ = N * T := hNT
+  have hFK_int : Integrable (fun t : ℝ => F t *
+      (∫ t₀ in Set.Icc a₀ b₀, K t₀ t)) := by
+    have hmarginal := hH_int.integral_prod_right
+    apply hmarginal.congr
+    apply ae_of_all
+    intro t
+    change (∫ t₀ in Set.Icc a₀ b₀, F t * K t₀ t) =
+      F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t)
+    rw [integral_const_mul]
+  have hFI_int : Integrable ((Set.Icc a₀ b₀).indicator F) :=
+    hF_cont.integrableOn_Icc.integrable_indicator measurableSet_Icc
+  have hexpand : (fun t : ℝ => expSumSq a ξ t * kernelE N a₀ b₀ t) =
+      fun t => (1 / N) * (F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t)) -
+        (Set.Icc a₀ b₀).indicator F t := by
+    funext t
+    simp only [kernelE, F, K]
+    by_cases ht : t ∈ Set.Icc a₀ b₀
+    · rw [Set.indicator_of_mem ht, Set.indicator_of_mem ht]
+      ring
+    · rw [Set.indicator_of_notMem ht, Set.indicator_of_notMem ht]
+      ring
+  rw [hexpand, integral_sub (hFK_int.const_mul _) hFI_int,
+    integral_const_mul, hFubini, integral_indicator measurableSet_Icc]
+  field_simp
+  ring
 
 -- ============================================================
 -- GOAL 5: E(t) ≪ (1 + dist(t,∂I)/N)^{-10}
