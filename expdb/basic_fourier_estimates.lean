@@ -25,7 +25,7 @@ Proof structure:
   Goal 3: ∫_J |∑ aᵣ e(ξᵣ t)|² dt ≪ N for |J| = N       [eq 3.2]
   Goal 4: ∫_I F = T - ∫_ℝ F·E  (Fubini identity)
   Goal 5: E(t) ≪ (1 + dist(t,∂I)/N)^{-10}
-  Goal 6: ∫_ℝ F·E ≪ N  (dyadic decomposition)
+  Goal 6: ∫_ℝ F·E ≪ N  (integer-cell summation)
   Goal 7: Assembly → Lemma 3.1
 -/
 -- ============================================================
@@ -173,6 +173,13 @@ lemma psiHat_l2 : ∫ u : ℝ, ‖psiHat u‖ ^ 2 = 1 := by
   simp_rw [psiHat_eq_fourier]
   rw [← SchwartzMap.fourier_coe, SchwartzMap.integral_norm_sq_fourier]
   simpa [psiSchwartz, Real.norm_eq_abs, abs_of_nonneg (psi_nonneg _)] using psi_l2norm
+
+private lemma psiHat_sq_integrable :
+    Integrable (fun u : ℝ => ‖psiHat u‖ ^ 2) := by
+  by_contra h
+  have hzero := psiHat_l2
+  rw [integral_undef h] at hzero
+  norm_num at hzero
 
 -- ============================================================
 -- ψ̂ is rapidly decaying
@@ -454,12 +461,12 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 -- Goal 2 at scale M then gives c·∫_J F ≤ M ≪ψ N.
 -- ============================================================
 
-private theorem goal3_uniform {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
-    ∃ C : ℝ, 0 < C ∧ ∀ a₀ : ℝ,
-    ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ C * N := by
+    ∃ C : ℝ, 0 < C ∧ ∀ j₀ : ℝ,
+    ∫ t in Set.Icc j₀ (j₀ + N), expSumSq a ξ t ≤ C * N := by
   obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound
   -- Enlarge the smoothing scale so that the whole interval lies in the
   -- neighbourhood on which `psiHat_lower_bound` applies.
@@ -477,10 +484,10 @@ private theorem goal3_uniform {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     apply (div_le_div_iff₀ hM hN).2
     simpa using hNM
   refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
-  intro a₀
-  set t₀ := a₀ + N / 2
+  intro j₀
+  set t₀ := j₀ + N / 2
   have h2 := goal2 a ξ M hM t₀ hnorm hsepM
-  have hlb_J : ∀ t ∈ Set.Icc a₀ (a₀ + N),
+  have hlb_J : ∀ t ∈ Set.Icc j₀ (j₀ + N),
       c ≤ ‖psiHat ((t - t₀) / M)‖ ^ 2 := by
     intro t ht
     apply hlb
@@ -503,11 +510,11 @@ private theorem goal3_uniform {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     by_contra h
     rw [integral_undef h] at h2
     linarith
-  have hFub : c * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ M := by
-    calc c * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t
-        = ∫ t in Set.Icc a₀ (a₀ + N), c * expSumSq a ξ t :=
+  have hFub : c * ∫ t in Set.Icc j₀ (j₀ + N), expSumSq a ξ t ≤ M := by
+    calc c * ∫ t in Set.Icc j₀ (j₀ + N), expSumSq a ξ t
+        = ∫ t in Set.Icc j₀ (j₀ + N), c * expSumSq a ξ t :=
             (integral_const_mul _ _).symm
-      _ ≤ ∫ t in Set.Icc a₀ (a₀ + N),
+      _ ≤ ∫ t in Set.Icc j₀ (j₀ + N),
             expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2 := by
           apply setIntegral_mono_on
           · exact (continuous_const.mul hFcont).integrableOn_Icc
@@ -528,16 +535,6 @@ private theorem goal3_uniform {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
   apply (le_div_iff₀ hc).2
   nlinarith
 
-theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
-    (N : ℝ) (hN : 0 < N)
-    (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : IsSeparatedFamily (1 / N) ξ)
-    (a₀ : ℝ) :
-    ∃ C : ℝ, 0 < C ∧
-    ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ C * N := by
-  obtain ⟨C, hC, hlocal⟩ := goal3_uniform a ξ N hN hnorm hsep
-  exact ⟨C, hC, hlocal a₀⟩
-
 -- ============================================================
 -- GOAL 4: ∫_I F = T - ∫_ℝ F·E  (Fubini identity)
 --
@@ -549,15 +546,15 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 -- ============================================================
 
 -- E(t) = 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ - 1_I(t)
-def kernelE (N : ℝ) (a₀ b₀ : ℝ) (t : ℝ) : ℝ :=
-  (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2) -
-  Set.indicator (Set.Icc a₀ b₀) (fun _ => (1 : ℝ)) t
+def kernelE (N : ℝ) (left right : ℝ) (t : ℝ) : ℝ :=
+  (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2) -
+  Set.indicator (Set.Icc left right) (fun _ => (1 : ℝ)) t
 
 private lemma kernelAverage_eq_intervalIntegral (N : ℝ) (hN : 0 < N)
-    (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) (t : ℝ) :
-    (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2) =
-    ∫ u in (t - b₀) / N..(t - a₀) / N, ‖psiHat u‖ ^ 2 := by
-  rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hab]
+    (left right : ℝ) (hleft_right : left ≤ right) (t : ℝ) :
+    (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2) =
+    ∫ u in (t - right) / N..(t - left) / N, ‖psiHat u‖ ^ 2 := by
+  rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hleft_right]
   have hchange : (fun t₀ : ℝ => ‖psiHat ((t - t₀) / N)‖ ^ 2) =
       fun t₀ => ‖psiHat (t / N - t₀ / N)‖ ^ 2 := by
     funext t₀
@@ -565,16 +562,16 @@ private lemma kernelAverage_eq_intervalIntegral (N : ℝ) (hN : 0 < N)
   rw [hchange]
   simpa only [one_div, smul_eq_mul] using
     (intervalIntegral.inv_smul_integral_comp_sub_div
-      (f := fun u : ℝ => ‖psiHat u‖ ^ 2) (a := a₀) (b := b₀) N (t / N)).trans (by
+      (f := fun u : ℝ => ‖psiHat u‖ ^ 2) (a := left) (b := right) N (t / N)).trans (by
         congr 1 <;> field_simp)
 
 theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ)
-    (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
-    ∫ t in Set.Icc a₀ b₀, expSumSq a ξ t =
-    T - ∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t := by
+    (left right : ℝ) (T : ℝ) (hT : T = right - left) (hleft_right : left ≤ right) :
+    ∫ t in Set.Icc left right, expSumSq a ξ t =
+    T - ∫ t : ℝ, expSumSq a ξ t * kernelE N left right t := by
   let F : ℝ → ℝ := expSumSq a ξ
   let K : ℝ → ℝ → ℝ := fun t₀ t => ‖psiHat ((t - t₀) / N)‖ ^ 2
   let H : ℝ × ℝ → ℝ := fun p => F p.2 * K p.1 p.2
@@ -606,7 +603,7 @@ theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     rw [integral_undef h] at hzero
     linarith
   -- The product-space integrability follows from the already evaluated slices.
-  have hH_int : Integrable H ((volume.restrict (Set.Icc a₀ b₀)).prod volume) := by
+  have hH_int : Integrable H ((volume.restrict (Set.Icc left right)).prod volume) := by
     apply (integrable_prod_iff hH_cont.aestronglyMeasurable).2
     constructor
     · exact ae_of_all _ hslice
@@ -619,46 +616,46 @@ theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       rw [hmarginal]
       exact integrableOn_const measure_Icc_lt_top.ne
   -- Integrate the constant marginal over t₀ ∈ I.
-  have hNT : ∫ _ in Set.Icc a₀ b₀, N = N * T := by
-    rw [setIntegral_const, Real.volume_real_Icc_of_le hab, smul_eq_mul, hT]
+  have hNT : ∫ _ in Set.Icc left right, N = N * T := by
+    rw [setIntegral_const, Real.volume_real_Icc_of_le hleft_right, smul_eq_mul, hT]
     ring
   -- Fubini, with the interval restriction built into the first measure.
   have hswap :
-      (∫ t₀ in Set.Icc a₀ b₀, ∫ t : ℝ, H (t₀, t)) =
-      ∫ t : ℝ, ∫ t₀ in Set.Icc a₀ b₀, H (t₀, t) := by
+      (∫ t₀ in Set.Icc left right, ∫ t : ℝ, H (t₀, t)) =
+      ∫ t : ℝ, ∫ t₀ in Set.Icc left right, H (t₀, t) := by
     exact integral_integral_swap hH_int
-  have hFubini : ∫ t : ℝ, F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t) = N * T := by
+  have hFubini : ∫ t : ℝ, F t * (∫ t₀ in Set.Icc left right, K t₀ t) = N * T := by
     calc
-      ∫ t : ℝ, F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t) =
-          ∫ t : ℝ, ∫ t₀ in Set.Icc a₀ b₀, H (t₀, t) := by
+      ∫ t : ℝ, F t * (∫ t₀ in Set.Icc left right, K t₀ t) =
+          ∫ t : ℝ, ∫ t₀ in Set.Icc left right, H (t₀, t) := by
             congr 1
             ext t
-            change F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t) =
-              ∫ t₀ in Set.Icc a₀ b₀, F t * K t₀ t
+            change F t * (∫ t₀ in Set.Icc left right, K t₀ t) =
+              ∫ t₀ in Set.Icc left right, F t * K t₀ t
             rw [integral_const_mul]
-      _ = ∫ t₀ in Set.Icc a₀ b₀, ∫ t : ℝ, H (t₀, t) := hswap.symm
-      _ = ∫ _ in Set.Icc a₀ b₀, N := by
+      _ = ∫ t₀ in Set.Icc left right, ∫ t : ℝ, H (t₀, t) := hswap.symm
+      _ = ∫ _ in Set.Icc left right, N := by
         apply setIntegral_congr_fun measurableSet_Icc
         intro t₀ _
         exact h31 t₀
       _ = N * T := hNT
   have hFK_int : Integrable (fun t : ℝ => F t *
-      (∫ t₀ in Set.Icc a₀ b₀, K t₀ t)) := by
+      (∫ t₀ in Set.Icc left right, K t₀ t)) := by
     have hmarginal := hH_int.integral_prod_right
     apply hmarginal.congr
     apply ae_of_all
     intro t
-    change (∫ t₀ in Set.Icc a₀ b₀, F t * K t₀ t) =
-      F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t)
+    change (∫ t₀ in Set.Icc left right, F t * K t₀ t) =
+      F t * (∫ t₀ in Set.Icc left right, K t₀ t)
     rw [integral_const_mul]
-  have hFI_int : Integrable ((Set.Icc a₀ b₀).indicator F) :=
+  have hFI_int : Integrable ((Set.Icc left right).indicator F) :=
     hF_cont.integrableOn_Icc.integrable_indicator measurableSet_Icc
-  have hexpand : (fun t : ℝ => expSumSq a ξ t * kernelE N a₀ b₀ t) =
-      fun t => (1 / N) * (F t * (∫ t₀ in Set.Icc a₀ b₀, K t₀ t)) -
-        (Set.Icc a₀ b₀).indicator F t := by
+  have hexpand : (fun t : ℝ => expSumSq a ξ t * kernelE N left right t) =
+      fun t => (1 / N) * (F t * (∫ t₀ in Set.Icc left right, K t₀ t)) -
+        (Set.Icc left right).indicator F t := by
     funext t
     simp only [kernelE, F, K]
-    by_cases ht : t ∈ Set.Icc a₀ b₀
+    by_cases ht : t ∈ Set.Icc left right
     · rw [Set.indicator_of_mem ht, Set.indicator_of_mem ht]
       ring
     · rw [Set.indicator_of_notMem ht, Set.indicator_of_notMem ht]
@@ -673,24 +670,20 @@ theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --
 --   Step 1: ψ̂ rapidly decaying (IBP)
 --   Step 2: 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ = ∫_{I_t} |ψ̂(u)|² du
---           where I_t = [(t-b₀)/N, (t-a₀)/N]
+--           where I_t = [(t - right)/N, (t - left)/N]
 --   Step 3 (t ∈ I): 0 ∈ I_t, so = 1 - ∫_{ℝ\I_t} |ψ̂|² ≪ (1+d_t)^{-10}
 --   Step 4 (t ∉ I): 0 ∉ I_t, so = ∫_{I_t} |ψ̂|² ≪ (1+d_t)^{-10}
 -- ============================================================
 
 theorem goal5 (N : ℝ) (hN : 0 < N)
-    (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
+    (left right : ℝ) (hleft_right : left ≤ right) :
     ∃ C : ℝ, 0 < C ∧ ∀ t : ℝ,
-    |kernelE N a₀ b₀ t| ≤
-    C * (1 + min (|t - a₀| / N) (|t - b₀| / N)) ^ (-(10 : ℝ)) := by
+    |kernelE N left right t| ≤
+    C * (1 + min (|t - left| / N) (|t - right| / N)) ^ (-(10 : ℝ)) := by
   let f : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
   have hf_nonneg : ∀ u, 0 ≤ f u := fun u => sq_nonneg _
   have hf_int : Integrable f := by
-    by_contra h
-    have hzero := psiHat_l2
-    change ∫ u : ℝ, f u = 1 at hzero
-    rw [integral_undef h] at hzero
-    norm_num at hzero
+    simpa only [f] using psiHat_sq_integrable
   obtain ⟨C₀, hC₀, hdecay⟩ := psiHat_decay 6
   let w : ℝ → ℝ := fun u => (1 + |u|) ^ (-(2 : ℝ))
   have hw_nonneg : ∀ u, 0 ≤ w u := fun u => Real.rpow_nonneg (by positivity) _
@@ -752,53 +745,53 @@ theorem goal5 (N : ℝ) (hN : 0 < N)
       _ = C * (1 + d) ^ (-(10 : ℝ)) := rfl
   refine ⟨C, hC, ?_⟩
   intro t
-  let Aₜ := (t - b₀) / N
-  let Bₜ := (t - a₀) / N
-  let d := min |Bₜ| |Aₜ|
-  have hAB : Aₜ ≤ Bₜ := by
-    dsimp [Aₜ, Bₜ]
-    exact div_le_div_of_nonneg_right (sub_le_sub_left hab t) hN.le
+  let uLower := (t - right) / N
+  let uUpper := (t - left) / N
+  let d := min |uUpper| |uLower|
+  have hLowerUpper : uLower ≤ uUpper := by
+    dsimp [uLower, uUpper]
+    exact div_le_div_of_nonneg_right (sub_le_sub_left hleft_right t) hN.le
   have hd : 0 ≤ d := le_min (abs_nonneg _) (abs_nonneg _)
-  have hsubst : (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, f ((t - t₀) / N)) =
-      ∫ u in Set.Icc Aₜ Bₜ, f u := by
-    simpa only [f, Aₜ, Bₜ, intervalIntegral.integral_of_le hAB,
+  have hsubst : (1 / N) * (∫ t₀ in Set.Icc left right, f ((t - t₀) / N)) =
+      ∫ u in Set.Icc uLower uUpper, f u := by
+    simpa only [f, uLower, uUpper, intervalIntegral.integral_of_le hLowerUpper,
       integral_Icc_eq_integral_Ioc] using
-      kernelAverage_eq_intervalIntegral N hN a₀ b₀ hab t
-  have hd_eq : d = min (|t - a₀| / N) (|t - b₀| / N) := by
-    dsimp [d, Aₜ, Bₜ]
+      kernelAverage_eq_intervalIntegral N hN left right hleft_right t
+  have hd_eq : d = min (|t - left| / N) (|t - right| / N) := by
+    dsimp [d, uLower, uUpper]
     rw [abs_div, abs_div, abs_of_pos hN]
-  by_cases ht : t ∈ Set.Icc a₀ b₀
-  · have hAₜ : Aₜ ≤ 0 := by
-      dsimp [Aₜ]
+  by_cases ht : t ∈ Set.Icc left right
+  · have huLower_nonpos : uLower ≤ 0 := by
+      dsimp [uLower]
       exact div_nonpos_of_nonpos_of_nonneg (sub_nonpos.mpr ht.2) hN.le
-    have hBₜ : 0 ≤ Bₜ := by
-      dsimp [Bₜ]
+    have huUpper_nonneg : 0 ≤ uUpper := by
+      dsimp [uUpper]
       exact div_nonneg (sub_nonneg.mpr ht.1) hN.le
-    have hsubset : (Set.Icc Aₜ Bₜ)ᶜ ⊆ {u : ℝ | d ≤ |u|} := by
+    have hsubset : (Set.Icc uLower uUpper)ᶜ ⊆ {u : ℝ | d ≤ |u|} := by
       intro u hu
       simp only [Set.mem_compl_iff, Set.mem_Icc, not_and_or, not_le] at hu
       simp only [Set.mem_setOf_eq]
       rcases hu with hu | hu
-      · rw [abs_of_nonpos (hu.le.trans hAₜ)]
-        exact (min_le_right |Bₜ| |Aₜ|).trans (by
-          rw [abs_of_nonpos hAₜ]
+      · rw [abs_of_nonpos (hu.le.trans huLower_nonpos)]
+        exact (min_le_right |uUpper| |uLower|).trans (by
+          rw [abs_of_nonpos huLower_nonpos]
           linarith)
-      · rw [abs_of_nonneg (hBₜ.trans hu.le)]
-        exact (min_le_left |Bₜ| |Aₜ|).trans (by
-          rw [abs_of_nonneg hBₜ]
+      · rw [abs_of_nonneg (huUpper_nonneg.trans hu.le)]
+        exact (min_le_left |uUpper| |uLower|).trans (by
+          rw [abs_of_nonneg huUpper_nonneg]
           linarith)
-    have hcomp : (∫ u in Set.Icc Aₜ Bₜ, f u) - 1 =
-        -(∫ u in (Set.Icc Aₜ Bₜ)ᶜ, f u) := by
+    have hcomp : (∫ u in Set.Icc uLower uUpper, f u) - 1 =
+        -(∫ u in (Set.Icc uLower uUpper)ᶜ, f u) := by
       rw [setIntegral_compl measurableSet_Icc hf_int, psiHat_l2]
       ring
     rw [kernelE, Set.indicator_of_mem ht]
-    change |(1 / N) * (∫ t₀ in Set.Icc a₀ b₀, f ((t - t₀) / N)) - 1| ≤ _
+    change |(1 / N) * (∫ t₀ in Set.Icc left right, f ((t - t₀) / N)) - 1| ≤ _
     rw [hsubst, hcomp, abs_neg, abs_of_nonneg
       (setIntegral_nonneg measurableSet_Icc.compl fun u _ => hf_nonneg u)]
     rw [← hd_eq]
     exact (setIntegral_mono_set hf_int.integrableOn (ae_of_all _ hf_nonneg)
       (ae_of_all _ hsubset)).trans (htail d hd)
-  · have hzero : (0 : ℝ) ∉ Set.Icc Aₜ Bₜ := by
+  · have hzero : (0 : ℝ) ∉ Set.Icc uLower uUpper := by
       intro h0
       apply ht
       constructor
@@ -810,64 +803,65 @@ theorem goal5 (N : ℝ) (hN : 0 < N)
         rcases div_nonpos_iff.mp h0.1 with h | h
         · exact (hN.not_ge h.2).elim
         · exact h.1
-    have hsubset : Set.Icc Aₜ Bₜ ⊆ {u : ℝ | d ≤ |u|} := by
+    have hsubset : Set.Icc uLower uUpper ⊆ {u : ℝ | d ≤ |u|} := by
       intro u hu
       rcases hu with ⟨hu1, hu2⟩
       simp only [Set.mem_setOf_eq]
-      have hzero' : 0 < Aₜ ∨ Bₜ < 0 := by
+      have hzero' : 0 < uLower ∨ uUpper < 0 := by
         simpa only [Set.mem_Icc, not_and_or, not_le] using hzero
-      rcases hzero' with hApos | hBneg
-      · rw [abs_of_nonneg (hApos.le.trans hu1)]
-        exact (min_le_right |Bₜ| |Aₜ|).trans (by
-          rw [abs_of_nonneg hApos.le]
+      rcases hzero' with hLowerPos | hUpperNeg
+      · rw [abs_of_nonneg (hLowerPos.le.trans hu1)]
+        exact (min_le_right |uUpper| |uLower|).trans (by
+          rw [abs_of_nonneg hLowerPos.le]
           linarith)
-      · rw [abs_of_nonpos (hu2.trans hBneg.le)]
-        exact (min_le_left |Bₜ| |Aₜ|).trans (by
-          rw [abs_of_nonpos hBneg.le]
+      · rw [abs_of_nonpos (hu2.trans hUpperNeg.le)]
+        exact (min_le_left |uUpper| |uLower|).trans (by
+          rw [abs_of_nonpos hUpperNeg.le]
           linarith)
     rw [kernelE, Set.indicator_of_notMem ht]
-    change |(1 / N) * (∫ t₀ in Set.Icc a₀ b₀, f ((t - t₀) / N)) - 0| ≤ _
+    change |(1 / N) * (∫ t₀ in Set.Icc left right, f ((t - t₀) / N)) - 0| ≤ _
     rw [sub_zero, hsubst, abs_of_nonneg
       (setIntegral_nonneg measurableSet_Icc fun u _ => hf_nonneg u)]
     rw [← hd_eq]
     exact (setIntegral_mono_set hf_int.integrableOn (ae_of_all _ hf_nonneg)
       (ae_of_all _ hsubset)).trans (htail d hd)
 
-private lemma kernelE_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
-    (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
-    AEStronglyMeasurable (kernelE N a₀ b₀) := by
+private lemma kernelAverage_continuous (N : ℝ) (hN : 0 < N)
+    (left right : ℝ) (hleft_right : left ≤ right) :
+    Continuous (fun t : ℝ =>
+      (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2)) := by
   let f : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
   have hf_int : Integrable f := by
-    by_contra h
-    have hzero := psiHat_l2
-    change ∫ u : ℝ, f u = 1 at hzero
-    rw [integral_undef h] at hzero
-    norm_num at hzero
+    simpa only [f] using psiHat_sq_integrable
   let P : ℝ → ℝ := fun x => ∫ u in 0..x, f u
   have hP_cont : Continuous P :=
     intervalIntegral.continuous_primitive (fun x y => hf_int.intervalIntegrable) 0
   have havg : (fun t : ℝ =>
-      (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2)) =
-      fun t => P ((t - a₀) / N) - P ((t - b₀) / N) := by
+      (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2)) =
+      fun t => P ((t - left) / N) - P ((t - right) / N) := by
     funext t
-    rw [kernelAverage_eq_intervalIntegral N hN a₀ b₀ hab t]
+    rw [kernelAverage_eq_intervalIntegral N hN left right hleft_right t]
     dsimp [P]
     exact (intervalIntegral.integral_interval_sub_left
       hf_int.intervalIntegrable hf_int.intervalIntegrable).symm
-  have havg_cont : Continuous (fun t : ℝ =>
-      (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2)) := by
-    rw [havg]
-    exact (hP_cont.comp ((continuous_id.sub continuous_const).div_const N)).sub
-      (hP_cont.comp ((continuous_id.sub continuous_const).div_const N))
+  rw [havg]
+  exact (hP_cont.comp ((continuous_id.sub continuous_const).div_const N)).sub
+    (hP_cont.comp ((continuous_id.sub continuous_const).div_const N))
+
+private lemma kernelE_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
+    (left right : ℝ) (hleft_right : left ≤ right) :
+    AEStronglyMeasurable (kernelE N left right) := by
   have hind_meas : AEStronglyMeasurable
-      (Set.indicator (Set.Icc a₀ b₀) (fun _ => (1 : ℝ))) :=
+      (Set.indicator (Set.Icc left right) (fun _ => (1 : ℝ))) :=
     (Measurable.indicator measurable_const measurableSet_Icc).aestronglyMeasurable
-  exact havg_cont.aestronglyMeasurable.sub hind_meas
+  exact (kernelAverage_continuous N hN left right hleft_right).aestronglyMeasurable.sub
+    hind_meas
 
 -- ============================================================
 -- GOAL 6: ∫_ℝ F·E ≪ N  (integer-cell summation)
 --
--- Partition ℝ into intervals [c+kN,c+(k+1)N), k ∈ ℤ.  Goal 3 gives a
+-- Partition ℝ into intervals [c + kN, c + (k+1)N), k ∈ ℤ.
+-- Goal 3 gives a
 -- uniform O(N) bound on every cell, while Goal 5 contributes a summable
 -- shifted p-series in k.  Apply this once at each endpoint of I.
 -- ============================================================
@@ -876,17 +870,17 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ)
-    (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
+    (left right : ℝ) (hleft_right : left ≤ right) :
     ∃ C : ℝ, 0 < C ∧
-    |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t| ≤ C * N := by
+    |∫ t : ℝ, expSumSq a ξ t * kernelE N left right t| ≤ C * N := by
   let F : ℝ → ℝ := expSumSq a ξ
   have hF_nonneg : ∀ t, 0 ≤ F t := fun t => sq_nonneg _
   have hF_cont : Continuous F := by
     dsimp [F]
     unfold expSumSq expSum e
     fun_prop
-  obtain ⟨C₃, hC₃, hlocal⟩ := goal3_uniform a ξ N hN hnorm hsep
-  obtain ⟨C₅, hC₅, hE⟩ := goal5 N hN a₀ b₀ hab
+  obtain ⟨C₃, hC₃, hlocal⟩ := goal3 a ξ N hN hnorm hsep
+  obtain ⟨C₅, hC₅, hE⟩ := goal5 N hN left right hleft_right
   let weight : ℝ → ℝ → ℝ :=
     fun c t => (1 + |t - c| / N) ^ (-(10 : ℝ))
   have hweight_nonneg : ∀ c t, 0 ≤ weight c t :=
@@ -962,12 +956,12 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
   have hcell_bound : ∀ c k,
       ∫ t in cell c k, W c t ≤ b k * (C₃ * N) := by
     intro c k
-    let s := c + k • N
-    have hend : c + (k + 1) • N = s + N := by
-      dsimp [s]
+    let cellLeft := c + k • N
+    have hend : c + (k + 1) • N = cellLeft + N := by
+      dsimp [cellLeft]
       rw [add_smul, one_smul]
       ring
-    have hcell_eq : cell c k = Set.Ico s (s + N) := by
+    have hcell_eq : cell c k = Set.Ico cellLeft (cellLeft + N) := by
       dsimp [cell]
       rw [hend]
     have hWcell : IntegrableOn (W c) (cell c k) :=
@@ -979,7 +973,7 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
         rw [hcell_eq]
         exact Set.Ico_subset_Icc_self)
     have hFcell :
-        ∫ t in cell c k, F t ≤ ∫ t in Set.Icc s (s + N), F t := by
+        ∫ t in cell c k, F t ≤ ∫ t in Set.Icc cellLeft (cellLeft + N), F t := by
       apply setIntegral_mono_set hF_cont.integrableOn_Icc
         (ae_of_all _ fun t => hF_nonneg t)
       apply ae_of_all
@@ -995,10 +989,10 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
             mul_le_mul_of_nonneg_left (hcell_weight c k t ht) (hF_nonneg t)
           _ = b k * F t := by ring
       _ = b k * ∫ t in cell c k, F t := integral_const_mul _ _
-      _ ≤ b k * ∫ t in Set.Icc s (s + N), F t :=
+      _ ≤ b k * ∫ t in Set.Icc cellLeft (cellLeft + N), F t :=
         mul_le_mul_of_nonneg_left hFcell (hb_nonneg k)
       _ ≤ b k * (C₃ * N) :=
-        mul_le_mul_of_nonneg_left (hlocal s) (hb_nonneg k)
+        mul_le_mul_of_nonneg_left (hlocal cellLeft) (hb_nonneg k)
   have hW : ∀ c, Integrable (W c) ∧ ∫ t : ℝ, W c t ≤ B * (C₃ * N) := by
     intro c
     have hcell_int : ∀ k, IntegrableOn (W c) (cell c k) := by
@@ -1039,10 +1033,10 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       _ = B * (C₃ * N) := by
         exact hb_summable.tsum_mul_right (C₃ * N)
   have hmin_split : ∀ t,
-      (1 + min (|t - a₀| / N) (|t - b₀| / N)) ^ (-(10 : ℝ)) ≤
-      weight a₀ t + weight b₀ t := by
+      (1 + min (|t - left| / N) (|t - right| / N)) ^ (-(10 : ℝ)) ≤
+      weight left t + weight right t := by
     intro t
-    rcases le_total (|t - a₀| / N) (|t - b₀| / N) with h | h
+    rcases le_total (|t - left| / N) (|t - right| / N) with h | h
     · rw [min_eq_left h]
       dsimp [weight]
       exact le_add_of_nonneg_right (Real.rpow_nonneg (by positivity) _)
@@ -1050,58 +1044,58 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       dsimp [weight]
       exact le_add_of_nonneg_left (Real.rpow_nonneg (by positivity) _)
   have hmajor : ∀ t,
-      F t * |kernelE N a₀ b₀ t| ≤ C₅ * (W a₀ t + W b₀ t) := by
+      F t * |kernelE N left right t| ≤ C₅ * (W left t + W right t) := by
     intro t
     calc
-      F t * |kernelE N a₀ b₀ t| ≤
-          F t * (C₅ * (1 + min (|t - a₀| / N) (|t - b₀| / N)) ^ (-(10 : ℝ))) :=
+      F t * |kernelE N left right t| ≤
+          F t * (C₅ * (1 + min (|t - left| / N) (|t - right| / N)) ^ (-(10 : ℝ))) :=
         mul_le_mul_of_nonneg_left (hE t) (hF_nonneg t)
-      _ ≤ F t * (C₅ * (weight a₀ t + weight b₀ t)) :=
+      _ ≤ F t * (C₅ * (weight left t + weight right t)) :=
         mul_le_mul_of_nonneg_left
           (mul_le_mul_of_nonneg_left (hmin_split t) hC₅.le) (hF_nonneg t)
-      _ = C₅ * (W a₀ t + W b₀ t) := by
+      _ = C₅ * (W left t + W right t) := by
         dsimp [W]
         ring
-  have hW_a := hW a₀
-  have hW_b := hW b₀
-  have hmajor_int : Integrable (fun t => C₅ * (W a₀ t + W b₀ t)) :=
-    (hW_a.1.add hW_b.1).const_mul C₅
-  have hkernel_meas := kernelE_aestronglyMeasurable N hN a₀ b₀ hab
+  have hWLeft := hW left
+  have hWRight := hW right
+  have hmajor_int : Integrable (fun t => C₅ * (W left t + W right t)) :=
+    (hWLeft.1.add hWRight.1).const_mul C₅
+  have hkernel_meas := kernelE_aestronglyMeasurable N hN left right hleft_right
   have hkernel_abs_meas : AEStronglyMeasurable
-      (fun t => |kernelE N a₀ b₀ t|) := by
+      (fun t => |kernelE N left right t|) := by
     simpa only [Real.norm_eq_abs] using hkernel_meas.norm
   have hFEabs_meas : AEStronglyMeasurable
-      (fun t => F t * |kernelE N a₀ b₀ t|) :=
+      (fun t => F t * |kernelE N left right t|) :=
     hF_cont.aestronglyMeasurable.mul hkernel_abs_meas
-  have hFEabs : Integrable (fun t => F t * |kernelE N a₀ b₀ t|) := by
+  have hFEabs : Integrable (fun t => F t * |kernelE N left right t|) := by
     apply hmajor_int.mono' hFEabs_meas
     filter_upwards with t
     rw [Real.norm_eq_abs, abs_of_nonneg
       (mul_nonneg (hF_nonneg t) (abs_nonneg _))]
     exact hmajor t
-  have hFE : Integrable (fun t => F t * kernelE N a₀ b₀ t) := by
+  have hFE : Integrable (fun t => F t * kernelE N left right t) := by
     apply hFEabs.mono' (hF_cont.aestronglyMeasurable.mul hkernel_meas)
     filter_upwards with t
-    change |F t * kernelE N a₀ b₀ t| ≤ F t * |kernelE N a₀ b₀ t|
+    change |F t * kernelE N left right t| ≤ F t * |kernelE N left right t|
     rw [abs_mul, abs_of_nonneg (hF_nonneg t)]
   refine ⟨2 * C₅ * C₃ * (B + 1), by positivity, ?_⟩
   calc
-    |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t| =
-        |∫ t : ℝ, F t * kernelE N a₀ b₀ t| := by rfl
-    _ ≤ ∫ t : ℝ, |F t * kernelE N a₀ b₀ t| :=
+    |∫ t : ℝ, expSumSq a ξ t * kernelE N left right t| =
+        |∫ t : ℝ, F t * kernelE N left right t| := by rfl
+    _ ≤ ∫ t : ℝ, |F t * kernelE N left right t| :=
       abs_integral_le_integral_abs
-    _ = ∫ t : ℝ, F t * |kernelE N a₀ b₀ t| := by
+    _ = ∫ t : ℝ, F t * |kernelE N left right t| := by
       congr 1
       funext t
       rw [abs_mul, abs_of_nonneg (hF_nonneg t)]
-    _ ≤ ∫ t : ℝ, C₅ * (W a₀ t + W b₀ t) :=
+    _ ≤ ∫ t : ℝ, C₅ * (W left t + W right t) :=
       integral_mono hFEabs hmajor_int hmajor
-    _ = C₅ * ((∫ t : ℝ, W a₀ t) + ∫ t : ℝ, W b₀ t) := by
-      rw [integral_const_mul, integral_add hW_a.1 hW_b.1]
+    _ = C₅ * ((∫ t : ℝ, W left t) + ∫ t : ℝ, W right t) := by
+      rw [integral_const_mul, integral_add hWLeft.1 hWRight.1]
     _ ≤ C₅ * (B * (C₃ * N) + B * (C₃ * N)) := by
       gcongr
-      · exact hW_a.2
-      · exact hW_b.2
+      · exact hWLeft.2
+      · exact hWRight.2
     _ ≤ 2 * C₅ * C₃ * (B + 1) * N := by
       calc
         C₅ * (B * (C₃ * N) + B * (C₃ * N)) = (2 * C₅ * C₃ * N) * B := by ring
@@ -1120,9 +1114,9 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 -- ============================================================
 theorem lemma3_1 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N) (hsep : IsSeparatedFamily (1 / N) ξ)
-    (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
+    (left right : ℝ) (T : ℝ) (hT : T = right - left) (hleft_right : left ≤ right) :
     ∃ C : ℝ, 0 < C ∧ ∃ θ : ℝ, |θ| ≤ C ∧
-    ∫ t in Set.Icc a₀ b₀, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
+    ∫ t in Set.Icc left right, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2 := by
   set M := ∑ r, ‖a r‖ ^ 2
   -- Trivial case: M = 0 → all aᵣ = 0
@@ -1158,12 +1152,12 @@ theorem lemma3_1 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       rw [this, norm_mul, Complex.norm_ofReal,
           abs_of_nonneg (Real.sqrt_nonneg M), mul_pow, Real.sq_sqrt hMpos.le]
     -- Apply Goal 4 to get the Fubini identity
-    have h4 := goal4 A ξ N hN hAnorm hsep a₀ b₀ T hT hab
+    have h4 := goal4 A ξ N hN hAnorm hsep left right T hT hleft_right
     -- Apply Goal 6 to bound the error
-    obtain ⟨C, hC, h6⟩ := goal6 A ξ N hN hAnorm hsep a₀ b₀ hab
+    obtain ⟨C, hC, h6⟩ := goal6 A ξ N hN hAnorm hsep left right hleft_right
     -- ∫_I ‖expSum A‖² = T - err,  |err| ≤ C·N
-    set err := ∫ t : ℝ, expSumSq A ξ t * kernelE N a₀ b₀ t
-    have hA_eq : ∫ t in Set.Icc a₀ b₀, expSumSq A ξ t = T - err := by
+    set err := ∫ t : ℝ, expSumSq A ξ t * kernelE N left right t
+    have hA_eq : ∫ t in Set.Icc left right, expSumSq A ξ t = T - err := by
       simp [expSumSq] at h4 ⊢; exact h4
     have herr_bd : |err| ≤ C * N := by
       simp [expSumSq] at h6; exact h6
@@ -1173,7 +1167,7 @@ theorem lemma3_1 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       rw [abs_div, abs_neg, abs_of_pos hN]
       exact div_le_of_le_mul₀ hN.le (by positivity) (by linarith)
     · -- ∫_I ‖expSum a‖² = (T + θN) · M
-      have ha_int : ∫ t in Set.Icc a₀ b₀, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
+      have ha_int : ∫ t in Set.Icc left right, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
           M * (T - err) := by
         conv_lhs => ext t; rw [hrescale t]
         rw [integral_const_mul]
