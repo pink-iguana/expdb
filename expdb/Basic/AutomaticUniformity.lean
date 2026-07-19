@@ -1,74 +1,18 @@
-import Mathlib.Analysis.Complex.Circle
-import Mathlib.Analysis.Normed.Field.Basic
+import expdb.Basic.Asymptotics
 import Mathlib.Analysis.Complex.Norm
-import Mathlib.Analysis.SpecificLimits.Basic
-import Mathlib.Order.Filter.Basic
-import Mathlib.Topology.MetricSpace.Sequences
 
 /-!
-# ANTEDB Blueprint — Chapter 2: Basic notation
+# Automatic uniformity
 
-This file defines the project-specific notions used in Chapter 2. When a blueprint convention
-already has a standard Mathlib representation, later files use that representation directly:
-
-* the notation `e(θ)` is `𝐞 θ` after `open scoped FourierTransform`; it is coerced from
-  `Circle` to `ℂ` when the surrounding expression requires a complex number;
-* indicator functions are written using `Set.indicator`;
-* suprema and infima, including those of empty sets, use Mathlib's `sSup` and `sInf`;
-* finite cardinalities use `Finset.card`;
-* standard asymptotic relations use Mathlib's `Asymptotics` API.
-
-New declarations are introduced here only when the notion used by the blueprint is genuinely
-project-specific or differs from the corresponding Mathlib notion.
+This module formalizes Proposition 2.1 of the ANTEDB blueprint: pointwise boundedness or
+infinitesimality along every variable sequence can be made uniform after passing to a subsequence.
 -/
 
-open Filter Topology Real
+open Filter Topology
 
--- ===========================================================
---  Separated families and sets
--- ===========================================================
+namespace Expdb
 
-/-- A family in a pseudo-metric space is `δ`-separated when distinct indices have values at
-least `δ` apart. This uses a non-strict inequality, unlike `Metric.IsSeparated`. -/
-def IsSeparatedFamily {ι α : Type*} [PseudoMetricSpace α] (δ : ℝ) (x : ι → α) : Prop :=
-  Pairwise fun i j => δ ≤ dist (x i) (x j)
-
-/-- λ-Separated Sets: distance between distinct elements is at least λ -/
-def IsLambdaSeparated {α : Type*} [PseudoMetricSpace α] (lam : ℝ) (W : Finset α) : Prop :=
-  IsSeparatedFamily lam fun t : W => (t : α)
-
-/-- 1-Separated Sets: distance between distinct elements is at least 1. -/
-abbrev IsOneSeparated {α : Type*} [PseudoMetricSpace α] (W : Finset α) : Prop :=
-  IsLambdaSeparated 1 W
-
--- ===========================================================
--- Bounded families
--- ===========================================================
-
-/-- A family in a normed type is `C`-bounded when every value has norm at most `C`. -/
-def IsBoundedFamily {ι β : Type*} [Norm β] (C : ℝ) (a : ι → β) : Prop :=
-  ∀ i, ‖a i‖ ≤ C
-
-/-- A family in a normed type is 1-bounded. -/
-abbrev IsOneBounded {ι β : Type*} [Norm β] (a : ι → β) : Prop :=
-  IsBoundedFamily 1 a
-
--- ===========================================================
--- Asymptotic Notation
--- ===========================================================
-
-/-- X ≤ Y + o(1) in a strict sense:
-    There exists an infinitesimal sequence ε_i such that x_i ≤ y_i + ε_i eventually. -/
-def EventuallyLeUpToInfinitesimal (X Y : ℕ → ℝ) : Prop :=
-  ∃ ε : ℕ → ℝ, Tendsto ε atTop (nhds 0) ∧
-               (∀ᶠ i in atTop, X i ≤ Y i + ε i)
-
--- Notation shorthand
-notation X " ≤o " Y => EventuallyLeUpToInfinitesimal X Y
-
--- ============================================================
---  Auxiliary lemmas for subsequence extraction
--- ============================================================
+/-! ### Auxiliary lemmas for subsequence extraction -/
 
 /-- From a property holding arbitrarily late, extract a strictly
     increasing sequence on which it holds. -/
@@ -87,7 +31,7 @@ private lemma extract_strictMono_subseq {P : ℕ → Prop}
     with |f(φ n)(x n)| > n.  Used in the proof of Proposition 2.1(i). -/
 private lemma extract_bad_seq_i
     (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j : ℝ) < ‖f i x‖):
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j : ℝ) < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ x : ∀ n, E (φ n), ∀ n, n < ‖f (φ n) (x n)‖ := by
   have step : ∀ (n prev : ℕ), ∃ i > prev, ∃ x : E i, (n : ℝ) < ‖f i x‖ :=
@@ -138,75 +82,35 @@ private lemma build_increasing_thresholds
   have hb := hi_seq n (φ n) hge x
   rwa [Nat.cast_add, Nat.cast_one] at hb
 
--- ===========================================================
--- Underspill Principle
--- ===========================================================
+/-! ### Pointwise hypotheses -/
 
-/-- Underspill Principle:
-    X ≤ Y + o(1)  ↔  For every constant ε > 0, X ≤ Y + ε + o(1) -/
-theorem underspill (X Y : ℕ → ℝ) :
-    (X ≤o Y) ↔
-    (∀ ε : ℝ, ε > 0 → X ≤o (fun i => Y i + ε)) := by
-  constructor
-  · intro ⟨εseq, hεseq_inf, hεseq_bound⟩ ε hε
-    refine ⟨εseq, hεseq_inf, ?_⟩
-    · filter_upwards [hεseq_bound] with i hi
-      linarith
-  · intro h
-    have key : ∀ c : ℝ, c > 0 → ∀ᶠ i in atTop, X i - Y i < c := by
-      intro c hc
-      have hc2 : c / 2 > 0 := by linarith
-      obtain ⟨dseq, hdseq_inf, hdseq_bound⟩ := h (c / 2) hc2
-      rw [Metric.tendsto_nhds] at hdseq_inf
-      have hdseq_small := hdseq_inf (c / 2) hc2
-      filter_upwards [hdseq_bound, hdseq_small] with i hi_bound hi_small
-      rw [Real.dist_eq] at hi_small
-      simp at hi_small
-      have hdseq_lt : dseq i < c / 2 := lt_of_abs_lt hi_small
-      linarith
-    refine ⟨fun i => max (X i - Y i) 0, ?_, Filter.Eventually.of_forall fun i => ?_⟩
-    ·
-      rw [Metric.tendsto_nhds]
-      intro δ hδ
-      filter_upwards [key δ hδ] with i hi
-      rw [Real.dist_eq, sub_zero, abs_of_nonneg (le_max_right _ _)]
-      exact max_lt hi hδ
-    · have : X i - Y i ≤ max (X i - Y i) 0 := le_max_left _ _
-      linarith
-
--- ============================================================
--- Pointwise-bounded and pointwise-infinitesimal functions
--- ============================================================
-
-/-- f is pointwise O(1): for every variable sequence (x_i) ∈ E_i,
-    the values (f_i(x_i)) are eventually bounded. -/
+/-- A dependent family is pointwise `O(1)` when its values along every variable sequence are
+eventually bounded. -/
 def IsPointwiseBounded (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
   ∀ x : ∀ i, E i, ∃ C : ℝ, ∀ᶠ i in atTop, ‖f i (x i)‖ ≤ C
 
-/-- f is pointwise o(1): for every variable sequence (x_i) ∈ E_i,
-    the values (f_i(x_i)) tend to 0. -/
+/-- A dependent family is pointwise `o(1)` when its norms along every variable sequence tend
+to zero. -/
 def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
   ∀ x : ∀ i, E i, Tendsto (fun i => ‖f i (x i)‖) atTop (nhds 0)
 
--- ============================================================
--- Proposition 2.1 — Automatic uniformity
--- ============================================================
+/-! ### Proposition 2.1: automatic uniformity -/
 
+open Classical in
 private noncomputable def extend_subsequence
     (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
-    (φ : ℕ → ℕ) (x : ∀ n, E (φ n)) : ∀ j, E j := by
-  classical
-  exact fun j =>
+    (φ : ℕ → ℕ) (x : ∀ n, E (φ n)) : ∀ j, E j :=
+  fun j =>
     if h : ∃ n, φ n = j then
       (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x h.choose
     else ⟨(hE j).choose, (hE j).choose_spec⟩
 
-open Classical in
 private lemma norm_extend_subsequence_apply
     {E : ℕ → Set ℝ} (hE : ∀ i, (E i).Nonempty)
     {f : ∀ i, E i → ℂ} {φ : ℕ → ℕ} (hφ : StrictMono φ)
     (x : ∀ n, E (φ n)) (m : ℕ) :
     ‖f (φ m) (extend_subsequence E hE φ x (φ m))‖ = ‖f (φ m) (x m)‖ := by
+  classical
   simp only [extend_subsequence]
   split_ifs with h
   · have hm : h.choose = m := hφ.injective h.choose_spec
@@ -220,7 +124,7 @@ private lemma norm_extend_subsequence_apply
 /-- **Proposition 2.1(i) — Automatic uniform bound.**
     If f(x) = O(1) for every variable x ∈ E, then after passing to a
     subsequence there exists a *fixed* C with |f(x)| ≤ C for all x ∈ E. -/
-theorem automatic_uniformity_i
+theorem automatic_uniformity_of_pointwise_bounded
     (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
     (f : ∀ i, E i → ℂ)
     (hf : IsPointwiseBounded E f) :
@@ -266,7 +170,7 @@ theorem automatic_uniformity_i
 /-- **Proposition 2.1(ii) — Automatic uniform infinitesimal.**
     If f(x) = o(1) for every variable x ∈ E, then after passing to a
     subsequence there exists an *infinitesimal* c with |f(x)| ≤ c for all x ∈ E. -/
-theorem automatic_uniformity_ii
+theorem automatic_uniformity_of_pointwise_infinitesimal
     (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
     (f : ∀ i, E i → ℂ)
     (hf : IsPointwiseInfinitesimal E f) :
@@ -300,3 +204,5 @@ theorem automatic_uniformity_ii
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
   refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, hφ_bd⟩
   exact tendsto_one_div_add_atTop_nhds_zero_nat
+
+end Expdb

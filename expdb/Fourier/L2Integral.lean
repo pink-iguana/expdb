@@ -1,4 +1,4 @@
-import expdb.basic
+import expdb.Basic.Definitions
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.Distribution.FourierSchwartz
@@ -7,7 +7,14 @@ import Mathlib.Algebra.Order.Interval.Set.Group
 import Mathlib.Analysis.PSeries
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
-import Mathlib.Tactic
+import Mathlib.Tactic.FieldSimp
+import Mathlib.Tactic.FunProp
+import Mathlib.Tactic.GCongr
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Positivity
+import Mathlib.Tactic.Push
+import Mathlib.Tactic.Ring
 
 open MeasureTheory Real Complex Filter Topology BigOperators
 open scoped FourierTransform SchwartzMap ContDiff
@@ -15,22 +22,15 @@ open scoped FourierTransform SchwartzMap ContDiff
 noncomputable section
 
 /-!
-# Lemma 3.1 (L² Integral Estimate)
-Based exactly on the handwritten proof:
-  ∫_I |∑ aᵣ e(ξᵣ t)|² dt = (T + O(N)) ∑|aᵣ|²
+# L² integral estimate
 
-Proof structure:
-  Goal 1: WLOG ∑|aᵣ|² = 1
-  Goal 2: ∫_ℝ |∑ aᵣ e(ξᵣ t)|² |ψ̂((t-t₀)/N)|² dt = N  [eq 3.1]
-  Goal 3: ∫_J |∑ aᵣ e(ξᵣ t)|² dt ≪ N for |J| = N       [eq 3.2]
-  Goal 4: ∫_I F = T - ∫_ℝ F·E  (Fubini identity)
-  Goal 5: E(t) ≪ (1 + dist(t,∂I)/N)^{-10}
-  Goal 6: ∫_ℝ F·E ≪ N  (integer-cell summation)
-  Goal 7: Assembly → Lemma 3.1
+This module formalizes Lemma 3.1 from Chapter 3 of the ANTEDB blueprint. It proves both the
+blueprint's equality with a bounded error coefficient and the corresponding absolute-error bound.
 -/
--- ============================================================
--- A fixed smooth bump ψ, supported on [-1/4, 1/4], with L²-norm 1.
--- ============================================================
+
+namespace Expdb
+
+/-! ### A normalized smooth bump -/
 
 private def rawBump : ContDiffBump (0 : ℝ) :=
   ⟨1 / 8, 1 / 4, by norm_num, by norm_num⟩
@@ -51,25 +51,25 @@ private lemma rawL2_pos : 0 < rawL2 := by
       simp [rawBump, Metric.mem_closedBall]
     simp [hzero]
 
-def ψ (x : ℝ) : ℝ := rawBump x / Real.sqrt rawL2
+private def bump (x : ℝ) : ℝ := rawBump x / Real.sqrt rawL2
 
-lemma psi_smooth : ContDiff ℝ ∞ ψ := by
-  simpa [ψ] using (rawBump.contDiff (n := ⊤)).div_const (Real.sqrt rawL2)
+private lemma bump_smooth : ContDiff ℝ ∞ bump := by
+  simpa [bump] using (rawBump.contDiff (n := ⊤)).div_const (Real.sqrt rawL2)
 
-lemma psi_hasCompactSupport : HasCompactSupport ψ := by
+private lemma bump_hasCompactSupport : HasCompactSupport bump := by
   apply HasCompactSupport.of_support_subset_isCompact rawBump.hasCompactSupport.isCompact
   intro x hx
   apply subset_tsupport rawBump
   simp only [Function.mem_support] at hx ⊢
   intro hzero
   apply hx
-  simp [ψ, hzero]
+  simp [bump, hzero]
 
-lemma psi_supp (x : ℝ) (hx : ψ x ≠ 0) : |x| ≤ 1 / 4 := by
+private lemma bump_supp (x : ℝ) (hx : bump x ≠ 0) : |x| ≤ 1 / 4 := by
   have hraw : (rawBump : ℝ → ℝ) x ≠ 0 := by
     intro hzero
     apply hx
-    simp [ψ, hzero]
+    simp [bump, hzero]
   have hmem : x ∈ Metric.ball (0 : ℝ) rawBump.rOut := by
     rw [← rawBump.support_eq]
     exact hraw
@@ -77,50 +77,46 @@ lemma psi_supp (x : ℝ) (hx : ψ x ≠ 0) : |x| ≤ 1 / 4 := by
     simpa [rawBump, Metric.mem_ball, Real.dist_eq] using hmem
   exact this.le
 
-lemma psi_nonneg (x : ℝ) : 0 ≤ ψ x :=
+private lemma bump_nonneg (x : ℝ) : 0 ≤ bump x :=
   div_nonneg (rawBump.nonneg' x) (Real.sqrt_nonneg rawL2)
 
-lemma psi_l2norm : ∫ x : ℝ, (ψ x) ^ 2 = 1 := by
-  rw [show (fun x : ℝ => (ψ x) ^ 2) = fun x => (rawBump x) ^ 2 / rawL2 by
+private lemma bump_l2norm : ∫ x : ℝ, (bump x) ^ 2 = 1 := by
+  rw [show (fun x : ℝ => (bump x) ^ 2) = fun x => (rawBump x) ^ 2 / rawL2 by
         funext x
-        simp only [ψ, div_pow]
+        simp only [bump, div_pow]
         rw [Real.sq_sqrt rawL2_pos.le]]
   rw [integral_div]
   exact div_self (ne_of_gt rawL2_pos)
 
--- ψ̂(u) = ∫_ℝ ψ(x) e(-xu) dx
-def psiHat (u : ℝ) : ℂ :=
-  ∫ x : ℝ, (ψ x : ℂ) * 𝐞 (-(x * u))
+-- bump̂(u) = ∫_ℝ bump(x) e(-xu) dx
+private def bumpFourier (u : ℝ) : ℂ :=
+  ∫ x : ℝ, (bump x : ℂ) * 𝐞 (-(x * u))
 
--- ψ is integrable
-lemma psi_integrable : Integrable ψ :=
-  psi_smooth.continuous.integrable_of_hasCompactSupport psi_hasCompactSupport
+-- bump is integrable
+private lemma bump_integrable : Integrable bump :=
+  bump_smooth.continuous.integrable_of_hasCompactSupport bump_hasCompactSupport
 
--- ∫ ψ > 0  (from proof: "ψ(t) ≥ 0 and ‖ψ‖_{L²} = 1 so ψ ≢ 0")
-lemma psi_integral_pos : 0 < ∫ x : ℝ, ψ x := by
-  have hne : ∃ x, ψ x ≠ 0 := by
+-- ∫ bump > 0  (from proof: "bump(t) ≥ 0 and ‖bump‖_{L²} = 1 so bump ≢ 0")
+private lemma bump_integral_pos : 0 < ∫ x : ℝ, bump x := by
+  have hne : ∃ x, bump x ≠ 0 := by
     by_contra h
     push_neg at h
-    have hsquare : ∫ x : ℝ, (ψ x) ^ 2 = 0 := by
+    have hsquare : ∫ x : ℝ, (bump x) ^ 2 = 0 := by
       calc
-        ∫ x : ℝ, (ψ x) ^ 2
+        ∫ x : ℝ, (bump x) ^ 2
             = ∫ x : ℝ, (0 : ℝ) ^ 2 := by
               congr 1
               ext x
               rw [h x]
         _ = 0 := by simp
-    linarith [psi_l2norm, hsquare]
-
+    linarith [bump_l2norm, hsquare]
   obtain ⟨x, hx⟩ := hne
   exact integral_pos_of_integrable_nonneg_nonzero
-    psi_smooth.continuous psi_integrable psi_nonneg hx
+    bump_smooth.continuous bump_integrable bump_nonneg hx
 
--- ============================================================
--- GOAL 1: WLOG ∑|aᵣ|² = 1
--- "Let M = ∑|aᵣ|², let Aᵣ = aᵣ/M^{1/2} → ∑|Aᵣ|² = 1"
--- ============================================================
+/-! ### Normalization and the exponential sum -/
 
-lemma goal1 {ι : Type*} [Fintype ι] (a : ι → ℂ) (M : ℝ)
+private lemma normalize_coefficients {ι : Type*} [Fintype ι] (a : ι → ℂ) (M : ℝ)
     (hM : M = ∑ r, ‖a r‖ ^ 2)
     (hpos : 0 < M) :
     ∑ r, ‖(fun r => a r / (Real.sqrt M : ℂ)) r‖ ^ 2 = 1 := by
@@ -132,12 +128,10 @@ lemma goal1 {ι : Type*} [Fintype ι] (a : ι → ℂ) (M : ℝ)
   rw [← hM, Real.sq_sqrt hpos.le]
   exact div_self (ne_of_gt hpos)
 
-/-- The exponential sum occurring in the $L^2$ integral estimate. -/
-def expSum {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℂ :=
+private def expSum {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℂ :=
   ∑ r, a r * 𝐞 (ξ r * t)
 
-/-- The squared modulus of `expSum`. -/
-def expSumSq {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℝ :=
+private def expSumSq {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℝ :=
   ‖expSum a ξ t‖ ^ 2
 
 private lemma expSumSq_nonneg {ι : Type*} [Fintype ι]
@@ -151,69 +145,61 @@ private lemma expSumSq_continuous {ι : Type*} [Fintype ι]
   unfold expSumSq expSum
   fun_prop
 
--- ============================================================
--- Plancherel: ‖ψ̂‖_{L²} = ‖ψ‖_{L²} = 1
--- From proof: "∑|aᵣ|² ∫|ψ̂((t-t₀)/N)|² dt, let u=(t-t₀)/N
---             = N ∫|ψ̂(u)|² du = N  (by Plancherel, ‖ψ‖=1)"
--- ============================================================
+/-! ### Plancherel and decay of the bump's Fourier transform -/
 
-private lemma psi_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ => (ψ x : ℂ)) :=
+private lemma bump_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ => (bump x : ℂ)) :=
   HasCompactSupport.of_support_subset_isCompact
     (isCompact_Icc (a := -1 / 4) (b := 1 / 4)) (by
       intro x hx
       simp only [Function.mem_support] at hx
-      have h := psi_supp x (by exact_mod_cast hx)
+      have h := bump_supp x (by exact_mod_cast hx)
       simp only [Set.mem_Icc, abs_le] at h ⊢
       simpa only [neg_div] using h)
 
-private lemma psi_complex_smooth : ContDiff ℝ ∞ (fun x : ℝ => (ψ x : ℂ)) := by
+private lemma bump_complex_smooth : ContDiff ℝ ∞ (fun x : ℝ => (bump x : ℂ)) := by
   simpa only [ContinuousLinearMap.coe_comp', Function.comp_apply, Complex.ofRealCLM_apply] using
-    (Complex.ofRealCLM.contDiff (n := ∞)).comp psi_smooth
+    (Complex.ofRealCLM.contDiff (n := ∞)).comp bump_smooth
 
-private def psiSchwartz : 𝓢(ℝ, ℂ) :=
-  psi_complex_hasCompactSupport.toSchwartzMap psi_complex_smooth
+private def bumpSchwartz : 𝓢(ℝ, ℂ) :=
+  bump_complex_hasCompactSupport.toSchwartzMap bump_complex_smooth
 
-private lemma psiHat_eq_fourier : psiHat = 𝓕 (psiSchwartz : ℝ → ℂ) := by
+private lemma bumpFourier_eq_fourier : bumpFourier = 𝓕 (bumpSchwartz : ℝ → ℂ) := by
   funext u
   rw [Real.fourier_real_eq]
-  simp [psiSchwartz, psiHat, Circle.smul_def, Real.fourierChar_apply]
+  simp only [bumpFourier, Real.fourierChar_apply, mul_neg, Complex.ofReal_neg,
+    Complex.ofReal_mul, Complex.ofReal_ofNat, neg_mul, bumpSchwartz,
+    HasCompactSupport.toSchwartzMap_toFun, Circle.smul_def, smul_eq_mul]
   apply integral_congr_ae
   filter_upwards with x
   ring
 
-private lemma psiHat_continuous : Continuous psiHat := by
-  rw [psiHat_eq_fourier]
-  exact (𝓕 psiSchwartz).continuous
+private lemma bumpFourier_continuous : Continuous bumpFourier := by
+  rw [bumpFourier_eq_fourier]
+  exact (𝓕 bumpSchwartz).continuous
 
-lemma psiHat_l2 : ∫ u : ℝ, ‖psiHat u‖ ^ 2 = 1 := by
-  simp_rw [psiHat_eq_fourier]
+private lemma bumpFourier_l2 : ∫ u : ℝ, ‖bumpFourier u‖ ^ 2 = 1 := by
+  simp_rw [bumpFourier_eq_fourier]
   rw [← SchwartzMap.fourier_coe, SchwartzMap.integral_norm_sq_fourier]
-  simpa [psiSchwartz, Real.norm_eq_abs, abs_of_nonneg (psi_nonneg _)] using psi_l2norm
+  simpa [bumpSchwartz, Real.norm_eq_abs, abs_of_nonneg (bump_nonneg _)] using bump_l2norm
 
-private lemma psiHat_sq_integrable :
-    Integrable (fun u : ℝ => ‖psiHat u‖ ^ 2) := by
+private lemma bumpFourier_sq_integrable :
+    Integrable (fun u : ℝ => ‖bumpFourier u‖ ^ 2) := by
   by_contra h
-  have hzero := psiHat_l2
+  have hzero := bumpFourier_l2
   rw [integral_undef h] at hzero
   norm_num at hzero
 
--- ============================================================
--- ψ̂ is rapidly decaying
--- From proof (Goal 5 Step 1):
--- "ψ̂(u) = 1/(2πiu) ψ̂'(u), repeat k times → |ψ̂(u)| ≪ Cₖ/(1+|u|)ᵏ"
--- ============================================================
-
-lemma psiHat_decay (K : ℕ) :
-    ∃ C : ℝ, 0 < C ∧ ∀ u : ℝ, ‖psiHat u‖ ≤ C * (1 + |u|) ^ (-(K : ℝ)) := by
-  let g : 𝓢(ℝ, ℂ) := 𝓕 psiSchwartz
-  have hfourier : ∀ u : ℝ, psiHat u = g u := by
+private lemma bumpFourier_decay (K : ℕ) :
+    ∃ C : ℝ, 0 < C ∧ ∀ u : ℝ, ‖bumpFourier u‖ ≤ C * (1 + |u|) ^ (-(K : ℝ)) := by
+  let g : 𝓢(ℝ, ℂ) := 𝓕 bumpSchwartz
+  have hfourier : ∀ u : ℝ, bumpFourier u = g u := by
     intro u
-    exact congr_fun psiHat_eq_fourier u
+    exact congr_fun bumpFourier_eq_fourier u
   let c : ℝ := 2 ^ K * (Finset.Iic (K, 0)).sup
     (fun m => SchwartzMap.seminorm ℝ m.1 m.2) g
   refine ⟨|c| + 1, by positivity, ?_⟩
   intro u
-  have hweight : (1 + |u|) ^ K * ‖psiHat u‖ ≤ c := by
+  have hweight : (1 + |u|) ^ K * ‖bumpFourier u‖ ≤ c := by
     have hw := SchwartzMap.one_add_le_sup_seminorm_apply
       (𝕜 := ℝ) (m := (K, 0)) (k := K) (n := 0) le_rfl le_rfl g u
     rw [norm_iteratedFDeriv_zero, ← hfourier u] at hw
@@ -225,110 +211,96 @@ lemma psiHat_decay (K : ℕ) :
   rw [hrpow, ← div_eq_mul_inv]
   apply (le_div_iff₀ hpow).2
   calc
-    ‖psiHat u‖ * (1 + |u|) ^ K =
-        (1 + |u|) ^ K * ‖psiHat u‖ := by ring
+    ‖bumpFourier u‖ * (1 + |u|) ^ K =
+        (1 + |u|) ^ K * ‖bumpFourier u‖ := by ring
     _ ≤ c := hweight
     _ ≤ |c| + 1 := by linarith [le_abs_self c]
 
--- ============================================================
--- ψ̂ has positive lower bound near 0
--- From proof (Goal 3 Step 2):
--- "ψ̂ is continuous, ψ̂(0) = ∫ψ > 0, choose ε = ψ̂(0)/2
---  → ψ̂(u) > ψ̂(0)/2 for |u| < δ → |ψ̂(u)|² ≥ c·1_{[-δ/2,δ/2]}(u)"
--- ============================================================
-
-lemma psiHat_lower_bound :
+private lemma bumpFourier_lower_bound :
     ∃ c δ : ℝ, 0 < c ∧ 0 < δ ∧
-    ∀ u : ℝ, |u| ≤ δ → c ≤ ‖psiHat u‖ ^ 2 := by
-  have hcts : Continuous psiHat := psiHat_continuous
-  have hpsi0_eq : (psiHat 0).re = ∫ x : ℝ, ψ x := by
-    simp only [psiHat, mul_zero, neg_zero]
-    have hψc : Integrable (fun x : ℝ => (ψ x : ℂ)) := psi_integrable.ofReal
-    simpa using (integral_re hψc).symm
-  have hpsi0 : 0 < (psiHat 0).re := by
+    ∀ u : ℝ, |u| ≤ δ → c ≤ ‖bumpFourier u‖ ^ 2 := by
+  have hcts : Continuous bumpFourier := bumpFourier_continuous
+  have hpsi0_eq : (bumpFourier 0).re = ∫ x : ℝ, bump x := by
+    simp only [bumpFourier, mul_zero, neg_zero]
+    have hbumpc : Integrable (fun x : ℝ => (bump x : ℂ)) := bump_integrable.ofReal
+    simpa using (integral_re hbumpc).symm
+  have hpsi0 : 0 < (bumpFourier 0).re := by
     rw [hpsi0_eq]
-    exact psi_integral_pos
-  have hpos : 0 < ‖psiHat 0‖ := by
+    exact bump_integral_pos
+  have hpos : 0 < ‖bumpFourier 0‖ := by
     rw [norm_pos_iff]
     intro hzero
-    have : (psiHat 0).re = 0 := by rw [hzero]; rfl
+    have : (bumpFourier 0).re = 0 := by rw [hzero]; rfl
     linarith
-  set v₀ := ‖psiHat 0‖
+  set v₀ := ‖bumpFourier 0‖
   obtain ⟨δ, hδ, hball⟩ :=
     (Metric.continuousAt_iff.mp hcts.continuousAt) (v₀ / 2) (by linarith)
   refine ⟨(v₀ / 2) ^ 2, δ / 2, by positivity, by positivity, ?_⟩
   intro u hu
-  have hdist : dist (psiHat u) (psiHat 0) < v₀ / 2 := by
+  have hdist : dist (bumpFourier u) (bumpFourier 0) < v₀ / 2 := by
     apply hball
     rw [Real.dist_eq]
     simp only [sub_zero]
     exact lt_of_le_of_lt hu (by linarith)
-  have hbound : v₀ - ‖psiHat u‖ < v₀ / 2 := by
+  have hbound : v₀ - ‖bumpFourier u‖ < v₀ / 2 := by
     calc
-      v₀ - ‖psiHat u‖ = ‖psiHat 0‖ - ‖psiHat u‖ := rfl
-      _ ≤ ‖psiHat 0 - psiHat u‖ := norm_sub_norm_le _ _
-      _ = dist (psiHat u) (psiHat 0) := by
+      v₀ - ‖bumpFourier u‖ = ‖bumpFourier 0‖ - ‖bumpFourier u‖ := rfl
+      _ ≤ ‖bumpFourier 0 - bumpFourier u‖ := norm_sub_norm_le _ _
+      _ = dist (bumpFourier u) (bumpFourier 0) := by
         rw [dist_eq_norm_sub, norm_sub_rev]
       _ < v₀ / 2 := hdist
-  have hball' : v₀ / 2 < ‖psiHat u‖ := by linarith
-  nlinarith [norm_nonneg (psiHat u)]
+  have hball' : v₀ / 2 < ‖bumpFourier u‖ := by linarith
+  nlinarith [norm_nonneg (bumpFourier u)]
 
--- ============================================================
--- GOAL 2: ∫_ℝ F(t) |ψ̂((t-t₀)/N)|² dt = N   [equation (3.1)]
---
--- Apply Plancherel once to the sum of translates
---   G(x) = ∑ᵣ aᵣe(ξᵣt₀)ψ(x + Nξᵣ).
--- Its Fourier transform is the weighted exponential sum after t=t₀+Nu,
--- while the translates of ψ form an orthonormal family by separation.
--- ============================================================
+/-! ### Weighted Plancherel identity -/
 
 -- Package translates of the concrete bump as Schwartz functions.
-private def psiShift (w : ℝ) : 𝓢(ℝ, ℂ) := by
-  let f : ℝ → ℂ := fun x => (ψ (x + w) : ℂ)
+private def bumpShift (w : ℝ) : 𝓢(ℝ, ℂ) := by
+  let f : ℝ → ℂ := fun x => (bump (x + w) : ℂ)
   have hcomp : HasCompactSupport f := by
     apply HasCompactSupport.of_support_subset_isCompact
       (isCompact_Icc (a := -w - 1 / 4) (b := -w + 1 / 4))
     intro x hx
-    change (ψ (x + w) : ℂ) ≠ 0 at hx
-    have hx' : ψ (x + w) ≠ 0 := by exact_mod_cast hx
-    have h := abs_le.mp (psi_supp (x + w) hx')
+    change (bump (x + w) : ℂ) ≠ 0 at hx
+    have hx' : bump (x + w) ≠ 0 := by exact_mod_cast hx
+    have h := abs_le.mp (bump_supp (x + w) hx')
     constructor <;> linarith
   have hsmooth : ContDiff ℝ ∞ f := by
     simpa only [f, Function.comp_apply] using
-      psi_complex_smooth.comp (contDiff_id.add contDiff_const)
+      bump_complex_smooth.comp (contDiff_id.add contDiff_const)
   exact hcomp.toSchwartzMap hsmooth
 
-private lemma psiShift_apply (w x : ℝ) : psiShift w x = ψ (x + w) := rfl
+private lemma bumpShift_apply (w x : ℝ) : bumpShift w x = bump (x + w) := rfl
 
-private lemma fourier_psiShift (w u : ℝ) :
-    (𝓕 (psiShift w : ℝ → ℂ)) u =
-      𝐞 (w * u) * psiHat u := by
-  have hcoe : (psiShift w : ℝ → ℂ) = fun x : ℝ => (ψ (x + w) : ℂ) := by
+private lemma fourier_bumpShift (w u : ℝ) :
+    (𝓕 (bumpShift w : ℝ → ℂ)) u =
+      𝐞 (w * u) * bumpFourier u := by
+  have hcoe : (bumpShift w : ℝ → ℂ) = fun x : ℝ => (bump (x + w) : ℂ) := by
     ext x
-    exact_mod_cast psiShift_apply w x
+    exact_mod_cast bumpShift_apply w x
   rw [hcoe, Real.fourier_real_eq]
-  have hpsi : psiHat u =
-      ∫ x : ℝ, 𝐞 (-(x * u)) * (ψ x : ℂ) := by
-    simp only [psiHat]
+  have hpsi : bumpFourier u =
+      ∫ x : ℝ, 𝐞 (-(x * u)) * (bump x : ℂ) := by
+    simp only [bumpFourier]
     apply integral_congr_ae
     filter_upwards with x
     ring
   rw [hpsi]
   have ht := congr_fun
-    (Fourier.fourierIntegral_comp_add_right 𝐞 volume (fun x : ℝ => (ψ x : ℂ)) w) u
+    (Fourier.fourierIntegral_comp_add_right 𝐞 volume (fun x : ℝ => (bump x : ℂ)) w) u
   simpa [Fourier.fourierIntegral_def, Circle.smul_def, Real.fourierChar_apply] using ht
 
-private lemma psiShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
-    ∫ x : ℝ, inner ℂ (psiShift v x) (psiShift w x) = 0 := by
+private lemma bumpShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
+    ∫ x : ℝ, inner ℂ (bumpShift v x) (bumpShift w x) = 0 := by
   apply integral_eq_zero_of_ae
   filter_upwards with x
-  by_cases hxv : ψ (x + v) = 0
-  · simp [psiShift_apply, hxv]
-  by_cases hxw : ψ (x + w) = 0
-  · simp [psiShift_apply, hxw]
+  by_cases hxv : bump (x + v) = 0
+  · simp [bumpShift_apply, hxv]
+  by_cases hxw : bump (x + w) = 0
+  · simp [bumpShift_apply, hxw]
   exfalso
-  have hv := psi_supp (x + v) hxv
-  have hw := psi_supp (x + w) hxw
+  have hv := bump_supp (x + v) hxv
+  have hw := bump_supp (x + w) hxw
   have hbound : |v - w| ≤ 1 / 2 := by
     calc
       |v - w| = |(x + v) - (x + w)| := by ring_nf
@@ -337,50 +309,50 @@ private lemma psiShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
       _ = 1 / 2 := by norm_num
   linarith
 
-private lemma psiShift_inner_self (w : ℝ) :
-    ∫ x : ℝ, inner ℂ (psiShift w x) (psiShift w x) = 1 := by
+private lemma bumpShift_inner_self (w : ℝ) :
+    ∫ x : ℝ, inner ℂ (bumpShift w x) (bumpShift w x) = 1 := by
   calc
-    ∫ x : ℝ, inner ℂ (psiShift w x) (psiShift w x) =
-        ∫ x : ℝ, (((ψ (x + w)) ^ 2 : ℝ) : ℂ) := by
+    ∫ x : ℝ, inner ℂ (bumpShift w x) (bumpShift w x) =
+        ∫ x : ℝ, (((bump (x + w)) ^ 2 : ℝ) : ℂ) := by
           apply integral_congr_ae
           filter_upwards with x
-          simp [psiShift_apply, abs_of_nonneg (psi_nonneg _)]
-    _ = ((∫ x : ℝ, (ψ (x + w)) ^ 2 : ℝ) : ℂ) := integral_ofReal
-    _ = ((∫ x : ℝ, (ψ x) ^ 2 : ℝ) : ℂ) := by
-      rw [integral_add_right_eq_self (fun x : ℝ => (ψ x) ^ 2) w]
-    _ = 1 := by rw [psi_l2norm]; norm_num
+          simp [bumpShift_apply, abs_of_nonneg (bump_nonneg _)]
+    _ = ((∫ x : ℝ, (bump (x + w)) ^ 2 : ℝ) : ℂ) := integral_ofReal
+    _ = ((∫ x : ℝ, (bump x) ^ 2 : ℝ) : ℂ) := by
+      rw [integral_add_right_eq_self (fun x : ℝ => (bump x) ^ 2) w]
+    _ = 1 := by rw [bump_l2norm]; norm_num
 
-private lemma psiShift_orthonormal {ι : Type*} [Fintype ι]
+private lemma bumpShift_orthonormal {ι : Type*} [Fintype ι]
     (ξ : ι → ℝ) (N : ℝ) (hN : 0 < N)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
-    Orthonormal ℂ (fun r => (psiShift (N * ξ r)).toLp 2) := by
+    Orthonormal ℂ (fun r => (bumpShift (N * ξ r)).toLp 2) := by
   classical
   rw [orthonormal_iff_ite]
   intro r s
   rw [SchwartzMap.inner_toL2_toL2_eq
-    (psiShift (N * ξ r)) (psiShift (N * ξ s)) volume]
+    (bumpShift (N * ξ r)) (bumpShift (N * ξ s)) volume]
   by_cases hrs : r = s
   · subst s
-    rw [if_pos rfl, psiShift_inner_self]
+    rw [if_pos rfl, bumpShift_inner_self]
   · rw [if_neg hrs]
-    apply psiShift_inner_eq_zero
+    apply bumpShift_inner_eq_zero
     rw [show N * ξ r - N * ξ s = N * (ξ r - ξ s) by ring, abs_mul, abs_of_pos hN]
     calc
       1 = N * (1 / N) := by field_simp
       _ ≤ N * |ξ r - ξ s| := mul_le_mul_of_nonneg_left (hsep hrs) hN.le
 
-theorem goal2 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
+private theorem weighted_l2_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     (N : ℝ) (hN : 0 < N) (t₀ : ℝ)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
-    ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
+    ∫ t : ℝ, expSumSq a ξ t * ‖bumpFourier ((t - t₀) / N)‖ ^ 2 = N := by
   classical
   let c : ι → ℂ := fun r => a r * 𝐞 (ξ r * t₀)
-  let G : 𝓢(ℝ, ℂ) := ∑ r, c r • psiShift (N * ξ r)
+  let G : 𝓢(ℝ, ℂ) := ∑ r, c r • bumpShift (N * ξ r)
   have hfourier (u : ℝ) :
-      (𝓕 G : 𝓢(ℝ, ℂ)) u = expSum a ξ (t₀ + N * u) * psiHat u := by
+      (𝓕 G : 𝓢(ℝ, ℂ)) u = expSum a ξ (t₀ + N * u) * bumpFourier u := by
     change (SchwartzMap.fourierTransformCLM ℂ
-      (∑ r, c r • psiShift (N * ξ r))) u = _
+      (∑ r, c r • bumpShift (N * ξ r))) u = _
     rw [map_sum]
     simp_rw [map_smul]
     have hsum_apply (s : Finset ι) (f : ι → 𝓢(ℝ, ℂ)) :
@@ -392,14 +364,14 @@ theorem goal2 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     rw [hsum_apply Finset.univ]
     simp_rw [SchwartzMap.smul_apply, smul_eq_mul]
     have hshift (r : ι) :
-        SchwartzMap.fourierTransformCLM ℂ (psiShift (N * ξ r)) u =
-          𝐞 ((N * ξ r) * u) * psiHat u := by
+        SchwartzMap.fourierTransformCLM ℂ (bumpShift (N * ξ r)) u =
+          𝐞 ((N * ξ r) * u) * bumpFourier u := by
       rw [SchwartzMap.fourierTransformCLM_apply]
       rw [SchwartzMap.fourier_coe]
-      exact fourier_psiShift (N * ξ r) u
+      exact fourier_bumpShift (N * ξ r) u
     simp_rw [hshift]
-    rw [show (∑ r, c r * (𝐞 ((N * ξ r) * u) * psiHat u)) =
-        (∑ r, c r * 𝐞 ((N * ξ r) * u)) * psiHat u by
+    rw [show (∑ r, c r * (𝐞 ((N * ξ r) * u) * bumpFourier u)) =
+        (∑ r, c r * 𝐞 ((N * ξ r) * u)) * bumpFourier u by
       rw [Finset.sum_mul]
       apply Finset.sum_congr rfl
       intro r _
@@ -418,22 +390,22 @@ theorem goal2 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
         push_cast
         ring
   have hG_toLp :
-      G.toLp 2 = ∑ r, c r • (psiShift (N * ξ r)).toLp 2 := by
+      G.toLp 2 = ∑ r, c r • (bumpShift (N * ξ r)).toLp 2 := by
     change SchwartzMap.toLpCLM ℂ ℂ 2 volume G = _
     simp [G]
   have hG_norm : ‖G.toLp 2‖ ^ 2 = 1 := by
-    have horth := (psiShift_orthonormal ξ N hN hsep).inner_sum c c Finset.univ
+    have horth := (bumpShift_orthonormal ξ N hN hsep).inner_sum c c Finset.univ
     have hc_norm : ∑ r, ‖c r‖ ^ 2 = 1 := by
       simpa only [c, norm_mul, Circle.norm_coe, mul_one] using hnorm
     have hsum_norm :
-        ‖∑ r, c r • (psiShift (N * ξ r)).toLp 2‖ ^ 2 = ∑ r, ‖c r‖ ^ 2 := by
+        ‖∑ r, c r • (bumpShift (N * ξ r)).toLp 2‖ ^ 2 = ∑ r, ‖c r‖ ^ 2 := by
       calc
-        ‖∑ r, c r • (psiShift (N * ξ r)).toLp 2‖ ^ 2 =
-            (inner ℂ (∑ r, c r • (psiShift (N * ξ r)).toLp 2)
-              (∑ r, c r • (psiShift (N * ξ r)).toLp 2)).re :=
+        ‖∑ r, c r • (bumpShift (N * ξ r)).toLp 2‖ ^ 2 =
+            (inner ℂ (∑ r, c r • (bumpShift (N * ξ r)).toLp 2)
+              (∑ r, c r • (bumpShift (N * ξ r)).toLp 2)).re :=
                 by
                   exact norm_sq_eq_re_inner (𝕜 := ℂ)
-                    (∑ r, c r • (psiShift (N * ξ r)).toLp 2)
+                    (∑ r, c r • (bumpShift (N * ξ r)).toLp 2)
         _ = (∑ r, (starRingEnd ℂ) (c r) * c r).re := congrArg Complex.re horth
         _ = ∑ r, ‖c r‖ ^ 2 := by
           rw [Complex.re_sum]
@@ -454,7 +426,7 @@ theorem goal2 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     simpa [← LinearIsometry.integral_comp_comm, inner_self_eq_norm_sq_to_K] using hinner_integral
   let H : ℝ → ℝ := fun u => ‖(𝓕 G : 𝓢(ℝ, ℂ)) u‖ ^ 2
   have hrewrite : (fun t : ℝ =>
-      expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2) =
+      expSumSq a ξ t * ‖bumpFourier ((t - t₀) / N)‖ ^ 2) =
       fun t => H ((1 / N) * t + (-t₀ / N)) := by
     funext t
     rw [show (1 / N) * t + -t₀ / N = (t - t₀) / N by
@@ -474,15 +446,9 @@ theorem goal2 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     simpa only [H] using (SchwartzMap.integral_norm_sq_fourier G).trans hG_l2]
   simp [abs_of_pos hN]
 
--- ============================================================
--- GOAL 3: ∫_J |∑ aᵣ e(ξᵣ t)|² dt ≪ N for |J| = N  [eq (3.2)]
---
--- Enlarge the smoothing scale from N to M ≍ψ N so that the whole normalized
--- interval lies in the neighbourhood where |ψ̂|² has a positive lower bound.
--- Goal 2 at scale M then gives c·∫_J F ≤ M ≪ψ N.
--- ============================================================
+/-! ### Local L² bound -/
 
-theorem goal3 :
+private theorem local_l2_bound :
     ∃ C : ℝ, 0 < C ∧
     ∀ {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (N : ℝ),
     0 < N →
@@ -490,11 +456,11 @@ theorem goal3 :
     IsSeparatedFamily (1 / N) ξ →
     ∀ j₀ : ℝ,
     ∫ t in Set.Icc j₀ (j₀ + N), expSumSq a ξ t ≤ C * N := by
-  obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound
+  obtain ⟨c, δ, hc, hδ, hlb⟩ := bumpFourier_lower_bound
   refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
   intro ι _ a ξ N hN hnorm hsep j₀
   -- Enlarge the smoothing scale so that the whole interval lies in the
-  -- neighbourhood on which `psiHat_lower_bound` applies.
+  -- neighbourhood on which `bumpFourier_lower_bound` applies.
   set M := N * (1 + 1 / δ)
   have hM : 0 < M := by
     dsimp [M]
@@ -509,9 +475,9 @@ theorem goal3 :
     apply (div_le_div_iff₀ hM hN).2
     simpa using hNM
   set t₀ := j₀ + N / 2
-  have h2 := goal2 a ξ M hM t₀ hnorm hsepM
+  have h2 := weighted_l2_identity a ξ M hM t₀ hnorm hsepM
   have hlb_J : ∀ t ∈ Set.Icc j₀ (j₀ + N),
-      c ≤ ‖psiHat ((t - t₀) / M)‖ ^ 2 := by
+      c ≤ ‖bumpFourier ((t - t₀) / M)‖ ^ 2 := by
     intro t ht
     apply hlb
     rw [abs_div, abs_of_pos hM]
@@ -527,7 +493,7 @@ theorem goal3 :
     nlinarith
   have hFcont : Continuous (expSumSq a ξ) := expSumSq_continuous a ξ
   have hweighted : Integrable (fun t : ℝ =>
-      expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2) := by
+      expSumSq a ξ t * ‖bumpFourier ((t - t₀) / M)‖ ^ 2) := by
     by_contra h
     rw [integral_undef h] at h2
     linarith
@@ -536,7 +502,7 @@ theorem goal3 :
         = ∫ t in Set.Icc j₀ (j₀ + N), c * expSumSq a ξ t :=
             (integral_const_mul _ _).symm
       _ ≤ ∫ t in Set.Icc j₀ (j₀ + N),
-            expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2 := by
+            expSumSq a ξ t * ‖bumpFourier ((t - t₀) / M)‖ ^ 2 := by
           apply setIntegral_mono_on
           · exact (continuous_const.mul hFcont).integrableOn_Icc
           · exact hweighted.integrableOn
@@ -544,9 +510,9 @@ theorem goal3 :
           · intro t ht
             calc
               c * expSumSq a ξ t = expSumSq a ξ t * c := by ring
-              _ ≤ expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2 :=
+              _ ≤ expSumSq a ξ t * ‖bumpFourier ((t - t₀) / M)‖ ^ 2 :=
                 mul_le_mul_of_nonneg_left (hlb_J t ht) (sq_nonneg _)
-      _ ≤ ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2 :=
+      _ ≤ ∫ t : ℝ, expSumSq a ξ t * ‖bumpFourier ((t - t₀) / M)‖ ^ 2 :=
           setIntegral_le_integral hweighted (ae_of_all _ fun t =>
             mul_nonneg (sq_nonneg _) (sq_nonneg _))
       _ = M := h2
@@ -556,62 +522,54 @@ theorem goal3 :
   apply (le_div_iff₀ hc).2
   nlinarith
 
--- ============================================================
--- GOAL 4: ∫_I F = T - ∫_ℝ F·E  (Fubini identity)
---
--- From handwritten proof:
---   By (3.1): ∫_ℝ F|ψ̂((t-t₀)/N)|² dt = N
---   Integrate over t₀ ∈ I: ∫_I N dt₀ = NT
---   By Fubini: NT = ∫_I ∫_ℝ F|ψ̂|² dt dt₀ = ∫_ℝ F(∫_I |ψ̂|² dt₀) dt
---   Rearrange: ∫_I F = T - ∫_ℝ F·(1/N ∫_I |ψ̂|² dt₀ - 1_I) dt
--- ============================================================
+/-! ### Smoothing identity -/
 
--- E(t) = 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ - 1_I(t)
-def kernelE (N : ℝ) (left right : ℝ) (t : ℝ) : ℝ :=
-  (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2) -
+-- E(t) = 1/N ∫_I |bump̂((t-t₀)/N)|² dt₀ - 1_I(t)
+private def smoothingKernel (N : ℝ) (left right : ℝ) (t : ℝ) : ℝ :=
+  (1 / N) * (∫ t₀ in Set.Icc left right, ‖bumpFourier ((t - t₀) / N)‖ ^ 2) -
   Set.indicator (Set.Icc left right) (fun _ => (1 : ℝ)) t
 
-private lemma kernelAverage_eq_intervalIntegral (N : ℝ) (hN : 0 < N)
+private lemma smoothingKernelAverage_eq_intervalIntegral (N : ℝ) (hN : 0 < N)
     (left right : ℝ) (hleft_right : left ≤ right) (t : ℝ) :
-    (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2) =
-    ∫ u in (t - right) / N..(t - left) / N, ‖psiHat u‖ ^ 2 := by
+    (1 / N) * (∫ t₀ in Set.Icc left right, ‖bumpFourier ((t - t₀) / N)‖ ^ 2) =
+    ∫ u in (t - right) / N..(t - left) / N, ‖bumpFourier u‖ ^ 2 := by
   rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hleft_right]
-  have hchange : (fun t₀ : ℝ => ‖psiHat ((t - t₀) / N)‖ ^ 2) =
-      fun t₀ => ‖psiHat (t / N - t₀ / N)‖ ^ 2 := by
+  have hchange : (fun t₀ : ℝ => ‖bumpFourier ((t - t₀) / N)‖ ^ 2) =
+      fun t₀ => ‖bumpFourier (t / N - t₀ / N)‖ ^ 2 := by
     funext t₀
     rw [sub_div]
   rw [hchange]
   simpa only [one_div, smul_eq_mul] using
     (intervalIntegral.inv_smul_integral_comp_sub_div
-      (f := fun u : ℝ => ‖psiHat u‖ ^ 2) (a := left) (b := right) N (t / N)).trans (by
+      (f := fun u : ℝ => ‖bumpFourier u‖ ^ 2) (a := left) (b := right) N (t / N)).trans (by
         congr 1 <;> field_simp)
 
-theorem goal4 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
+private theorem smoothing_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ)
     (left right : ℝ) (T : ℝ) (hT : T = right - left) (hleft_right : left ≤ right) :
     ∫ t in Set.Icc left right, expSumSq a ξ t =
-    T - ∫ t : ℝ, expSumSq a ξ t * kernelE N left right t := by
+    T - ∫ t : ℝ, expSumSq a ξ t * smoothingKernel N left right t := by
   let F : ℝ → ℝ := expSumSq a ξ
-  let K : ℝ → ℝ → ℝ := fun t₀ t => ‖psiHat ((t - t₀) / N)‖ ^ 2
+  let K : ℝ → ℝ → ℝ := fun t₀ t => ‖bumpFourier ((t - t₀) / N)‖ ^ 2
   let H : ℝ × ℝ → ℝ := fun p => F p.2 * K p.1 p.2
   have hF_nonneg : ∀ t, 0 ≤ F t := expSumSq_nonneg a ξ
   have hK_nonneg : ∀ t₀ t, 0 ≤ K t₀ t := fun t₀ t => sq_nonneg _
   have hH_nonneg : ∀ p, 0 ≤ H p := fun p =>
     mul_nonneg (hF_nonneg p.2) (hK_nonneg p.1 p.2)
   have hF_cont : Continuous F := expSumSq_continuous a ξ
-  have hpsiHat_cont : Continuous psiHat := psiHat_continuous
+  have hbumpFourier_cont : Continuous bumpFourier := bumpFourier_continuous
   have hK_cont : Continuous (fun p : ℝ × ℝ => K p.1 p.2) := by
-    exact ((hpsiHat_cont.comp
+    exact ((hbumpFourier_cont.comp
       ((continuous_snd.sub continuous_fst).div_const N)).norm.pow 2)
   have hH_cont : Continuous H :=
     (hF_cont.comp continuous_snd).mul hK_cont
-  -- From (3.1): ∫_ℝ F(t)|ψ̂((t-t₀)/N)|² dt = N for each t₀.
+  -- From (3.1): ∫_ℝ F(t)|bump̂((t-t₀)/N)|² dt = N for each t₀.
   have h31 : ∀ t₀ : ℝ,
       ∫ t : ℝ, H (t₀, t) = N := by
     intro t₀
-    simpa only [H, F, K] using goal2 a ξ N hN t₀ hnorm hsep
+    simpa only [H, F, K] using weighted_l2_identity a ξ N hN t₀ hnorm hsep
   have hslice : ∀ t₀ : ℝ, Integrable (fun t => H (t₀, t)) := by
     intro t₀
     by_contra h
@@ -666,11 +624,11 @@ theorem goal4 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     rw [integral_const_mul]
   have hFI_int : Integrable ((Set.Icc left right).indicator F) :=
     hF_cont.integrableOn_Icc.integrable_indicator measurableSet_Icc
-  have hexpand : (fun t : ℝ => expSumSq a ξ t * kernelE N left right t) =
+  have hexpand : (fun t : ℝ => expSumSq a ξ t * smoothingKernel N left right t) =
       fun t => (1 / N) * (F t * (∫ t₀ in Set.Icc left right, K t₀ t)) -
         (Set.Icc left right).indicator F t := by
     funext t
-    simp only [kernelE, F, K]
+    simp only [smoothingKernel, F, K]
     by_cases ht : t ∈ Set.Icc left right
     · rw [Set.indicator_of_mem ht, Set.indicator_of_mem ht]
       ring
@@ -681,28 +639,20 @@ theorem goal4 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
   field_simp
   ring
 
--- ============================================================
--- GOAL 5: E(t) ≪ (1 + dist(t,∂I)/N)^{-10}
---
---   Step 1: ψ̂ rapidly decaying (IBP)
---   Step 2: 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ = ∫_{I_t} |ψ̂(u)|² du
---           where I_t = [(t - right)/N, (t - left)/N]
---   Step 3 (t ∈ I): 0 ∈ I_t, so = 1 - ∫_{ℝ\I_t} |ψ̂|² ≪ (1+d_t)^{-10}
---   Step 4 (t ∉ I): 0 ∉ I_t, so = ∫_{I_t} |ψ̂|² ≪ (1+d_t)^{-10}
--- ============================================================
+/-! ### Decay of the smoothing error -/
 
-theorem goal5 :
+private theorem smoothing_kernel_decay :
     ∃ C : ℝ, 0 < C ∧
     ∀ N : ℝ, 0 < N →
     ∀ left right : ℝ, left ≤ right →
     ∀ t : ℝ,
-    |kernelE N left right t| ≤
+    |smoothingKernel N left right t| ≤
     C * (1 + min (|t - left| / N) (|t - right| / N)) ^ (-(10 : ℝ)) := by
-  let f : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
+  let f : ℝ → ℝ := fun u => ‖bumpFourier u‖ ^ 2
   have hf_nonneg : ∀ u, 0 ≤ f u := fun u => sq_nonneg _
   have hf_int : Integrable f := by
-    simpa only [f] using psiHat_sq_integrable
-  obtain ⟨C₀, hC₀, hdecay⟩ := psiHat_decay 6
+    simpa only [f] using bumpFourier_sq_integrable
+  obtain ⟨C₀, hC₀, hdecay⟩ := bumpFourier_decay 6
   let w : ℝ → ℝ := fun u => (1 + |u|) ^ (-(2 : ℝ))
   have hw_nonneg : ∀ u, 0 ≤ w u := fun u => Real.rpow_nonneg (by positivity) _
   have hw_int : Integrable w := by
@@ -737,7 +687,7 @@ theorem goal5 :
             rw [pow_two, ← Real.rpow_add (by positivity)]
             norm_num
           calc
-            ‖psiHat u‖ ^ 2 ≤ (C₀ * (1 + |u|) ^ (-(6 : ℝ))) ^ 2 :=
+            ‖bumpFourier u‖ ^ 2 ≤ (C₀ * (1 + |u|) ^ (-(6 : ℝ))) ^ 2 :=
               (sq_le_sq₀ (norm_nonneg _) (mul_nonneg hC₀.le hp)).2 hd'
             _ = C₀ ^ 2 * ((1 + |u|) ^ (-(6 : ℝ))) ^ 2 := by ring
             _ = C₀ ^ 2 * (1 + |u|) ^ (-(12 : ℝ)) := by rw [hp_sq]
@@ -774,7 +724,7 @@ theorem goal5 :
       ∫ u in Set.Icc uLower uUpper, f u := by
     simpa only [f, uLower, uUpper, intervalIntegral.integral_of_le hLowerUpper,
       integral_Icc_eq_integral_Ioc] using
-      kernelAverage_eq_intervalIntegral N hN left right hleft_right t
+      smoothingKernelAverage_eq_intervalIntegral N hN left right hleft_right t
   have hd_eq : d = min (|t - left| / N) (|t - right| / N) := by
     dsimp [d, uLower, uUpper]
     rw [abs_div, abs_div, abs_of_pos hN]
@@ -800,9 +750,9 @@ theorem goal5 :
           linarith)
     have hcomp : (∫ u in Set.Icc uLower uUpper, f u) - 1 =
         -(∫ u in (Set.Icc uLower uUpper)ᶜ, f u) := by
-      rw [setIntegral_compl measurableSet_Icc hf_int, psiHat_l2]
+      rw [setIntegral_compl measurableSet_Icc hf_int, bumpFourier_l2]
       ring
-    rw [kernelE, Set.indicator_of_mem ht]
+    rw [smoothingKernel, Set.indicator_of_mem ht]
     change |(1 / N) * (∫ t₀ in Set.Icc left right, f ((t - t₀) / N)) - 1| ≤ _
     rw [hsubst, hcomp, abs_neg, abs_of_nonneg
       (setIntegral_nonneg measurableSet_Icc.compl fun u _ => hf_nonneg u)]
@@ -836,7 +786,7 @@ theorem goal5 :
         exact (min_le_left |uUpper| |uLower|).trans (by
           rw [abs_of_nonpos hUpperNeg.le]
           linarith)
-    rw [kernelE, Set.indicator_of_notMem ht]
+    rw [smoothingKernel, Set.indicator_of_notMem ht]
     change |(1 / N) * (∫ t₀ in Set.Icc left right, f ((t - t₀) / N)) - 0| ≤ _
     rw [sub_zero, hsubst, abs_of_nonneg
       (setIntegral_nonneg measurableSet_Icc fun u _ => hf_nonneg u)]
@@ -844,21 +794,21 @@ theorem goal5 :
     exact (setIntegral_mono_set hf_int.integrableOn (ae_of_all _ hf_nonneg)
       (ae_of_all _ hsubset)).trans (htail d hd)
 
-private lemma kernelAverage_continuous (N : ℝ) (hN : 0 < N)
+private lemma smoothingKernelAverage_continuous (N : ℝ) (hN : 0 < N)
     (left right : ℝ) (hleft_right : left ≤ right) :
     Continuous (fun t : ℝ =>
-      (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2)) := by
-  let f : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
+      (1 / N) * (∫ t₀ in Set.Icc left right, ‖bumpFourier ((t - t₀) / N)‖ ^ 2)) := by
+  let f : ℝ → ℝ := fun u => ‖bumpFourier u‖ ^ 2
   have hf_int : Integrable f := by
-    simpa only [f] using psiHat_sq_integrable
+    simpa only [f] using bumpFourier_sq_integrable
   let P : ℝ → ℝ := fun x => ∫ u in 0..x, f u
   have hP_cont : Continuous P :=
     intervalIntegral.continuous_primitive (fun x y => hf_int.intervalIntegrable) 0
   have havg : (fun t : ℝ =>
-      (1 / N) * (∫ t₀ in Set.Icc left right, ‖psiHat ((t - t₀) / N)‖ ^ 2)) =
+      (1 / N) * (∫ t₀ in Set.Icc left right, ‖bumpFourier ((t - t₀) / N)‖ ^ 2)) =
       fun t => P ((t - left) / N) - P ((t - right) / N) := by
     funext t
-    rw [kernelAverage_eq_intervalIntegral N hN left right hleft_right t]
+    rw [smoothingKernelAverage_eq_intervalIntegral N hN left right hleft_right t]
     dsimp [P]
     exact (intervalIntegral.integral_interval_sub_left
       hf_int.intervalIntegrable hf_int.intervalIntegrable).symm
@@ -866,34 +816,27 @@ private lemma kernelAverage_continuous (N : ℝ) (hN : 0 < N)
   exact (hP_cont.comp ((continuous_id.sub continuous_const).div_const N)).sub
     (hP_cont.comp ((continuous_id.sub continuous_const).div_const N))
 
-private lemma kernelE_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
+private lemma smoothingKernel_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
     (left right : ℝ) (hleft_right : left ≤ right) :
-    AEStronglyMeasurable (kernelE N left right) := by
+    AEStronglyMeasurable (smoothingKernel N left right) := by
   have hind_meas : AEStronglyMeasurable
       (Set.indicator (Set.Icc left right) (fun _ => (1 : ℝ))) :=
     (Measurable.indicator measurable_const measurableSet_Icc).aestronglyMeasurable
-  exact (kernelAverage_continuous N hN left right hleft_right).aestronglyMeasurable.sub
+  exact (smoothingKernelAverage_continuous N hN left right hleft_right).aestronglyMeasurable.sub
     hind_meas
 
--- ============================================================
--- GOAL 6: ∫_ℝ F·E ≪ N  (integer-cell summation)
---
--- Partition ℝ into intervals [c + kN, c + (k+1)N), k ∈ ℤ.
--- Goal 3 gives a
--- uniform O(N) bound on every cell, while Goal 5 contributes a summable
--- shifted p-series in k.  Apply this once at each endpoint of I.
--- ============================================================
+/-! ### Integrated smoothing-error bound -/
 
-theorem goal6 :
+private theorem smoothing_error_bound :
     ∃ C : ℝ, 0 < C ∧
     ∀ {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (N : ℝ),
     0 < N →
     (∑ r, ‖a r‖ ^ 2 = 1) →
     IsSeparatedFamily (1 / N) ξ →
     ∀ left right : ℝ, left ≤ right →
-    |∫ t : ℝ, expSumSq a ξ t * kernelE N left right t| ≤ C * N := by
-  obtain ⟨C₃, hC₃, hlocal_bound⟩ := goal3
-  obtain ⟨C₅, hC₅, hkernel_bound⟩ := goal5
+    |∫ t : ℝ, expSumSq a ξ t * smoothingKernel N left right t| ≤ C * N := by
+  obtain ⟨C₃, hC₃, hlocal_bound⟩ := local_l2_bound
+  obtain ⟨C₅, hC₅, hkernel_bound⟩ := smoothing_kernel_decay
   let b : ℤ → ℝ := fun k => |(k : ℝ) + 1 / 2| ^ (-(10 : ℝ))
   have hb_nonneg : ∀ k, 0 ≤ b k :=
     fun k => Real.rpow_nonneg (abs_nonneg _) _
@@ -1064,10 +1007,10 @@ theorem goal6 :
       dsimp [weight]
       exact le_add_of_nonneg_left (Real.rpow_nonneg (by positivity) _)
   have hmajor : ∀ t,
-      F t * |kernelE N left right t| ≤ C₅ * (W left t + W right t) := by
+      F t * |smoothingKernel N left right t| ≤ C₅ * (W left t + W right t) := by
     intro t
     calc
-      F t * |kernelE N left right t| ≤
+      F t * |smoothingKernel N left right t| ≤
           F t * (C₅ * (1 + min (|t - left| / N) (|t - right| / N)) ^ (-(10 : ℝ))) :=
         mul_le_mul_of_nonneg_left (hE t) (hF_nonneg t)
       _ ≤ F t * (C₅ * (weight left t + weight right t)) :=
@@ -1080,30 +1023,30 @@ theorem goal6 :
   have hWRight := hW right
   have hmajor_int : Integrable (fun t => C₅ * (W left t + W right t)) :=
     (hWLeft.1.add hWRight.1).const_mul C₅
-  have hkernel_meas := kernelE_aestronglyMeasurable N hN left right hleft_right
+  have hkernel_meas := smoothingKernel_aestronglyMeasurable N hN left right hleft_right
   have hkernel_abs_meas : AEStronglyMeasurable
-      (fun t => |kernelE N left right t|) := by
+      (fun t => |smoothingKernel N left right t|) := by
     simpa only [Real.norm_eq_abs] using hkernel_meas.norm
   have hFEabs_meas : AEStronglyMeasurable
-      (fun t => F t * |kernelE N left right t|) :=
+      (fun t => F t * |smoothingKernel N left right t|) :=
     hF_cont.aestronglyMeasurable.mul hkernel_abs_meas
-  have hFEabs : Integrable (fun t => F t * |kernelE N left right t|) := by
+  have hFEabs : Integrable (fun t => F t * |smoothingKernel N left right t|) := by
     apply hmajor_int.mono' hFEabs_meas
     filter_upwards with t
     rw [Real.norm_eq_abs, abs_of_nonneg
       (mul_nonneg (hF_nonneg t) (abs_nonneg _))]
     exact hmajor t
-  have hFE : Integrable (fun t => F t * kernelE N left right t) := by
+  have hFE : Integrable (fun t => F t * smoothingKernel N left right t) := by
     apply hFEabs.mono' (hF_cont.aestronglyMeasurable.mul hkernel_meas)
     filter_upwards with t
-    change |F t * kernelE N left right t| ≤ F t * |kernelE N left right t|
+    change |F t * smoothingKernel N left right t| ≤ F t * |smoothingKernel N left right t|
     rw [abs_mul, abs_of_nonneg (hF_nonneg t)]
   calc
-    |∫ t : ℝ, expSumSq a ξ t * kernelE N left right t| =
-        |∫ t : ℝ, F t * kernelE N left right t| := by rfl
-    _ ≤ ∫ t : ℝ, |F t * kernelE N left right t| :=
+    |∫ t : ℝ, expSumSq a ξ t * smoothingKernel N left right t| =
+        |∫ t : ℝ, F t * smoothingKernel N left right t| := by rfl
+    _ ≤ ∫ t : ℝ, |F t * smoothingKernel N left right t| :=
       abs_integral_le_integral_abs
-    _ = ∫ t : ℝ, F t * |kernelE N left right t| := by
+    _ = ∫ t : ℝ, F t * |smoothingKernel N left right t| := by
       congr 1
       funext t
       rw [abs_mul, abs_of_nonneg (hF_nonneg t)]
@@ -1122,15 +1065,14 @@ theorem goal6 :
           mul_le_mul_of_nonneg_left (le_add_of_nonneg_right zero_le_one) (by positivity)
         _ = 2 * C₅ * C₃ * (B + 1) * N := by ring
 
--- ============================================================
--- GOAL 7: Lemma 3.1 (Assembly)
---
--- From handwritten proof:
---   ∫_I F = T - ∫_ℝ F·E      (by Goal 4)
---              ↑               ↑
---         = T + O(N)·1   (by Goal 6: |∫ F·E| ≪ N)
---              = (T + O(N)) · ∑|aᵣ|²  (by Goal 1: WLOG)
--- ============================================================
+/-! ### Lemma 3.1 -/
+
+/-- **Lemma 3.1 (L² integral estimate).** If `ξ` is a finite `1 / N`-separated
+  family of real numbers, then over any interval of length `T`,
+  `∫ |∑ r, a r * 𝐞 (ξ r * t)|² dt =
+    (T + O(N)) * ∑ r, ‖a r‖²`.
+  The conclusion expresses `O(N)` as `θ * N`, with `θ` bounded by a universal
+  constant. -/
 theorem l2_integral_estimate :
     ∃ C : ℝ, 0 < C ∧
     ∀ {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (N : ℝ),
@@ -1143,7 +1085,7 @@ theorem l2_integral_estimate :
     ∫ t in Set.Icc left right,
       ‖∑ r, a r * 𝐞 (ξ r * t)‖ ^ 2 =
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2 := by
-  obtain ⟨C, hC, herror⟩ := goal6
+  obtain ⟨C, hC, herror⟩ := smoothing_error_bound
   refine ⟨C, hC, ?_⟩
   intro ι _ a ξ N hN hsep left right T hT hleft_right
   change ∃ θ : ℝ, |θ| ≤ C ∧
@@ -1164,11 +1106,10 @@ theorem l2_integral_estimate :
       apply norm_eq_zero.mp
       nlinarith [hterm_zero r, norm_nonneg (a r)]
     simp [expSumSq, expSum, hzero, hM0]
-  ·
-    have hMpos : 0 < M :=
+  · have hMpos : 0 < M :=
       lt_of_le_of_ne (Finset.sum_nonneg fun r _ => sq_nonneg _) (Ne.symm hM0)
     set A : ι → ℂ := fun r => a r / (Real.sqrt M : ℂ)
-    have hAnorm : ∑ r, ‖A r‖ ^ 2 = 1 := goal1 a M rfl hMpos
+    have hAnorm : ∑ r, ‖A r‖ ^ 2 = 1 := normalize_coefficients a M rfl hMpos
     have hsqrt_ne : (Real.sqrt M : ℂ) ≠ 0 :=
       Complex.ofReal_ne_zero.mpr (Real.sqrt_ne_zero'.mpr hMpos)
     have hsqrt_mul_A : ∀ r, (Real.sqrt M : ℂ) * A r = a r := by
@@ -1190,9 +1131,9 @@ theorem l2_integral_estimate :
       rw [hsum_scale t, norm_mul, Complex.norm_real,
         Real.norm_eq_abs, abs_of_nonneg (Real.sqrt_nonneg M), mul_pow,
         Real.sq_sqrt hMpos.le]
-    have h4 := goal4 A ξ N hN hAnorm hsep left right T hT hleft_right
+    have h4 := smoothing_identity A ξ N hN hAnorm hsep left right T hT hleft_right
     have h6 := herror A ξ N hN hAnorm hsep left right hleft_right
-    set err := ∫ t : ℝ, expSumSq A ξ t * kernelE N left right t
+    set err := ∫ t : ℝ, expSumSq A ξ t * smoothingKernel N left right t
     have hA_eq : ∫ t in Set.Icc left right, expSumSq A ξ t = T - err := by
       simpa only [err] using h4
     have herr_bd : |err| ≤ C * N := by
@@ -1236,5 +1177,7 @@ theorem l2_integral_estimate_error :
       rw [show (T + θ * N) * S - T * S = θ * N * S by ring,
         abs_mul, abs_mul, abs_of_pos hN, abs_of_nonneg hS]
     _ ≤ C * N * S := by gcongr
+
+end Expdb
 
 end

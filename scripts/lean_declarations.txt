@@ -1,0 +1,13 @@
+Expdb.IsSeparatedFamily
+Expdb.IsSeparated
+Expdb.IsOneSeparated
+Expdb.IsBoundedFamily
+Expdb.IsOneBounded
+Expdb.IsLEUpToInfinitesimal
+Expdb.underspill
+Expdb.IsPointwiseBounded
+Expdb.IsPointwiseInfinitesimal
+Expdb.automatic_uniformity_of_pointwise_bounded
+Expdb.automatic_uniformity_of_pointwise_infinitesimal
+Expdb.l2_integral_estimate
+Expdb.l2_integral_estimate_error

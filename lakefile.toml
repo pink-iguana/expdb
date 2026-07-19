@@ -5,6 +5,7 @@ defaultTargets = ["expdb"]
 pp.unicode.fun = true
 autoImplicit = false
 relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
 
 [[require]]
 name = "mathlib"
