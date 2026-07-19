@@ -656,152 +656,164 @@ theorem goal5 (N : ℝ) (hN : 0 < N)
     ∃ C : ℝ, 0 < C ∧ ∀ t : ℝ,
     |kernelE N a₀ b₀ t| ≤
     C * (1 + min (|t - a₀| / N) (|t - b₀| / N)) ^ (-(10 : ℝ)) := by
-  obtain ⟨C_d, hC_d, hdecay⟩ := psiHat_decay 12
-  refine ⟨C_d ^ 2 * 8, by positivity, ?_⟩
-  intro t
-have hint : Integrable (fun u => ‖psiHat u‖ ^ 2) := by
-    apply Integrable.mono (f := fun u => C_d * (1 + |u|)^(-(12:ℝ)))
-    · apply Integrable.const_mul
-      exact integrable_rpow_neg (by norm_num)
-    · apply ae_of_all; intro u
-      exact hdecay u
-  have hint2 : Integrable (fun u => (1 + |u|)^(-(12:ℝ))) := by
-    apply integrable_rpow_neg_abs (by norm_num : (1:ℝ) < 12)
-  -- Step 2: Substitution u = (t-t₀)/N
-  -- 1/N ∫_I |ψ̂((t-t₀)/N)|² dt₀ = ∫_{I_t} |ψ̂(u)|² du
-  have hsubst : (1 / N) * ∫ t₀ in Set.Icc a₀ b₀,
-      ‖psiHat ((t - t₀) / N)‖ ^ 2 =
-      ∫ u in Set.Icc ((t - b₀) / N) ((t - a₀) / N),
-        ‖psiHat u‖ ^ 2 := by
-    rw [one_div, ← intervalIntegral.integral_comp_sub_left
-      (fun u => ‖psiHat u‖ ^ 2) t]
-    simp [Set.uIcc_of_le (div_le_div_of_nonneg_right (by linarith) hN)]
-    congr 1 <;> [field_simp; field_simp; ring]
-  -- Tail bound: ∫_{|u|≥d} |ψ̂|² ≤ 2C²/(11(1+d)^{11}) ≪ (1+d)^{-10}
+  let f : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
+  have hf_nonneg : ∀ u, 0 ≤ f u := fun u => sq_nonneg _
+  have hf_int : Integrable f := by
+    by_contra h
+    have hzero := psiHat_l2
+    change ∫ u : ℝ, f u = 1 at hzero
+    rw [integral_undef h] at hzero
+    norm_num at hzero
+  obtain ⟨C₀, hC₀, hdecay⟩ := psiHat_decay 6
+  let w : ℝ → ℝ := fun u => (1 + |u|) ^ (-(2 : ℝ))
+  have hw_nonneg : ∀ u, 0 ≤ w u := fun u => Real.rpow_nonneg (by positivity) _
+  have hw_int : Integrable w := by
+    simpa only [w, Real.norm_eq_abs] using
+      (integrable_one_add_norm (E := ℝ) (μ := volume) (r := 2) (by norm_num))
+  let A := ∫ u : ℝ, w u
+  have hA : 0 ≤ A := integral_nonneg hw_nonneg
+  let C := C₀ ^ 2 * (A + 1)
+  have hC : 0 < C := by
+    dsimp [C]
+    positivity
   have htail : ∀ d : ℝ, 0 ≤ d →
-      ∫ u in {u : ℝ | d ≤ |u|}, ‖psiHat u‖ ^ 2 ≤
-      C_d ^ 2 * 8 * (1 + d) ^ (-(10 : ℝ)) := by
+      ∫ u in {u : ℝ | d ≤ |u|}, f u ≤ C * (1 + d) ^ (-(10 : ℝ)) := by
     intro d hd
-    calc ∫ u in {u | d ≤ |u|}, ‖psiHat u‖ ^ 2
-        ≤ C_d ^ 2 * ∫ u in {u | d ≤ |u|}, (1 + |u|) ^ (-(12 : ℝ)) := by
-          apply set_integral_mono_ae
-          · exact hint
-          · exact (Integrable.const_mul hint2_)
-          · apply ae_of_all; intro u
-            have := hdecay u
-            nlinarith [norm_nonneg (psiHat u), sq_nonneg (‖psiHat u‖)]
-      -- ∫_{|u|≥d} (1+|u|)^{-12} du = 2/(11(1+d)^{11})
-      _ ≤ C_d ^ 2 * (8 * (1 + d) ^ (-(10 : ℝ))) := by
-          apply mul_le_mul_of_nonneg_left _ (by positivity)
-          have hcalc : ∫ u in Set.Ici d, (1 + u) ^ (-(12 : ℝ)) =
-              (1/11) * (1 + d) ^ (-(11 : ℝ)) := by
-            simp [MeasureTheory.integral_Ici_rpow_of_lt (by norm_num : -(12:ℝ) < -1)]
-            ring
-          calc ∫ u in {u : ℝ | d ≤ |u|}, (1 + |u|) ^ (-(12 : ℝ))
-              ≤ 2 * ∫ u in Set.Ici d, (1 + u) ^ (-(12 : ℝ)) := by
-                rw [show {u : ℝ | d ≤ |u|} = Set.Ici d ∪ Set.Iic (-d) from by
-                  ext u; simp [abs_le, le_abs]]
-                rw [integral_union (by simp; intro a h1 h2; linarith)
-                  measurableSet_Ici]
-                · have hsym : ∫ u in Set.Iic (-d), (1 + |u|) ^ (-(12 : ℝ)) =
-                      ∫ u in Set.Ici d, (1 + u) ^ (-(12 : ℝ)) := by
-                    rw [← integral_comp_neg (f := fun u => (1 + |u|)^(-(12:ℝ)))]
-                    simp [abs_neg]
-                    congr 1; ext u
-                    rw [show Set.Ici d = {u | d ≤ u} from rfl]
-                    simp [abs_of_nonneg]
-                  rw [show (∫ u in Set.Ici d, (1 + |u|)^(-(12:ℝ))) =
-                      ∫ u in Set.Ici d, (1+u)^(-(12:ℝ)) from by
-                    congr 1; ext u
-                    congr 2; exact abs_of_nonneg (le_trans hd (Set.mem_Ici.mp ‹_›))]
-                  linarith [integral_nonneg (fun u => by positivity)]
-                · sorry; · sorry
-            _ = 2 * (1/11) * (1+d)^(-(11:ℝ)) := by rw [hcalc]; ring
-            _ ≤ 8 * (1+d)^(-(10:ℝ)) := by
-                have h1d : 1 + d ≥ 1 := by linarith
-                nlinarith [Real.rpow_le_rpow_of_exponent_ge h1d
-                  (by norm_num : -(11:ℝ) ≤ -(10:ℝ))]
-      _ = C_d ^ 2 * 8 * (1 + d) ^ (-(10 : ℝ)) := by ring
-  -- Set d_t = dist(t, ∂I)/N
-  set d_t := min (|t - a₀| / N) (|t - b₀| / N)
-  -- Case analysis: t ∈ I or t ∉ I
-  by_cases htI : t ∈ Set.Icc a₀ b₀
-  · -- STEP 3: t ∈ I → 0 ∈ I_t
-    -- |E(t)| = |∫_{ℝ\I_t} |ψ̂|²| ≤ ∫_{|u|≥d_t} |ψ̂|²
-    have hind : Set.indicator (Set.Icc a₀ b₀) (fun _ => (1:ℝ)) t = 1 :=
-      Set.indicator_of_mem htI _
-    simp only [kernelE, hind, hsubst]
-    -- 0 ∈ I_t because t ∈ [a₀,b₀]
-    have h0_in : (0:ℝ) ∈ Set.Icc ((t-b₀)/N) ((t-a₀)/N) := by
+    let q := (1 + d) ^ (-(10 : ℝ))
+    have hq : 0 ≤ q := Real.rpow_nonneg (by positivity) _
+    have hmajorant : Integrable (fun u => C₀ ^ 2 * q * w u) :=
+      by simpa only [mul_assoc] using (hw_int.const_mul q).const_mul (C₀ ^ 2)
+    calc
+      ∫ u in {u : ℝ | d ≤ |u|}, f u ≤
+          ∫ u in {u : ℝ | d ≤ |u|}, C₀ ^ 2 * q * w u := by
+        apply setIntegral_mono_on hf_int.integrableOn hmajorant.integrableOn
+          (measurableSet_le measurable_const (continuous_abs.measurable))
+        intro u hu
+        change d ≤ |u| at hu
+        have hsquare : f u ≤ C₀ ^ 2 * (1 + |u|) ^ (-(12 : ℝ)) := by
+          dsimp [f]
+          have hd' := hdecay u
+          have hp : 0 ≤ (1 + |u|) ^ (-(6 : ℝ)) := Real.rpow_nonneg (by positivity) _
+          have hp_sq : (1 + |u|) ^ (-(12 : ℝ)) =
+              ((1 + |u|) ^ (-(6 : ℝ))) ^ 2 := by
+            rw [pow_two, ← Real.rpow_add (by positivity)]
+            norm_num
+          calc
+            ‖psiHat u‖ ^ 2 ≤ (C₀ * (1 + |u|) ^ (-(6 : ℝ))) ^ 2 :=
+              (sq_le_sq₀ (norm_nonneg _) (mul_nonneg hC₀.le hp)).2 hd'
+            _ = C₀ ^ 2 * ((1 + |u|) ^ (-(6 : ℝ))) ^ 2 := by ring
+            _ = C₀ ^ 2 * (1 + |u|) ^ (-(12 : ℝ)) := by rw [hp_sq]
+        have hfactor : (1 + |u|) ^ (-(12 : ℝ)) =
+            w u * (1 + |u|) ^ (-(10 : ℝ)) := by
+          dsimp [w]
+          rw [← Real.rpow_add (by positivity)]
+          norm_num
+        have hmono : (1 + |u|) ^ (-(10 : ℝ)) ≤ q := by
+          dsimp [q]
+          exact Real.rpow_le_rpow_of_nonpos (by positivity) (by linarith) (by norm_num)
+        calc
+          f u ≤ C₀ ^ 2 * (1 + |u|) ^ (-(12 : ℝ)) := hsquare
+          _ = C₀ ^ 2 * (w u * (1 + |u|) ^ (-(10 : ℝ))) := by rw [hfactor]
+          _ ≤ C₀ ^ 2 * (w u * q) := by gcongr
+          _ = C₀ ^ 2 * q * w u := by ring
+      _ ≤ ∫ u : ℝ, C₀ ^ 2 * q * w u :=
+        setIntegral_le_integral hmajorant (ae_of_all _ fun u => by positivity)
+      _ = C₀ ^ 2 * q * A := by simp only [integral_const_mul, A]
+      _ ≤ C * q := by
+        dsimp [C]
+        nlinarith [mul_nonneg (sq_nonneg C₀) hq]
+      _ = C * (1 + d) ^ (-(10 : ℝ)) := rfl
+  refine ⟨C, hC, ?_⟩
+  intro t
+  let Aₜ := (t - b₀) / N
+  let Bₜ := (t - a₀) / N
+  let d := min |Bₜ| |Aₜ|
+  have hAB : Aₜ ≤ Bₜ := by
+    dsimp [Aₜ, Bₜ]
+    exact div_le_div_of_nonneg_right (sub_le_sub_left hab t) hN.le
+  have hd : 0 ≤ d := le_min (abs_nonneg _) (abs_nonneg _)
+  have hsubst : (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, f ((t - t₀) / N)) =
+      ∫ u in Set.Icc Aₜ Bₜ, f u := by
+    rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hab]
+    rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hAB]
+    have hchange : (fun t₀ : ℝ => f ((t - t₀) / N)) =
+        fun t₀ => f (t / N - t₀ / N) := by
+      funext t₀
+      congr 1
+      ring
+    rw [hchange]
+    simpa only [one_div, smul_eq_mul, Aₜ, Bₜ] using
+      (intervalIntegral.inv_smul_integral_comp_sub_div
+        (f := f) (a := a₀) (b := b₀) N (t / N)).trans (by
+          congr 1 <;> field_simp)
+  have hd_eq : d = min (|t - a₀| / N) (|t - b₀| / N) := by
+    dsimp [d, Aₜ, Bₜ]
+    rw [abs_div, abs_div, abs_of_pos hN]
+  by_cases ht : t ∈ Set.Icc a₀ b₀
+  · have hAₜ : Aₜ ≤ 0 := by
+      dsimp [Aₜ]
+      exact div_nonpos_of_nonpos_of_nonneg (sub_nonpos.mpr ht.2) hN.le
+    have hBₜ : 0 ≤ Bₜ := by
+      dsimp [Bₜ]
+      exact div_nonneg (sub_nonneg.mpr ht.1) hN.le
+    have hsubset : (Set.Icc Aₜ Bₜ)ᶜ ⊆ {u : ℝ | d ≤ |u|} := by
+      intro u hu
+      simp only [Set.mem_compl_iff, Set.mem_Icc, not_and_or, not_le] at hu
+      simp only [Set.mem_setOf_eq]
+      rcases hu with hu | hu
+      · rw [abs_of_nonpos (hu.le.trans hAₜ)]
+        exact (min_le_right |Bₜ| |Aₜ|).trans (by
+          rw [abs_of_nonpos hAₜ]
+          linarith)
+      · rw [abs_of_nonneg (hBₜ.trans hu.le)]
+        exact (min_le_left |Bₜ| |Aₜ|).trans (by
+          rw [abs_of_nonneg hBₜ]
+          linarith)
+    have hcomp : (∫ u in Set.Icc Aₜ Bₜ, f u) - 1 =
+        -(∫ u in (Set.Icc Aₜ Bₜ)ᶜ, f u) := by
+      rw [setIntegral_compl measurableSet_Icc hf_int, psiHat_l2]
+      ring
+    rw [kernelE, Set.indicator_of_mem ht]
+    change |(1 / N) * (∫ t₀ in Set.Icc a₀ b₀, f ((t - t₀) / N)) - 1| ≤ _
+    rw [hsubst, hcomp, abs_neg, abs_of_nonneg
+      (setIntegral_nonneg measurableSet_Icc.compl fun u _ => hf_nonneg u)]
+    rw [← hd_eq]
+    exact (setIntegral_mono_set hf_int.integrableOn (ae_of_all _ hf_nonneg)
+      (ae_of_all _ hsubset)).trans (htail d hd)
+  · have hzero : (0 : ℝ) ∉ Set.Icc Aₜ Bₜ := by
+      intro h0
+      apply ht
       constructor
-      · apply div_nonpos_of_nonpos_of_nonneg <;> linarith [htI.2]
-      · apply div_nonneg <;> linarith [htI.1]
-    -- ∫_{I_t} = ∫_ℝ - ∫_{ℝ\I_t} = 1 - ∫_{ℝ\I_t}
-    rw [psiHat_l2.symm]
-    rw [← integral_add_compl measurableSet_Icc (by sorry)]
-    simp only [add_sub_cancel_left]
-    rw [abs_neg]
-    calc |∫ u in (Set.Icc _ _)ᶜ, ‖psiHat u‖^2|
-        ≤ ∫ u in (Set.Icc _ _)ᶜ, ‖psiHat u‖^2 :=
-          le_abs_self _
-      _ ≤ ∫ u in {u | d_t ≤ |u|}, ‖psiHat u‖^2 := by
-          apply set_integral_mono_set
-          · exact fun u => sq_nonneg _
-          -- ℝ\I_t ⊆ {|u| ≥ d_t} because 0 ∈ I_t
-          · apply ae_of_all; intro u hu
-            simp only [Set.mem_compl_iff, Set.mem_Icc, not_and_or, not_le] at hu
-            simp only [Set.mem_setOf_eq]
-            -- Geometric argument: since 0 ∈ I_t, u outside I_t means |u| ≥ d_t
-            cases hu with
-            | inl h =>
-              rw [abs_of_nonpos (le_of_lt h)]
-              simp [d_t]; constructor
-              · linarith [h, h0_in.1]
-              · linarith [h, (t - b₀)/N |>.neg_le_abs]
-            | inr h =>
-              rw [abs_of_pos h]
-              simp [d_t]; constructor
-              · linarith [h0_in.2]
-              · linarith [h, le_abs_self ((t-b₀)/N)]
-      _ ≤ C_d^2 * 8 * (1 + d_t)^(-(10:ℝ)) :=
-          htail d_t (by simp [d_t]; positivity)
-  · -- STEP 4: t ∉ I → 0 ∉ I_t
-    have hind : Set.indicator (Set.Icc a₀ b₀) (fun _ => (1:ℝ)) t = 0 :=
-      Set.indicator_of_not_mem htI _
-    simp only [kernelE, hind, hsubst, sub_zero]
-    rw [abs_of_nonneg (integral_nonneg (fun u => sq_nonneg _))]
-    -- 0 ∉ I_t because t ∉ [a₀,b₀]
-    have h0_out : (0:ℝ) ∉ Set.Icc ((t-b₀)/N) ((t-a₀)/N) := by
-      simp only [Set.mem_Icc, not_and_or, not_le]
-      cases Set.not_mem_Icc.mp htI with
-      | inl h => right; apply div_pos_of_neg_of_neg <;> linarith
-      | inr h => left; apply div_neg_of_pos_of_neg <;> linarith
-    calc ∫ u in Set.Icc ((t-b₀)/N) ((t-a₀)/N), ‖psiHat u‖^2
-        ≤ ∫ u in {u | d_t ≤ |u|}, ‖psiHat u‖^2 := by
-          apply set_integral_mono_set
-          · exact fun u => sq_nonneg _
-          -- I_t ⊆ {|u| ≥ d_t} because 0 ∉ I_t
-          · apply ae_of_all; intro u hu
-            simp only [Set.mem_setOf_eq]
-            simp only [Set.mem_Icc] at hu
-            -- Geometric: 0 ∉ I_t → I_t entirely on one side → |u| ≥ d_t
-            cases Set.not_mem_Icc.mp h0_out with
-            | inl h =>
-              -- I_t is entirely negative
-              rw [abs_of_nonpos (le_trans hu.2 (le_of_lt h))]
-              simp [d_t]
-              constructor
-              · linarith [hu.1]
-              · linarith [hu.2, h]
-            | inr h =>
-              -- I_t is entirely positive
-              rw [abs_of_nonneg (le_trans (le_of_lt (lt_of_not_le h)) hu.1)]
-              simp [d_t]
-              constructor
-              · linarith [hu.1, h]
-              · linarith [hu.2]
-      _ ≤ C_d^2 * 8 * (1 + d_t)^(-(10:ℝ)) :=
-          htail d_t (by simp [d_t]; positivity)
+      · apply sub_nonneg.mp
+        rcases div_nonneg_iff.mp h0.2 with h | h
+        · exact h.1
+        · exact (hN.not_ge h.2).elim
+      · apply sub_nonpos.mp
+        rcases div_nonpos_iff.mp h0.1 with h | h
+        · exact (hN.not_ge h.2).elim
+        · exact h.1
+    have hsubset : Set.Icc Aₜ Bₜ ⊆ {u : ℝ | d ≤ |u|} := by
+      intro u hu
+      rcases hu with ⟨hu1, hu2⟩
+      simp only [Set.mem_setOf_eq]
+      have hzero' : 0 < Aₜ ∨ Bₜ < 0 := by
+        simpa only [Set.mem_Icc, not_and_or, not_le] using hzero
+      rcases hzero' with hApos | hBneg
+      · rw [abs_of_nonneg (hApos.le.trans hu1)]
+        exact (min_le_right |Bₜ| |Aₜ|).trans (by
+          rw [abs_of_nonneg hApos.le]
+          linarith)
+      · rw [abs_of_nonpos (hu2.trans hBneg.le)]
+        exact (min_le_left |Bₜ| |Aₜ|).trans (by
+          rw [abs_of_nonpos hBneg.le]
+          linarith)
+    rw [kernelE, Set.indicator_of_notMem ht]
+    change |(1 / N) * (∫ t₀ in Set.Icc a₀ b₀, f ((t - t₀) / N)) - 0| ≤ _
+    rw [sub_zero, hsubst, abs_of_nonneg
+      (setIntegral_nonneg measurableSet_Icc fun u _ => hf_nonneg u)]
+    rw [← hd_eq]
+    exact (setIntegral_mono_set hf_int.integrableOn (ae_of_all _ hf_nonneg)
+      (ae_of_all _ hsubset)).trans (htail d hd)
 
 -- ============================================================
 -- GOAL 6: ∫_ℝ F·E ≪ N  (dyadic decomposition)
