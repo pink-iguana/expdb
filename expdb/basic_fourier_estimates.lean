@@ -90,7 +90,7 @@ lemma psi_l2norm : ∫ x : ℝ, (ψ x) ^ 2 = 1 := by
 
 -- ψ̂(u) = ∫_ℝ ψ(x) e(-xu) dx
 def psiHat (u : ℝ) : ℂ :=
-  ∫ x : ℝ, (ψ x : ℂ) * (Real.fourierChar (-(x * u)) : ℂ)
+  ∫ x : ℝ, (ψ x : ℂ) * 𝐞 (-(x * u))
 
 -- ψ is integrable
 lemma psi_integrable : Integrable ψ :=
@@ -133,7 +133,7 @@ lemma goal1 {R : ℕ} (a : Fin R → ℂ) (M : ℝ) (hM : M = ∑ r, ‖a r‖ ^
 
 /-- The exponential sum occurring in the $L^2$ integral estimate. -/
 def expSum {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℂ :=
-  ∑ r, a r * (Real.fourierChar (ξ r * t) : ℂ)
+  ∑ r, a r * 𝐞 (ξ r * t)
 
 /-- The squared modulus of `expSum`. -/
 def expSumSq {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℝ :=
@@ -288,13 +288,13 @@ private lemma psiShift_apply (w x : ℝ) : psiShift w x = ψ (x + w) := rfl
 
 private lemma fourier_psiShift (w u : ℝ) :
     (𝓕 (psiShift w : ℝ → ℂ)) u =
-      (Real.fourierChar (w * u) : ℂ) * psiHat u := by
+      𝐞 (w * u) * psiHat u := by
   have hcoe : (psiShift w : ℝ → ℂ) = fun x : ℝ => (ψ (x + w) : ℂ) := by
     ext x
     exact_mod_cast psiShift_apply w x
   rw [hcoe, Real.fourier_real_eq]
   have hpsi : psiHat u =
-      ∫ x : ℝ, (Real.fourierChar (-(x * u)) : ℂ) * (ψ x : ℂ) := by
+      ∫ x : ℝ, 𝐞 (-(x * u)) * (ψ x : ℂ) := by
     simp only [psiHat]
     apply integral_congr_ae
     filter_upwards with x
@@ -358,7 +358,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
     ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
-  let c : Fin R → ℂ := fun r => a r * (Real.fourierChar (ξ r * t₀) : ℂ)
+  let c : Fin R → ℂ := fun r => a r * 𝐞 (ξ r * t₀)
   let G : 𝓢(ℝ, ℂ) := ∑ r, c r • psiShift (N * ξ r)
   have hfourier (u : ℝ) :
       (𝓕 G : 𝓢(ℝ, ℂ)) u = expSum a ξ (t₀ + N * u) * psiHat u := by
@@ -376,13 +376,13 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     simp_rw [SchwartzMap.smul_apply, smul_eq_mul]
     have hshift (r : Fin R) :
         SchwartzMap.fourierTransformCLM ℂ (psiShift (N * ξ r)) u =
-          (Real.fourierChar ((N * ξ r) * u) : ℂ) * psiHat u := by
+          𝐞 ((N * ξ r) * u) * psiHat u := by
       rw [SchwartzMap.fourierTransformCLM_apply]
       rw [SchwartzMap.fourier_coe]
       exact fourier_psiShift (N * ξ r) u
     simp_rw [hshift]
-    rw [show (∑ r, c r * ((Real.fourierChar ((N * ξ r) * u) : ℂ) * psiHat u)) =
-        (∑ r, c r * (Real.fourierChar ((N * ξ r) * u) : ℂ)) * psiHat u by
+    rw [show (∑ r, c r * (𝐞 ((N * ξ r) * u) * psiHat u)) =
+        (∑ r, c r * 𝐞 ((N * ξ r) * u)) * psiHat u by
       rw [Finset.sum_mul]
       apply Finset.sum_congr rfl
       intro r _
@@ -392,11 +392,9 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     intro r _
     simp only [c]
     calc
-      a r * (Real.fourierChar (ξ r * t₀) : ℂ) *
-          (Real.fourierChar ((N * ξ r) * u) : ℂ) =
-          a r * ((Real.fourierChar (ξ r * t₀) : ℂ) *
-            (Real.fourierChar ((N * ξ r) * u) : ℂ)) := by ring
-      _ = a r * (Real.fourierChar (ξ r * (t₀ + N * u)) : ℂ) := by
+      a r * 𝐞 (ξ r * t₀) * 𝐞 ((N * ξ r) * u) =
+          a r * (𝐞 (ξ r * t₀) * 𝐞 ((N * ξ r) * u)) := by ring
+      _ = a r * 𝐞 (ξ r * (t₀ + N * u)) := by
         simp only [Real.fourierChar_apply]
         rw [← Complex.exp_add]
         congr 2
@@ -1136,7 +1134,7 @@ theorem l2_integral_estimate :
     left ≤ right →
     ∃ θ : ℝ, |θ| ≤ C ∧
     ∫ t in Set.Icc left right,
-      ‖∑ r, a r * (Real.fourierChar (ξ r * t) : ℂ)‖ ^ 2 =
+      ‖∑ r, a r * 𝐞 (ξ r * t)‖ ^ 2 =
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2 := by
   obtain ⟨C, hC, herror⟩ := goal6
   refine ⟨C, hC, ?_⟩
