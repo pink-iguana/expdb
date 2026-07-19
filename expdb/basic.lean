@@ -11,12 +11,12 @@ import Mathlib.Topology.MetricSpace.Sequences
 This file defines the project-specific notions used in Chapter 2. When a blueprint convention
 already has a standard Mathlib representation, later files use that representation directly:
 
-* the notation `e(θ)` is `𝐞 θ` after `open scoped FourierTransform`; it is coerced from
+-the notation `e(θ)` is `𝐞 θ` after `open scoped FourierTransform`; it is coerced from
   `Circle` to `ℂ` when the surrounding expression requires a complex number;
-* indicator functions are written using `Set.indicator`;
-* suprema and infima, including those of empty sets, use Mathlib's `sSup` and `sInf`;
-* finite cardinalities use `Finset.card`;
-* standard asymptotic relations use Mathlib's `Asymptotics` API.
+-indicator functions are written using `Set.indicator`;
+-suprema and infima, including those of empty sets, use Mathlib's `sSup` and `sInf`;
+-finite cardinalities use `Finset.card`;
+-standard asymptotic relations use Mathlib's `Asymptotics` API.
 
 New declarations are introduced here only when the notion used by the blueprint is genuinely
 project-specific or differs from the corresponding Mathlib notion.
