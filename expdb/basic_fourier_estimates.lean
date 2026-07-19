@@ -1112,68 +1112,75 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --         = T + O(N)·1   (by Goal 6: |∫ F·E| ≪ N)
 --              = (T + O(N)) · ∑|aᵣ|²  (by Goal 1: WLOG)
 -- ============================================================
-theorem lemma3_1 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem l2_integral_estimate {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N) (hsep : IsSeparatedFamily (1 / N) ξ)
     (left right : ℝ) (T : ℝ) (hT : T = right - left) (hleft_right : left ≤ right) :
     ∃ C : ℝ, 0 < C ∧ ∃ θ : ℝ, |θ| ≤ C ∧
     ∫ t in Set.Icc left right, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2 := by
+  change ∃ C : ℝ, 0 < C ∧ ∃ θ : ℝ, |θ| ≤ C ∧
+    ∫ t in Set.Icc left right, expSumSq a ξ t =
+    (T + θ * N) * ∑ r, ‖a r‖ ^ 2
   set M := ∑ r, ‖a r‖ ^ 2
-  -- Trivial case: M = 0 → all aᵣ = 0
   by_cases hM0 : M = 0
   · refine ⟨1, one_pos, 0, by simp, ?_⟩
+    have hsum_zero : ∑ r, ‖a r‖ ^ 2 = 0 := by
+      simpa only [M] using hM0
+    have hterm_zero : ∀ r, ‖a r‖ ^ 2 = 0 := by
+      intro r
+      exact ((Finset.sum_eq_zero_iff_of_nonneg
+        (s := Finset.univ) (f := fun i => ‖a i‖ ^ 2)
+        (fun i _ => sq_nonneg _)).1 hsum_zero) r (Finset.mem_univ r)
     have hzero : ∀ r, a r = 0 := by
       intro r
-      have h1 : 0 ≤ ‖a r‖ ^ 2 := sq_nonneg _
-      have h2 : ‖a r‖ ^ 2 ≤ M :=
-        Finset.single_le_sum (fun i _ => sq_nonneg _) _ (Finset.mem_univ r)
-      have h3 : ‖a r‖ = 0 := by
-        nlinarith [hM0 ▸ h2]
-      exact norm_eq_zero.mp h3
-    simp [hM0, hzero]
-  · -- M > 0: normalize Aᵣ = aᵣ/√M
+      apply norm_eq_zero.mp
+      nlinarith [hterm_zero r, norm_nonneg (a r)]
+    simp [expSumSq, expSum, hzero, hM0]
+  ·
     have hMpos : 0 < M :=
       lt_of_le_of_ne (Finset.sum_nonneg fun r _ => sq_nonneg _) (Ne.symm hM0)
-    -- GOAL 1: define A with ∑|Aᵣ|² = 1
     set A : Fin R → ℂ := fun r => a r / (Real.sqrt M : ℂ)
     have hAnorm : ∑ r, ‖A r‖ ^ 2 = 1 := goal1 a M rfl hMpos
-    -- Rescaling: ‖expSum a‖² = M · ‖expSum A‖²
-    have hrescale : ∀ t,
-        ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
-        M * ‖∑ r, A r * e (ξ r * t)‖ ^ 2 := by
+    have hsqrt_ne : (Real.sqrt M : ℂ) ≠ 0 :=
+      Complex.ofReal_ne_zero.mpr (Real.sqrt_ne_zero'.mpr hMpos)
+    have hsqrt_mul_A : ∀ r, (Real.sqrt M : ℂ) * A r = a r := by
+      intro r
+      dsimp [A]
+      rw [mul_comm]
+      exact div_mul_cancel₀ _ hsqrt_ne
+    have hsum_scale : ∀ t,
+        expSum a ξ t = (Real.sqrt M : ℂ) * expSum A ξ t := by
       intro t
-      have : ∑ r, a r * e (ξ r * t) =
-          (Real.sqrt M : ℂ) * ∑ r, A r * e (ξ r * t) := by
-        simp [A, Finset.mul_sum, div_mul_cancel₀]
-        intro r
-        field_simp
-        rw [div_mul_cancel₀]
-        exact Complex.ofReal_ne_zero.mpr (Real.sqrt_ne_zero'.mpr hMpos)
-      rw [this, norm_mul, Complex.norm_ofReal,
-          abs_of_nonneg (Real.sqrt_nonneg M), mul_pow, Real.sq_sqrt hMpos.le]
-    -- Apply Goal 4 to get the Fubini identity
+      simp only [expSum]
+      rw [Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro r _
+      rw [← mul_assoc, hsqrt_mul_A r]
+    have hrescale : ∀ t, expSumSq a ξ t = M * expSumSq A ξ t := by
+      intro t
+      simp only [expSumSq]
+      rw [hsum_scale t, norm_mul, Complex.norm_real,
+        Real.norm_eq_abs, abs_of_nonneg (Real.sqrt_nonneg M), mul_pow,
+        Real.sq_sqrt hMpos.le]
     have h4 := goal4 A ξ N hN hAnorm hsep left right T hT hleft_right
-    -- Apply Goal 6 to bound the error
     obtain ⟨C, hC, h6⟩ := goal6 A ξ N hN hAnorm hsep left right hleft_right
-    -- ∫_I ‖expSum A‖² = T - err,  |err| ≤ C·N
     set err := ∫ t : ℝ, expSumSq A ξ t * kernelE N left right t
     have hA_eq : ∫ t in Set.Icc left right, expSumSq A ξ t = T - err := by
-      simp [expSumSq] at h4 ⊢; exact h4
+      simpa only [err] using h4
     have herr_bd : |err| ≤ C * N := by
-      simp [expSumSq] at h6; exact h6
-    -- ∫_I ‖expSum a‖² = M · (T - err) = (T + θN) · M with θ = -err/N
+      simpa only [err] using h6
     refine ⟨C, hC, -err / N, ?_, ?_⟩
-    · -- |θ| = |err|/N ≤ C·N/N = C
-      rw [abs_div, abs_neg, abs_of_pos hN]
-      exact div_le_of_le_mul₀ hN.le (by positivity) (by linarith)
-    · -- ∫_I ‖expSum a‖² = (T + θN) · M
-      have ha_int : ∫ t in Set.Icc left right, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
-          M * (T - err) := by
-        conv_lhs => ext t; rw [hrescale t]
-        rw [integral_const_mul]
-        simp [expSumSq] at hA_eq
-        rw [hA_eq]
-      rw [ha_int]
-      field_simp; ring
+    · rw [abs_div, abs_neg, abs_of_pos hN, div_le_iff₀ hN]
+      exact herr_bd
+    · calc
+        ∫ t in Set.Icc left right, expSumSq a ξ t =
+            ∫ t in Set.Icc left right, M * expSumSq A ξ t :=
+          setIntegral_congr_fun measurableSet_Icc (fun t _ => hrescale t)
+        _ = M * ∫ t in Set.Icc left right, expSumSq A ξ t :=
+          integral_const_mul _ _
+        _ = M * (T - err) := by rw [hA_eq]
+        _ = (T + (-err / N) * N) * M := by
+          rw [div_mul_cancel₀ (-err) hN.ne']
+          ring
 
 end
