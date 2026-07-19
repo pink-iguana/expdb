@@ -90,7 +90,7 @@ lemma psi_l2norm : ∫ x : ℝ, (ψ x) ^ 2 = 1 := by
 
 -- ψ̂(u) = ∫_ℝ ψ(x) e(-xu) dx
 def psiHat (u : ℝ) : ℂ :=
-  ∫ x : ℝ, (ψ x : ℂ) * e (-(x * u))
+  ∫ x : ℝ, (ψ x : ℂ) * (Real.fourierChar (-(x * u)) : ℂ)
 
 -- ψ is integrable
 lemma psi_integrable : Integrable ψ :=
@@ -133,7 +133,7 @@ lemma goal1 {R : ℕ} (a : Fin R → ℂ) (M : ℝ) (hM : M = ∑ r, ‖a r‖ ^
 
 /-- The exponential sum occurring in the $L^2$ integral estimate. -/
 def expSum {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℂ :=
-  ∑ r, a r * e (ξ r * t)
+  ∑ r, a r * (Real.fourierChar (ξ r * t) : ℂ)
 
 /-- The squared modulus of `expSum`. -/
 def expSumSq {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℝ :=
@@ -164,7 +164,7 @@ private def psiSchwartz : 𝓢(ℝ, ℂ) :=
 private lemma psiHat_eq_fourier : psiHat = 𝓕 (psiSchwartz : ℝ → ℂ) := by
   funext u
   rw [Real.fourier_real_eq]
-  simp [psiSchwartz, psiHat, e, Circle.smul_def, Real.fourierChar_apply]
+  simp [psiSchwartz, psiHat, Circle.smul_def, Real.fourierChar_apply]
   apply integral_congr_ae
   filter_upwards with x
   ring
@@ -228,7 +228,7 @@ lemma psiHat_lower_bound :
     rw [psiHat_eq_fourier]
     exact (𝓕 psiSchwartz).continuous
   have hpsi0_eq : (psiHat 0).re = ∫ x : ℝ, ψ x := by
-    simp only [psiHat, mul_zero, neg_zero, e_zero, mul_one]
+    simp only [psiHat, mul_zero, neg_zero]
     have hψc : Integrable (fun x : ℝ => (ψ x : ℂ)) := psi_integrable.ofReal
     simpa using (integral_re hψc).symm
   have hpsi0 : 0 < (psiHat 0).re := by
@@ -287,12 +287,14 @@ private def psiShift (w : ℝ) : 𝓢(ℝ, ℂ) := by
 private lemma psiShift_apply (w x : ℝ) : psiShift w x = ψ (x + w) := rfl
 
 private lemma fourier_psiShift (w u : ℝ) :
-    (𝓕 (psiShift w : ℝ → ℂ)) u = e (w * u) * psiHat u := by
+    (𝓕 (psiShift w : ℝ → ℂ)) u =
+      (Real.fourierChar (w * u) : ℂ) * psiHat u := by
   have hcoe : (psiShift w : ℝ → ℂ) = fun x : ℝ => (ψ (x + w) : ℂ) := by
     ext x
     exact_mod_cast psiShift_apply w x
   rw [hcoe, Real.fourier_real_eq]
-  have hpsi : psiHat u = ∫ x : ℝ, e (-(x * u)) * (ψ x : ℂ) := by
+  have hpsi : psiHat u =
+      ∫ x : ℝ, (Real.fourierChar (-(x * u)) : ℂ) * (ψ x : ℂ) := by
     simp only [psiHat]
     apply integral_congr_ae
     filter_upwards with x
@@ -300,7 +302,7 @@ private lemma fourier_psiShift (w u : ℝ) :
   rw [hpsi]
   have ht := congr_fun
     (Fourier.fourierIntegral_comp_add_right 𝐞 volume (fun x : ℝ => (ψ x : ℂ)) w) u
-  simpa [Fourier.fourierIntegral_def, Circle.smul_def, e, Real.fourierChar_apply] using ht
+  simpa [Fourier.fourierIntegral_def, Circle.smul_def, Real.fourierChar_apply] using ht
 
 private lemma psiShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
     ∫ x : ℝ, inner ℂ (psiShift v x) (psiShift w x) = 0 := by
@@ -356,7 +358,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
     ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
-  let c : Fin R → ℂ := fun r => a r * e (ξ r * t₀)
+  let c : Fin R → ℂ := fun r => a r * (Real.fourierChar (ξ r * t₀) : ℂ)
   let G : 𝓢(ℝ, ℂ) := ∑ r, c r • psiShift (N * ξ r)
   have hfourier (u : ℝ) :
       (𝓕 G : 𝓢(ℝ, ℂ)) u = expSum a ξ (t₀ + N * u) * psiHat u := by
@@ -374,13 +376,13 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     simp_rw [SchwartzMap.smul_apply, smul_eq_mul]
     have hshift (r : Fin R) :
         SchwartzMap.fourierTransformCLM ℂ (psiShift (N * ξ r)) u =
-          e ((N * ξ r) * u) * psiHat u := by
+          (Real.fourierChar ((N * ξ r) * u) : ℂ) * psiHat u := by
       rw [SchwartzMap.fourierTransformCLM_apply]
       rw [SchwartzMap.fourier_coe]
       exact fourier_psiShift (N * ξ r) u
     simp_rw [hshift]
-    rw [show (∑ r, c r * (e ((N * ξ r) * u) * psiHat u)) =
-        (∑ r, c r * e ((N * ξ r) * u)) * psiHat u by
+    rw [show (∑ r, c r * ((Real.fourierChar ((N * ξ r) * u) : ℂ) * psiHat u)) =
+        (∑ r, c r * (Real.fourierChar ((N * ξ r) * u) : ℂ)) * psiHat u by
       rw [Finset.sum_mul]
       apply Finset.sum_congr rfl
       intro r _
@@ -390,11 +392,15 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     intro r _
     simp only [c]
     calc
-      a r * e (ξ r * t₀) * e ((N * ξ r) * u) =
-          a r * (e (ξ r * t₀) * e ((N * ξ r) * u)) := by ring
-      _ = a r * e (ξ r * (t₀ + N * u)) := by
-        rw [← e_add]
+      a r * (Real.fourierChar (ξ r * t₀) : ℂ) *
+          (Real.fourierChar ((N * ξ r) * u) : ℂ) =
+          a r * ((Real.fourierChar (ξ r * t₀) : ℂ) *
+            (Real.fourierChar ((N * ξ r) * u) : ℂ)) := by ring
+      _ = a r * (Real.fourierChar (ξ r * (t₀ + N * u)) : ℂ) := by
+        simp only [Real.fourierChar_apply]
+        rw [← Complex.exp_add]
         congr 2
+        push_cast
         ring
   have hG_toLp :
       G.toLp 2 = ∑ r, c r • (psiShift (N * ξ r)).toLp 2 := by
@@ -403,7 +409,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
   have hG_norm : ‖G.toLp 2‖ ^ 2 = 1 := by
     have horth := (psiShift_orthonormal ξ N hN hsep).inner_sum c c Finset.univ
     have hc_norm : ∑ r, ‖c r‖ ^ 2 = 1 := by
-      simpa only [c, norm_mul, norm_e, mul_one] using hnorm
+      simpa only [c, norm_mul, Circle.norm_coe, mul_one] using hnorm
     have hsum_norm :
         ‖∑ r, c r • (psiShift (N * ξ r)).toLp 2‖ ^ 2 = ∑ r, ‖c r‖ ^ 2 := by
       calc
@@ -461,13 +467,17 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 -- Goal 2 at scale M then gives c·∫_J F ≤ M ≪ψ N.
 -- ============================================================
 
-theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
-    (N : ℝ) (hN : 0 < N)
-    (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : IsSeparatedFamily (1 / N) ξ) :
-    ∃ C : ℝ, 0 < C ∧ ∀ j₀ : ℝ,
+theorem goal3 :
+    ∃ C : ℝ, 0 < C ∧
+    ∀ {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ) (N : ℝ),
+    0 < N →
+    (∑ r, ‖a r‖ ^ 2 = 1) →
+    IsSeparatedFamily (1 / N) ξ →
+    ∀ j₀ : ℝ,
     ∫ t in Set.Icc j₀ (j₀ + N), expSumSq a ξ t ≤ C * N := by
   obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound
+  refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
+  intro R a ξ N hN hnorm hsep j₀
   -- Enlarge the smoothing scale so that the whole interval lies in the
   -- neighbourhood on which `psiHat_lower_bound` applies.
   set M := N * (1 + 1 / δ)
@@ -483,8 +493,6 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     apply le_trans _ (hsep r s hrs)
     apply (div_le_div_iff₀ hM hN).2
     simpa using hNM
-  refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
-  intro j₀
   set t₀ := j₀ + N / 2
   have h2 := goal2 a ξ M hM t₀ hnorm hsepM
   have hlb_J : ∀ t ∈ Set.Icc j₀ (j₀ + N),
@@ -503,7 +511,7 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     rw [hscale]
     nlinarith
   have hFcont : Continuous (expSumSq a ξ) := by
-    unfold expSumSq expSum e
+    unfold expSumSq expSum
     fun_prop
   have hweighted : Integrable (fun t : ℝ =>
       expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2) := by
@@ -581,7 +589,7 @@ theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     mul_nonneg (hF_nonneg p.2) (hK_nonneg p.1 p.2)
   have hF_cont : Continuous F := by
     dsimp [F]
-    unfold expSumSq expSum e
+    unfold expSumSq expSum
     fun_prop
   have hpsiHat_cont : Continuous psiHat := by
     rw [psiHat_eq_fourier]
@@ -675,9 +683,11 @@ theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --   Step 4 (t ∉ I): 0 ∉ I_t, so = ∫_{I_t} |ψ̂|² ≪ (1+d_t)^{-10}
 -- ============================================================
 
-theorem goal5 (N : ℝ) (hN : 0 < N)
-    (left right : ℝ) (hleft_right : left ≤ right) :
-    ∃ C : ℝ, 0 < C ∧ ∀ t : ℝ,
+theorem goal5 :
+    ∃ C : ℝ, 0 < C ∧
+    ∀ N : ℝ, 0 < N →
+    ∀ left right : ℝ, left ≤ right →
+    ∀ t : ℝ,
     |kernelE N left right t| ≤
     C * (1 + min (|t - left| / N) (|t - right| / N)) ^ (-(10 : ℝ)) := by
   let f : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
@@ -744,7 +754,7 @@ theorem goal5 (N : ℝ) (hN : 0 < N)
         nlinarith [mul_nonneg (sq_nonneg C₀) hq]
       _ = C * (1 + d) ^ (-(10 : ℝ)) := rfl
   refine ⟨C, hC, ?_⟩
-  intro t
+  intro N hN left right hleft_right t
   let uLower := (t - right) / N
   let uUpper := (t - left) / N
   let d := min |uUpper| |uLower|
@@ -866,21 +876,38 @@ private lemma kernelE_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
 -- shifted p-series in k.  Apply this once at each endpoint of I.
 -- ============================================================
 
-theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
-    (N : ℝ) (hN : 0 < N)
-    (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : IsSeparatedFamily (1 / N) ξ)
-    (left right : ℝ) (hleft_right : left ≤ right) :
+theorem goal6 :
     ∃ C : ℝ, 0 < C ∧
+    ∀ {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ) (N : ℝ),
+    0 < N →
+    (∑ r, ‖a r‖ ^ 2 = 1) →
+    IsSeparatedFamily (1 / N) ξ →
+    ∀ left right : ℝ, left ≤ right →
     |∫ t : ℝ, expSumSq a ξ t * kernelE N left right t| ≤ C * N := by
+  obtain ⟨C₃, hC₃, hlocal_bound⟩ := goal3
+  obtain ⟨C₅, hC₅, hkernel_bound⟩ := goal5
+  let b : ℤ → ℝ := fun k => |(k : ℝ) + 1 / 2| ^ (-(10 : ℝ))
+  have hb_nonneg : ∀ k, 0 ≤ b k :=
+    fun k => Real.rpow_nonneg (abs_nonneg _) _
+  have hb_summable : Summable b := by
+    have h := (Real.summable_one_div_int_add_rpow (1 / 2) 10).2 (by norm_num)
+    apply h.congr
+    intro k
+    dsimp [b]
+    rw [Real.rpow_neg (abs_nonneg _)]
+    rw [one_div]
+  let B := ∑' k : ℤ, b k
+  have hB : 0 ≤ B := tsum_nonneg hb_nonneg
+  refine ⟨2 * C₅ * C₃ * (B + 1), by positivity, ?_⟩
+  intro R a ξ N hN hnorm hsep left right hleft_right
   let F : ℝ → ℝ := expSumSq a ξ
   have hF_nonneg : ∀ t, 0 ≤ F t := fun t => sq_nonneg _
   have hF_cont : Continuous F := by
     dsimp [F]
-    unfold expSumSq expSum e
+    unfold expSumSq expSum
     fun_prop
-  obtain ⟨C₃, hC₃, hlocal⟩ := goal3 a ξ N hN hnorm hsep
-  obtain ⟨C₅, hC₅, hE⟩ := goal5 N hN left right hleft_right
+  have hlocal := hlocal_bound a ξ N hN hnorm hsep
+  have hE := hkernel_bound N hN left right hleft_right
   let weight : ℝ → ℝ → ℝ :=
     fun c t => (1 + |t - c| / N) ^ (-(10 : ℝ))
   have hweight_nonneg : ∀ c t, 0 ≤ weight c t :=
@@ -908,18 +935,6 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
   have hcell_cover : ∀ c, ⋃ k : ℤ, cell c k = Set.univ := by
     intro c
     simpa only [cell] using iUnion_Ico_add_zsmul hN c
-  let b : ℤ → ℝ := fun k => |(k : ℝ) + 1 / 2| ^ (-(10 : ℝ))
-  have hb_nonneg : ∀ k, 0 ≤ b k :=
-    fun k => Real.rpow_nonneg (abs_nonneg _) _
-  have hb_summable : Summable b := by
-    have h := (Real.summable_one_div_int_add_rpow (1 / 2) 10).2 (by norm_num)
-    apply h.congr
-    intro k
-    dsimp [b]
-    rw [Real.rpow_neg (abs_nonneg _)]
-    rw [one_div]
-  let B := ∑' k : ℤ, b k
-  have hB : 0 ≤ B := tsum_nonneg hb_nonneg
   have hcell_weight : ∀ c k t, t ∈ cell c k → weight c t ≤ b k := by
     intro c k t ht
     have ht' : c + (k : ℝ) * N ≤ t ∧ t < c + ((k : ℝ) + 1) * N := by
@@ -1078,7 +1093,6 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     filter_upwards with t
     change |F t * kernelE N left right t| ≤ F t * |kernelE N left right t|
     rw [abs_mul, abs_of_nonneg (hF_nonneg t)]
-  refine ⟨2 * C₅ * C₃ * (B + 1), by positivity, ?_⟩
   calc
     |∫ t : ℝ, expSumSq a ξ t * kernelE N left right t| =
         |∫ t : ℝ, F t * kernelE N left right t| := by rfl
@@ -1112,18 +1126,27 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --         = T + O(N)·1   (by Goal 6: |∫ F·E| ≪ N)
 --              = (T + O(N)) · ∑|aᵣ|²  (by Goal 1: WLOG)
 -- ============================================================
-theorem l2_integral_estimate {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
-    (N : ℝ) (hN : 0 < N) (hsep : IsSeparatedFamily (1 / N) ξ)
-    (left right : ℝ) (T : ℝ) (hT : T = right - left) (hleft_right : left ≤ right) :
-    ∃ C : ℝ, 0 < C ∧ ∃ θ : ℝ, |θ| ≤ C ∧
-    ∫ t in Set.Icc left right, ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
+theorem l2_integral_estimate :
+    ∃ C : ℝ, 0 < C ∧
+    ∀ {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ) (N : ℝ),
+    0 < N →
+    IsSeparatedFamily (1 / N) ξ →
+    ∀ left right T : ℝ,
+    T = right - left →
+    left ≤ right →
+    ∃ θ : ℝ, |θ| ≤ C ∧
+    ∫ t in Set.Icc left right,
+      ‖∑ r, a r * (Real.fourierChar (ξ r * t) : ℂ)‖ ^ 2 =
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2 := by
-  change ∃ C : ℝ, 0 < C ∧ ∃ θ : ℝ, |θ| ≤ C ∧
+  obtain ⟨C, hC, herror⟩ := goal6
+  refine ⟨C, hC, ?_⟩
+  intro R a ξ N hN hsep left right T hT hleft_right
+  change ∃ θ : ℝ, |θ| ≤ C ∧
     ∫ t in Set.Icc left right, expSumSq a ξ t =
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2
   set M := ∑ r, ‖a r‖ ^ 2
   by_cases hM0 : M = 0
-  · refine ⟨1, one_pos, 0, by simp, ?_⟩
+  · refine ⟨0, by simpa using hC.le, ?_⟩
     have hsum_zero : ∑ r, ‖a r‖ ^ 2 = 0 := by
       simpa only [M] using hM0
     have hterm_zero : ∀ r, ‖a r‖ ^ 2 = 0 := by
@@ -1163,13 +1186,13 @@ theorem l2_integral_estimate {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
         Real.norm_eq_abs, abs_of_nonneg (Real.sqrt_nonneg M), mul_pow,
         Real.sq_sqrt hMpos.le]
     have h4 := goal4 A ξ N hN hAnorm hsep left right T hT hleft_right
-    obtain ⟨C, hC, h6⟩ := goal6 A ξ N hN hAnorm hsep left right hleft_right
+    have h6 := herror A ξ N hN hAnorm hsep left right hleft_right
     set err := ∫ t : ℝ, expSumSq A ξ t * kernelE N left right t
     have hA_eq : ∫ t in Set.Icc left right, expSumSq A ξ t = T - err := by
       simpa only [err] using h4
     have herr_bd : |err| ≤ C * N := by
       simpa only [err] using h6
-    refine ⟨C, hC, -err / N, ?_, ?_⟩
+    refine ⟨-err / N, ?_, ?_⟩
     · rw [abs_div, abs_neg, abs_of_pos hN, div_le_iff₀ hN]
       exact herr_bd
     · calc
