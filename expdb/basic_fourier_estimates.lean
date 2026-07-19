@@ -2,6 +2,7 @@ import expdb.basic
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.Distribution.FourierSchwartz
+import Mathlib.Analysis.InnerProductSpace.Orthonormal
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 import Mathlib.Tactic
@@ -252,14 +253,13 @@ lemma psiHat_lower_bound :
 -- ============================================================
 -- GOAL 2: ∫_ℝ F(t) |ψ̂((t-t₀)/N)|² dt = N   [equation (3.1)]
 --
--- From handwritten proof:
---   Step 1 (r=s): ∑|aᵣ|² · N ∫|ψ̂(u)|² du = N  (Plancherel)
---   Step 2 (r≠s): = 0  (support analysis: |q|≥1/N but support
---                        forces |q|≤1/(2N), contradiction)
+-- Apply Plancherel once to the sum of translates
+--   G(x) = ∑ᵣ aᵣe(ξᵣt₀)ψ(x + Nξᵣ).
+-- Its Fourier transform is the weighted exponential sum after t=t₀+Nu,
+-- while the translates of ψ form an orthonormal family by separation.
 -- ============================================================
 
--- Package translates of the concrete bump as Schwartz functions so that the
--- off-diagonal Fourier integrals can be evaluated by Plancherel.
+-- Package translates of the concrete bump as Schwartz functions.
 private def psiShift (w : ℝ) : 𝓢(ℝ, ℂ) := by
   let f : ℝ → ℂ := fun x => (ψ (x + w) : ℂ)
   have hcomp : HasCompactSupport f := by
@@ -293,255 +293,163 @@ private lemma fourier_psiShift (w u : ℝ) :
     (Fourier.fourierIntegral_comp_add_right 𝐞 volume (fun x : ℝ => (ψ x : ℂ)) w) u
   simpa [Fourier.fourierIntegral_def, Circle.smul_def, e, Real.fourierChar_apply] using ht
 
-private lemma psiShift_inner_eq_zero {w : ℝ} (hw : 1 ≤ |w|) :
-    ∫ x : ℝ, inner ℂ (psiSchwartz x) (psiShift w x) = 0 := by
+private lemma psiShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
+    ∫ x : ℝ, inner ℂ (psiShift v x) (psiShift w x) = 0 := by
   apply integral_eq_zero_of_ae
   filter_upwards with x
-  by_cases hx : ψ x = 0
-  · simp [psiSchwartz, hx]
+  by_cases hxv : ψ (x + v) = 0
+  · simp [psiShift_apply, hxv]
   by_cases hxw : ψ (x + w) = 0
   · simp [psiShift_apply, hxw]
   exfalso
-  have h1 := psi_supp x hx
-  have h2 := psi_supp (x + w) hxw
-  have hbound : |w| ≤ 1 / 2 := by
+  have hv := psi_supp (x + v) hxv
+  have hw := psi_supp (x + w) hxw
+  have hbound : |v - w| ≤ 1 / 2 := by
     calc
-      |w| = |(x + w) - x| := by ring_nf
-      _ = |(x + w) + (-x)| := by ring
-      _ ≤ |x + w| + |-x| := abs_add_le _ _
-      _ = |x + w| + |x| := by rw [abs_neg]
+      |v - w| = |(x + v) - (x + w)| := by ring_nf
+      _ ≤ |x + v| + |x + w| := abs_sub _ _
       _ ≤ 1 / 4 + 1 / 4 := by linarith
       _ = 1 / 2 := by norm_num
   linarith
 
-private lemma psiHat_orthogonal {w : ℝ} (hw : 1 ≤ |w|) :
-    ∫ u : ℝ, e (w * u) * ‖psiHat u‖ ^ 2 = 0 := by
-  have hpl := SchwartzMap.integral_inner_fourier_fourier psiSchwartz (psiShift w)
-  rw [psiShift_inner_eq_zero hw] at hpl
-  have hshift : ((𝓕 (psiShift w) : 𝓢(ℝ, ℂ)) : ℝ → ℂ) =
-      fun u => e (w * u) * psiHat u := by
-    rw [SchwartzMap.fourier_coe]
-    ext u
-    exact fourier_psiShift w u
-  have hbase : ((𝓕 psiSchwartz : 𝓢(ℝ, ℂ)) : ℝ → ℂ) = psiHat := by
-    rw [SchwartzMap.fourier_coe]
-    exact psiHat_eq_fourier.symm
-  have hleft : (fun u : ℝ => inner ℂ (𝓕 psiSchwartz u) (𝓕 (psiShift w) u)) =
-      fun u => e (w * u) * ‖psiHat u‖ ^ 2 := by
-    funext u
-    rw [RCLike.inner_apply, hshift, hbase]
-    change (e (w * u) * psiHat u) * (starRingEnd ℂ) (psiHat u) = _
-    rw [mul_assoc, Complex.mul_conj']
-  rw [hleft] at hpl
-  exact hpl
+private lemma psiShift_inner_self (w : ℝ) :
+    ∫ x : ℝ, inner ℂ (psiShift w x) (psiShift w x) = 1 := by
+  calc
+    ∫ x : ℝ, inner ℂ (psiShift w x) (psiShift w x) =
+        ∫ x : ℝ, (((ψ (x + w)) ^ 2 : ℝ) : ℂ) := by
+          apply integral_congr_ae
+          filter_upwards with x
+          simp [psiShift_apply, abs_of_nonneg (psi_nonneg _)]
+    _ = ((∫ x : ℝ, (ψ (x + w)) ^ 2 : ℝ) : ℂ) := integral_ofReal
+    _ = ((∫ x : ℝ, (ψ x) ^ 2 : ℝ) : ℂ) := by
+      rw [integral_add_right_eq_self (fun x : ℝ => (ψ x) ^ 2) w]
+    _ = 1 := by rw [psi_l2norm]; norm_num
 
-private lemma scaled_psiHat_orthogonal {q N t₀ : ℝ} (hN : 0 < N)
-    (hq : 1 / N ≤ |q|) :
-    ∫ t : ℝ, e (q * t) * (((‖psiHat ((t - t₀) / N)‖ ^ 2 : ℝ) : ℂ)) = 0 := by
-  have hqN : 1 ≤ |q * N| := by
-    rw [abs_mul, abs_of_pos hN]
+private lemma psiShift_orthonormal {R : ℕ} (ξ : Fin R → ℝ) (N : ℝ) (hN : 0 < N)
+    (hsep : IsSeparatedFamily (1 / N) ξ) :
+    Orthonormal ℂ (fun r => (psiShift (N * ξ r)).toLp 2) := by
+  rw [orthonormal_iff_ite]
+  intro r s
+  rw [SchwartzMap.inner_toL2_toL2_eq
+    (psiShift (N * ξ r)) (psiShift (N * ξ s)) volume]
+  by_cases hrs : r = s
+  · subst s
+    rw [if_pos rfl, psiShift_inner_self]
+  · rw [if_neg hrs]
+    apply psiShift_inner_eq_zero
+    rw [show N * ξ r - N * ξ s = N * (ξ r - ξ s) by ring, abs_mul, abs_of_pos hN]
     calc
-      1 = (1 / N) * N := by field_simp
-      _ ≤ |q| * N := mul_le_mul_of_nonneg_right hq hN.le
-  let F : ℝ → ℂ := fun u => e (q * (N * u + t₀)) * (((‖psiHat u‖ ^ 2 : ℝ) : ℂ))
-  have hrewrite : (fun t : ℝ =>
-      e (q * t) * (((‖psiHat ((t - t₀) / N)‖ ^ 2 : ℝ) : ℂ))) =
-      fun t => F ((1 / N) * t + (-t₀ / N)) := by
-    funext t
-    simp only [F]
-    rw [show (1 / N) * t + -t₀ / N = (t - t₀) / N by
-      field_simp
-      ring]
-    congr 2
-    field_simp
-    ring
-  rw [hrewrite]
-  let H : ℝ → ℂ := fun x => F (x + (-t₀ / N))
-  change ∫ t : ℝ, H ((1 / N) * t) = 0
-  rw [Measure.integral_comp_mul_left H (1 / N)]
-  rw [show (∫ y : ℝ, H y) = ∫ y : ℝ, F y by
-    exact integral_add_right_eq_self F (-t₀ / N)]
-  have hF : (fun u : ℝ => F u) =
-      fun u => e (q * t₀) *
-        (e ((q * N) * u) * (((‖psiHat u‖ ^ 2 : ℝ) : ℂ))) := by
-    funext u
-    simp only [F]
-    rw [show q * (N * u + t₀) = q * t₀ + (q * N) * u by ring, e_add]
-    ring
-  have hFint : ∫ u : ℝ, F u = 0 := by
-    rw [hF, integral_const_mul]
-    rw [show (∫ u : ℝ,
-        e ((q * N) * u) * (((‖psiHat u‖ ^ 2 : ℝ) : ℂ))) = 0 by
-      simpa only [Complex.ofReal_pow] using psiHat_orthogonal hqN]
-    simp
-  rw [hFint]
-  simp
-
-private lemma star_e (x : ℝ) : starRingEnd ℂ (e x) = e (-x) := by
-  unfold e
-  rw [← Complex.exp_conj]
-  simp only [map_mul, map_ofNat, Complex.conj_ofReal, Complex.conj_I]
-  congr 1
-  push_cast
-  ring
-
--- Scaling and integrability facts used to exchange the finite sums and integral
--- in `goal2`.
-private lemma scaled_psiHat_l2 (N t₀ : ℝ) (hN : 0 < N) :
-    ∫ t : ℝ, ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
-  let F : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
-  let H : ℝ → ℝ := fun x => F (x + (-t₀ / N))
-  have hrewrite : (fun t : ℝ => ‖psiHat ((t - t₀) / N)‖ ^ 2) =
-      fun t => H ((1 / N) * t) := by
-    funext t
-    simp only [H, F]
-    congr 2
-    field_simp
-    ring_nf
-  rw [hrewrite, Measure.integral_comp_mul_left H (1 / N)]
-  rw [show (∫ y : ℝ, H y) = ∫ y : ℝ, F y by
-    exact integral_add_right_eq_self F (-t₀ / N)]
-  rw [show (∫ y : ℝ, F y) = 1 by exact psiHat_l2]
-  simp [abs_of_pos hN]
-
-private lemma psiHat_sq_integrable : Integrable (fun u : ℝ => ‖psiHat u‖ ^ 2) := by
-  by_contra h
-  have hz := integral_undef h
-  rw [psiHat_l2] at hz
-  norm_num at hz
-
-private lemma scaled_psiHat_sq_integrable (N t₀ : ℝ) (hN : 0 < N) :
-    Integrable (fun t : ℝ => ‖psiHat ((t - t₀) / N)‖ ^ 2) := by
-  have h := (psiHat_sq_integrable.comp_add_right (-t₀ / N)).comp_mul_left'
-    (show 1 / N ≠ 0 by positivity)
-  convert h using 1
-  ext t
-  congr 2
-  field_simp
-  ring_nf
-
-private lemma scaled_phase_integrable (q N t₀ : ℝ) (hN : 0 < N) :
-    Integrable (fun t : ℝ =>
-      e (q * t) * (((‖psiHat ((t - t₀) / N)‖ ^ 2 : ℝ) : ℂ))) := by
-  refine (scaled_psiHat_sq_integrable N t₀ hN).ofReal.bdd_mul
-    (f := fun t => e (q * t)) (c := 1) ?_ ?_
-  · apply Continuous.aestronglyMeasurable
-    unfold e
-    fun_prop
-  · filter_upwards with t
-    rw [norm_e]
+      1 = N * (1 / N) := by field_simp
+      _ ≤ N * |ξ r - ξ s| := mul_le_mul_of_nonneg_left (hsep r s hrs) hN.le
 
 theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N) (t₀ : ℝ)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
     ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
-  let W : ℝ → ℝ := fun t => ‖psiHat ((t - t₀) / N)‖ ^ 2
-  let B : Fin R → Fin R → ℝ → ℂ := fun r s t =>
-    a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t) * (W t : ℂ)
-  have hexpand : ∀ t : ℝ,
-      expSumSq a ξ t =
-      (∑ r : Fin R, ∑ s : Fin R,
-        a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t)).re := by
-    intro t
-    simp only [expSumSq, expSum]
-    rw [show ‖∑ r, a r * e (ξ r * t)‖ ^ 2 =
-        ((∑ r, a r * e (ξ r * t)) * starRingEnd ℂ (∑ r, a r * e (ξ r * t))).re by
-          rw [Complex.sq_norm, Complex.mul_conj]
-          exact (Complex.ofReal_re _).symm]
-    apply congrArg Complex.re
-    rw [map_sum, Finset.sum_mul]
-    simp_rw [Finset.mul_sum]
+  let c : Fin R → ℂ := fun r => a r * e (ξ r * t₀)
+  let G : 𝓢(ℝ, ℂ) := ∑ r, c r • psiShift (N * ξ r)
+  have hfourier (u : ℝ) :
+      (𝓕 G : 𝓢(ℝ, ℂ)) u = expSum a ξ (t₀ + N * u) * psiHat u := by
+    change (SchwartzMap.fourierTransformCLM ℂ
+      (∑ r, c r • psiShift (N * ξ r))) u = _
+    rw [map_sum]
+    simp_rw [map_smul]
+    have hsum_apply (s : Finset (Fin R)) (f : Fin R → 𝓢(ℝ, ℂ)) :
+        (∑ r ∈ s, f r) u = ∑ r ∈ s, f r u := by
+      induction s using Finset.induction_on with
+      | empty => simp
+      | @insert r s hrs ih =>
+          simp [Finset.sum_insert, hrs, SchwartzMap.add_apply, ih]
+    rw [hsum_apply Finset.univ]
+    simp_rw [SchwartzMap.smul_apply, smul_eq_mul]
+    have hshift (r : Fin R) :
+        SchwartzMap.fourierTransformCLM ℂ (psiShift (N * ξ r)) u =
+          e ((N * ξ r) * u) * psiHat u := by
+      rw [SchwartzMap.fourierTransformCLM_apply]
+      rw [SchwartzMap.fourier_coe]
+      exact fourier_psiShift (N * ξ r) u
+    simp_rw [hshift]
+    rw [show (∑ r, c r * (e ((N * ξ r) * u) * psiHat u)) =
+        (∑ r, c r * e ((N * ξ r) * u)) * psiHat u by
+      rw [Finset.sum_mul]
+      apply Finset.sum_congr rfl
+      intro r _
+      ring]
+    congr 1
     apply Finset.sum_congr rfl
     intro r _
-    apply Finset.sum_congr rfl
-    intro s _
-    rw [map_mul, star_e]
+    simp only [c]
     calc
-      a r * e (ξ r * t) * ((starRingEnd ℂ) (a s) * e (-(ξ s * t))) =
-          a r * (starRingEnd ℂ) (a s) * (e (ξ r * t) * e (-(ξ s * t))) := by ring
-      _ = a r * (starRingEnd ℂ) (a s) * e ((ξ r - ξ s) * t) := by
+      a r * e (ξ r * t₀) * e ((N * ξ r) * u) =
+          a r * (e (ξ r * t₀) * e ((N * ξ r) * u)) := by ring
+      _ = a r * e (ξ r * (t₀ + N * u)) := by
         rw [← e_add]
-        congr 1
-        ring_nf
-  have hBint (r s : Fin R) : Integrable (B r s) := by
-    convert (scaled_phase_integrable (ξ r - ξ s) N t₀ hN).const_mul
-      (a r * starRingEnd ℂ (a s)) using 1
-    simp [B, W, mul_assoc]
-  have hsumInt : Integrable (fun t : ℝ => ∑ r : Fin R, ∑ s : Fin R, B r s t) := by
-    apply integrable_finset_sum
-    intro r _
-    apply integrable_finset_sum
-    intro s _
-    exact hBint r s
-  have hpair (r s : Fin R) :
-      ∫ t : ℝ, B r s t =
-        if r = s then (N : ℂ) * ((‖a r‖ ^ 2 : ℝ) : ℂ) else 0 := by
-    have hfactor :
-        (∫ t : ℝ, B r s t) =
-          (a r * starRingEnd ℂ (a s)) *
-            ∫ t : ℝ, e ((ξ r - ξ s) * t) * (W t : ℂ) := by
-      rw [show B r s = fun t : ℝ =>
-          (a r * starRingEnd ℂ (a s)) *
-            (e ((ξ r - ξ s) * t) * (W t : ℂ)) by
-        funext t
-        simp only [B]
-        ring]
-      rw [integral_const_mul]
-    by_cases hrs : r = s
-    · subst s
-      rw [if_pos rfl]
-      rw [hfactor]
-      simp only [sub_self, zero_mul, e_zero, one_mul]
-      rw [show (∫ t : ℝ, (W t : ℂ)) = (N : ℂ) by
-        calc
-          (∫ t : ℝ, (W t : ℂ)) = (((∫ t : ℝ, W t) : ℝ) : ℂ) := integral_ofReal
-          _ = (N : ℂ) := congrArg (fun x : ℝ => (x : ℂ))
-            (by simpa only [W] using scaled_psiHat_l2 N t₀ hN)]
-      rw [Complex.mul_conj']
-      rw [← Complex.ofReal_pow]
+        congr 2
+        ring
+  have hG_toLp :
+      G.toLp 2 = ∑ r, c r • (psiShift (N * ξ r)).toLp 2 := by
+    change SchwartzMap.toLpCLM ℂ ℂ 2 volume G = _
+    simp [G]
+  have hG_norm : ‖G.toLp 2‖ ^ 2 = 1 := by
+    have horth := (psiShift_orthonormal ξ N hN hsep).inner_sum c c Finset.univ
+    have hc_norm : ∑ r, ‖c r‖ ^ 2 = 1 := by
+      simpa only [c, norm_mul, norm_e, mul_one] using hnorm
+    have hsum_norm :
+        ‖∑ r, c r • (psiShift (N * ξ r)).toLp 2‖ ^ 2 = ∑ r, ‖c r‖ ^ 2 := by
+      calc
+        ‖∑ r, c r • (psiShift (N * ξ r)).toLp 2‖ ^ 2 =
+            (inner ℂ (∑ r, c r • (psiShift (N * ξ r)).toLp 2)
+              (∑ r, c r • (psiShift (N * ξ r)).toLp 2)).re :=
+                by
+                  exact norm_sq_eq_re_inner (𝕜 := ℂ)
+                    (∑ r, c r • (psiShift (N * ξ r)).toLp 2)
+        _ = (∑ r, (starRingEnd ℂ) (c r) * c r).re := congrArg Complex.re horth
+        _ = ∑ r, ‖c r‖ ^ 2 := by
+          rw [Complex.re_sum]
+          apply Finset.sum_congr rfl
+          intro r _
+          rw [Complex.conj_mul']
+          rw [← Complex.ofReal_pow, Complex.ofReal_re]
+    rw [hG_toLp, hsum_norm, hc_norm]
+  have hG_inner : inner ℂ (G.toLp 2) (G.toLp 2) = 1 := by
+    rw [inner_self_eq_norm_sq_to_K]
+    simpa only [Complex.ofReal_pow, Complex.ofReal_one] using
+      congrArg (fun x : ℝ => (x : ℂ)) hG_norm
+  have hG_l2 : ∫ x : ℝ, ‖G x‖ ^ 2 = 1 := by
+    have hinner_integral : ∫ x : ℝ, inner ℂ (G x) (G x) = 1 := by
+      rw [← SchwartzMap.inner_toL2_toL2_eq G G volume]
+      exact hG_inner
+    apply Complex.ofRealLI.injective
+    simpa [← LinearIsometry.integral_comp_comm, inner_self_eq_norm_sq_to_K] using hinner_integral
+  let H : ℝ → ℝ := fun u => ‖(𝓕 G : 𝓢(ℝ, ℂ)) u‖ ^ 2
+  have hrewrite : (fun t : ℝ =>
+      expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2) =
+      fun t => H ((1 / N) * t + (-t₀ / N)) := by
+    funext t
+    rw [show (1 / N) * t + -t₀ / N = (t - t₀) / N by
+      field_simp
+      ring]
+    have hu : t₀ + N * ((t - t₀) / N) = t := by
+      field_simp
       ring
-    · rw [if_neg hrs]
-      rw [hfactor]
-      rw [show (∫ t : ℝ, e ((ξ r - ξ s) * t) * (W t : ℂ)) = 0 by
-        simpa only [W] using scaled_psiHat_orthogonal hN (hsep r s hrs)]
-      simp
-  have hcomplex : (∫ t : ℝ, ∑ r : Fin R, ∑ s : Fin R, B r s t) = (N : ℂ) := by
-    rw [integral_finset_sum Finset.univ (fun r _ => by
-      apply integrable_finset_sum
-      intro s _
-      exact hBint r s)]
-    simp_rw [integral_finset_sum Finset.univ (fun s _ => hBint _ s), hpair]
-    simp only [Finset.sum_ite_eq, Finset.mem_univ, if_true]
-    rw [← Finset.mul_sum, show
-      (∑ r : Fin R, (((‖a r‖ ^ 2 : ℝ) : ℂ))) = 1 by exact_mod_cast hnorm, mul_one]
-  calc
-    ∫ t : ℝ, expSumSq a ξ t * W t =
-        ∫ t : ℝ, (∑ r : Fin R, ∑ s : Fin R, B r s t).re := by
-          apply integral_congr_ae
-          filter_upwards with t
-          rw [hexpand]
-          have hBsum :
-              (∑ r : Fin R, ∑ s : Fin R, B r s t) =
-                (∑ r : Fin R, ∑ s : Fin R,
-                  a r * starRingEnd ℂ (a s) * e ((ξ r - ξ s) * t)) * (W t : ℂ) := by
-            simp only [B]
-            symm
-            rw [Finset.sum_mul]
-            apply Finset.sum_congr rfl
-            intro r _
-            rw [Finset.sum_mul]
-          rw [hBsum]
-          simp only [Complex.mul_re, Complex.ofReal_re, Complex.ofReal_im, mul_zero, sub_zero]
-    _ = (∫ t : ℝ, ∑ r : Fin R, ∑ s : Fin R, B r s t).re :=
-      integral_re hsumInt
-    _ = N := by simpa using congrArg Complex.re hcomplex
+    simp only [H, hfourier, hu, expSumSq, norm_mul, mul_pow]
+  rw [hrewrite]
+  let K : ℝ → ℝ := fun x => H (x + (-t₀ / N))
+  change ∫ t : ℝ, K ((1 / N) * t) = N
+  rw [Measure.integral_comp_mul_left K (1 / N)]
+  rw [show (∫ y : ℝ, K y) = ∫ y : ℝ, H y by
+    exact integral_add_right_eq_self H (-t₀ / N)]
+  rw [show (∫ y : ℝ, H y) = 1 by
+    simpa only [H] using (SchwartzMap.integral_norm_sq_fourier G).trans hG_l2]
+  simp [abs_of_pos hN]
 
 -- ============================================================
 -- GOAL 3: ∫_J |∑ aᵣ e(ξᵣ t)|² dt ≪ N for |J| = N  [eq (3.2)]
 --
---   Step 2: |ψ̂((t-t₀)/N)|² ≥ c·1_{[-δ/2,δ/2]}((t-t₀)/N)
---   Step 3: N ≥ c · ∫_{J_{t₀}} F dt → ∫_J F ≪ N/c ≪ N
+-- Enlarge the smoothing scale from N to M ≍ψ N so that the whole normalized
+-- interval lies in the neighbourhood where |ψ̂|² has a positive lower bound.
+-- Goal 2 at scale M then gives c·∫_J F ≤ M ≪ψ N.
 -- ============================================================
 
 theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
@@ -551,42 +459,72 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (a₀ : ℝ) :
     ∃ C : ℝ, 0 < C ∧
     ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ C * N := by
-  -- Get lower bound c for |ψ̂|² near 0
   obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound
-  -- Choose t₀ = center of J
+  -- Enlarge the smoothing scale so that the whole interval lies in the
+  -- neighbourhood on which `psiHat_lower_bound` applies.
+  set M := N * (1 + 1 / δ)
+  have hM : 0 < M := by
+    dsimp [M]
+    positivity
+  have hNM : N ≤ M := by
+    have hinvδ : 0 ≤ 1 / δ := by positivity
+    dsimp [M]
+    nlinarith
+  have hsepM : IsSeparatedFamily (1 / M) ξ := by
+    intro r s hrs
+    apply le_trans _ (hsep r s hrs)
+    apply (div_le_div_iff₀ hM hN).2
+    simpa using hNM
   set t₀ := a₀ + N / 2
-  -- From Goal 2: N = ∫_ℝ F|ψ̂((t-t₀)/N)|² dt
-  have h2 := goal2 a ξ N hN t₀ hnorm hsep
-  -- On J = [a₀, a₀+N]: |(t-t₀)/N| ≤ 1/2
-  -- If δ ≥ 1/2, then |ψ̂((t-t₀)/N)|² ≥ c on J
+  have h2 := goal2 a ξ M hM t₀ hnorm hsepM
   have hlb_J : ∀ t ∈ Set.Icc a₀ (a₀ + N),
-      c ≤ ‖psiHat ((t - t₀) / N)‖ ^ 2 := by
+      c ≤ ‖psiHat ((t - t₀) / M)‖ ^ 2 := by
     intro t ht
     apply hlb
-    simp only [t₀, abs_le, div_le_iff hN, neg_mul, le_div_iff hN]
-    constructor <;> [linarith [ht.1]; linarith [ht.2]]
-  -- Therefore: N ≥ c · ∫_J F → ∫_J F ≤ N/c
-  refine ⟨1 / c, by positivity, ?_⟩
-  have hFub : c * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ N := by
+    rw [abs_div, abs_of_pos hM]
+    apply (div_le_iff₀ hM).2
+    have habs : |t - t₀| ≤ N / 2 := by
+      rw [abs_le]
+      constructor <;> simp only [t₀] <;> linarith [ht.1, ht.2]
+    apply habs.trans
+    have hscale : δ * M = δ * N + N := by
+      dsimp [M]
+      field_simp
+    rw [hscale]
+    nlinarith
+  have hFcont : Continuous (expSumSq a ξ) := by
+    unfold expSumSq expSum e
+    fun_prop
+  have hweighted : Integrable (fun t : ℝ =>
+      expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2) := by
+    by_contra h
+    rw [integral_undef h] at h2
+    linarith
+  refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
+  have hFub : c * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ M := by
     calc c * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t
         = ∫ t in Set.Icc a₀ (a₀ + N), c * expSumSq a ξ t :=
             (integral_const_mul _ _).symm
       _ ≤ ∫ t in Set.Icc a₀ (a₀ + N),
-            expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 := by
-          apply set_integral_mono_ae
-          · exact (measurable_const.mul (by measurability)).aestronglyMeasurable
-          · exact (by measurability).aestronglyMeasurable
-          · apply ae_restrict_of_ae; apply ae_of_all; intro t
-            by_cases ht : t ∈ Set.Icc a₀ (a₀ + N)
-            · exact mul_le_mul_of_nonneg_left (hlb_J t ht)
-                (by simp [expSumSq]; positivity)
-            · simp
-      _ ≤ ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 :=
-          set_integral_le_integral _
-            (fun t => mul_nonneg (by simp [expSumSq]; positivity) (sq_nonneg _))
-      _ = N := h2
-  rw [div_mul_eq_mul_div, le_div_iff hc]
-  exact hFub
+            expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2 := by
+          apply setIntegral_mono_on
+          · exact (continuous_const.mul hFcont).integrableOn_Icc
+          · exact hweighted.integrableOn
+          · exact measurableSet_Icc
+          · intro t ht
+            calc
+              c * expSumSq a ξ t = expSumSq a ξ t * c := by ring
+              _ ≤ expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2 :=
+                mul_le_mul_of_nonneg_left (hlb_J t ht) (sq_nonneg _)
+      _ ≤ ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2 :=
+          setIntegral_le_integral hweighted (ae_of_all _ fun t =>
+            mul_nonneg (sq_nonneg _) (sq_nonneg _))
+      _ = M := h2
+  rw [show (1 + 1 / δ) / c * N = M / c by
+    dsimp [M]
+    ring]
+  apply (le_div_iff₀ hc).2
+  nlinarith
 
 -- ============================================================
 -- GOAL 4: ∫_I F = T - ∫_ℝ F·E  (Fubini identity)
