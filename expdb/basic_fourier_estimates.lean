@@ -120,7 +120,8 @@ lemma psi_integral_pos : 0 < ∫ x : ℝ, ψ x := by
 -- "Let M = ∑|aᵣ|², let Aᵣ = aᵣ/M^{1/2} → ∑|Aᵣ|² = 1"
 -- ============================================================
 
-lemma goal1 {R : ℕ} (a : Fin R → ℂ) (M : ℝ) (hM : M = ∑ r, ‖a r‖ ^ 2)
+lemma goal1 {ι : Type*} [Fintype ι] (a : ι → ℂ) (M : ℝ)
+    (hM : M = ∑ r, ‖a r‖ ^ 2)
     (hpos : 0 < M) :
     ∑ r, ‖(fun r => a r / (Real.sqrt M : ℂ)) r‖ ^ 2 = 1 := by
   simp_rw [norm_div]
@@ -138,6 +139,17 @@ def expSum {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ
 /-- The squared modulus of `expSum`. -/
 def expSumSq {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℝ :=
   ‖expSum a ξ t‖ ^ 2
+
+private lemma expSumSq_nonneg {ι : Type*} [Fintype ι]
+    (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) :
+    0 ≤ expSumSq a ξ t :=
+  sq_nonneg _
+
+private lemma expSumSq_continuous {ι : Type*} [Fintype ι]
+    (a : ι → ℂ) (ξ : ι → ℝ) :
+    Continuous (expSumSq a ξ) := by
+  unfold expSumSq expSum
+  fun_prop
 
 -- ============================================================
 -- Plancherel: ‖ψ̂‖_{L²} = ‖ψ‖_{L²} = 1
@@ -168,6 +180,10 @@ private lemma psiHat_eq_fourier : psiHat = 𝓕 (psiSchwartz : ℝ → ℂ) := b
   apply integral_congr_ae
   filter_upwards with x
   ring
+
+private lemma psiHat_continuous : Continuous psiHat := by
+  rw [psiHat_eq_fourier]
+  exact (𝓕 psiSchwartz).continuous
 
 lemma psiHat_l2 : ∫ u : ℝ, ‖psiHat u‖ ^ 2 = 1 := by
   simp_rw [psiHat_eq_fourier]
@@ -224,9 +240,7 @@ lemma psiHat_decay (K : ℕ) :
 lemma psiHat_lower_bound :
     ∃ c δ : ℝ, 0 < c ∧ 0 < δ ∧
     ∀ u : ℝ, |u| ≤ δ → c ≤ ‖psiHat u‖ ^ 2 := by
-  have hcts : Continuous psiHat := by
-    rw [psiHat_eq_fourier]
-    exact (𝓕 psiSchwartz).continuous
+  have hcts : Continuous psiHat := psiHat_continuous
   have hpsi0_eq : (psiHat 0).re = ∫ x : ℝ, ψ x := by
     simp only [psiHat, mul_zero, neg_zero]
     have hψc : Integrable (fun x : ℝ => (ψ x : ℂ)) := psi_integrable.ofReal
@@ -336,9 +350,11 @@ private lemma psiShift_inner_self (w : ℝ) :
       rw [integral_add_right_eq_self (fun x : ℝ => (ψ x) ^ 2) w]
     _ = 1 := by rw [psi_l2norm]; norm_num
 
-private lemma psiShift_orthonormal {R : ℕ} (ξ : Fin R → ℝ) (N : ℝ) (hN : 0 < N)
+private lemma psiShift_orthonormal {ι : Type*} [Fintype ι]
+    (ξ : ι → ℝ) (N : ℝ) (hN : 0 < N)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
     Orthonormal ℂ (fun r => (psiShift (N * ξ r)).toLp 2) := by
+  classical
   rw [orthonormal_iff_ite]
   intro r s
   rw [SchwartzMap.inner_toL2_toL2_eq
@@ -351,14 +367,15 @@ private lemma psiShift_orthonormal {R : ℕ} (ξ : Fin R → ℝ) (N : ℝ) (hN 
     rw [show N * ξ r - N * ξ s = N * (ξ r - ξ s) by ring, abs_mul, abs_of_pos hN]
     calc
       1 = N * (1 / N) := by field_simp
-      _ ≤ N * |ξ r - ξ s| := mul_le_mul_of_nonneg_left (hsep r s hrs) hN.le
+      _ ≤ N * |ξ r - ξ s| := mul_le_mul_of_nonneg_left (hsep hrs) hN.le
 
-theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem goal2 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     (N : ℝ) (hN : 0 < N) (t₀ : ℝ)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
     ∫ t : ℝ, expSumSq a ξ t * ‖psiHat ((t - t₀) / N)‖ ^ 2 = N := by
-  let c : Fin R → ℂ := fun r => a r * 𝐞 (ξ r * t₀)
+  classical
+  let c : ι → ℂ := fun r => a r * 𝐞 (ξ r * t₀)
   let G : 𝓢(ℝ, ℂ) := ∑ r, c r • psiShift (N * ξ r)
   have hfourier (u : ℝ) :
       (𝓕 G : 𝓢(ℝ, ℂ)) u = expSum a ξ (t₀ + N * u) * psiHat u := by
@@ -366,7 +383,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
       (∑ r, c r • psiShift (N * ξ r))) u = _
     rw [map_sum]
     simp_rw [map_smul]
-    have hsum_apply (s : Finset (Fin R)) (f : Fin R → 𝓢(ℝ, ℂ)) :
+    have hsum_apply (s : Finset ι) (f : ι → 𝓢(ℝ, ℂ)) :
         (∑ r ∈ s, f r) u = ∑ r ∈ s, f r u := by
       induction s using Finset.induction_on with
       | empty => simp
@@ -374,7 +391,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
           simp [Finset.sum_insert, hrs, SchwartzMap.add_apply, ih]
     rw [hsum_apply Finset.univ]
     simp_rw [SchwartzMap.smul_apply, smul_eq_mul]
-    have hshift (r : Fin R) :
+    have hshift (r : ι) :
         SchwartzMap.fourierTransformCLM ℂ (psiShift (N * ξ r)) u =
           𝐞 ((N * ξ r) * u) * psiHat u := by
       rw [SchwartzMap.fourierTransformCLM_apply]
@@ -467,7 +484,7 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 
 theorem goal3 :
     ∃ C : ℝ, 0 < C ∧
-    ∀ {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ) (N : ℝ),
+    ∀ {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (N : ℝ),
     0 < N →
     (∑ r, ‖a r‖ ^ 2 = 1) →
     IsSeparatedFamily (1 / N) ξ →
@@ -475,7 +492,7 @@ theorem goal3 :
     ∫ t in Set.Icc j₀ (j₀ + N), expSumSq a ξ t ≤ C * N := by
   obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound
   refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
-  intro R a ξ N hN hnorm hsep j₀
+  intro ι _ a ξ N hN hnorm hsep j₀
   -- Enlarge the smoothing scale so that the whole interval lies in the
   -- neighbourhood on which `psiHat_lower_bound` applies.
   set M := N * (1 + 1 / δ)
@@ -488,7 +505,7 @@ theorem goal3 :
     nlinarith
   have hsepM : IsSeparatedFamily (1 / M) ξ := by
     intro r s hrs
-    apply le_trans _ (hsep r s hrs)
+    apply le_trans _ (hsep hrs)
     apply (div_le_div_iff₀ hM hN).2
     simpa using hNM
   set t₀ := j₀ + N / 2
@@ -508,9 +525,7 @@ theorem goal3 :
       field_simp
     rw [hscale]
     nlinarith
-  have hFcont : Continuous (expSumSq a ξ) := by
-    unfold expSumSq expSum
-    fun_prop
+  have hFcont : Continuous (expSumSq a ξ) := expSumSq_continuous a ξ
   have hweighted : Integrable (fun t : ℝ =>
       expSumSq a ξ t * ‖psiHat ((t - t₀) / M)‖ ^ 2) := by
     by_contra h
@@ -571,7 +586,7 @@ private lemma kernelAverage_eq_intervalIntegral (N : ℝ) (hN : 0 < N)
       (f := fun u : ℝ => ‖psiHat u‖ ^ 2) (a := left) (b := right) N (t / N)).trans (by
         congr 1 <;> field_simp)
 
-theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+theorem goal4 {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
     (hsep : IsSeparatedFamily (1 / N) ξ)
@@ -581,17 +596,12 @@ theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
   let F : ℝ → ℝ := expSumSq a ξ
   let K : ℝ → ℝ → ℝ := fun t₀ t => ‖psiHat ((t - t₀) / N)‖ ^ 2
   let H : ℝ × ℝ → ℝ := fun p => F p.2 * K p.1 p.2
-  have hF_nonneg : ∀ t, 0 ≤ F t := fun t => sq_nonneg _
+  have hF_nonneg : ∀ t, 0 ≤ F t := expSumSq_nonneg a ξ
   have hK_nonneg : ∀ t₀ t, 0 ≤ K t₀ t := fun t₀ t => sq_nonneg _
   have hH_nonneg : ∀ p, 0 ≤ H p := fun p =>
     mul_nonneg (hF_nonneg p.2) (hK_nonneg p.1 p.2)
-  have hF_cont : Continuous F := by
-    dsimp [F]
-    unfold expSumSq expSum
-    fun_prop
-  have hpsiHat_cont : Continuous psiHat := by
-    rw [psiHat_eq_fourier]
-    exact (𝓕 psiSchwartz).continuous
+  have hF_cont : Continuous F := expSumSq_continuous a ξ
+  have hpsiHat_cont : Continuous psiHat := psiHat_continuous
   have hK_cont : Continuous (fun p : ℝ × ℝ => K p.1 p.2) := by
     exact ((hpsiHat_cont.comp
       ((continuous_snd.sub continuous_fst).div_const N)).norm.pow 2)
@@ -876,7 +886,7 @@ private lemma kernelE_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
 
 theorem goal6 :
     ∃ C : ℝ, 0 < C ∧
-    ∀ {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ) (N : ℝ),
+    ∀ {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (N : ℝ),
     0 < N →
     (∑ r, ‖a r‖ ^ 2 = 1) →
     IsSeparatedFamily (1 / N) ξ →
@@ -897,13 +907,10 @@ theorem goal6 :
   let B := ∑' k : ℤ, b k
   have hB : 0 ≤ B := tsum_nonneg hb_nonneg
   refine ⟨2 * C₅ * C₃ * (B + 1), by positivity, ?_⟩
-  intro R a ξ N hN hnorm hsep left right hleft_right
+  intro ι _ a ξ N hN hnorm hsep left right hleft_right
   let F : ℝ → ℝ := expSumSq a ξ
-  have hF_nonneg : ∀ t, 0 ≤ F t := fun t => sq_nonneg _
-  have hF_cont : Continuous F := by
-    dsimp [F]
-    unfold expSumSq expSum
-    fun_prop
+  have hF_nonneg : ∀ t, 0 ≤ F t := expSumSq_nonneg a ξ
+  have hF_cont : Continuous F := expSumSq_continuous a ξ
   have hlocal := hlocal_bound a ξ N hN hnorm hsep
   have hE := hkernel_bound N hN left right hleft_right
   let weight : ℝ → ℝ → ℝ :=
@@ -1126,7 +1133,7 @@ theorem goal6 :
 -- ============================================================
 theorem l2_integral_estimate :
     ∃ C : ℝ, 0 < C ∧
-    ∀ {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ) (N : ℝ),
+    ∀ {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (N : ℝ),
     0 < N →
     IsSeparatedFamily (1 / N) ξ →
     ∀ left right T : ℝ,
@@ -1138,7 +1145,7 @@ theorem l2_integral_estimate :
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2 := by
   obtain ⟨C, hC, herror⟩ := goal6
   refine ⟨C, hC, ?_⟩
-  intro R a ξ N hN hsep left right T hT hleft_right
+  intro ι _ a ξ N hN hsep left right T hT hleft_right
   change ∃ θ : ℝ, |θ| ≤ C ∧
     ∫ t in Set.Icc left right, expSumSq a ξ t =
     (T + θ * N) * ∑ r, ‖a r‖ ^ 2
@@ -1160,7 +1167,7 @@ theorem l2_integral_estimate :
   ·
     have hMpos : 0 < M :=
       lt_of_le_of_ne (Finset.sum_nonneg fun r _ => sq_nonneg _) (Ne.symm hM0)
-    set A : Fin R → ℂ := fun r => a r / (Real.sqrt M : ℂ)
+    set A : ι → ℂ := fun r => a r / (Real.sqrt M : ℂ)
     have hAnorm : ∑ r, ‖A r‖ ^ 2 = 1 := goal1 a M rfl hMpos
     have hsqrt_ne : (Real.sqrt M : ℂ) ≠ 0 :=
       Complex.ofReal_ne_zero.mpr (Real.sqrt_ne_zero'.mpr hMpos)
@@ -1203,5 +1210,31 @@ theorem l2_integral_estimate :
         _ = (T + (-err / N) * N) * M := by
           rw [div_mul_cancel₀ (-err) hN.ne']
           ring
+
+/-- Absolute-error form of the $L^2$ integral estimate. -/
+theorem l2_integral_estimate_error :
+    ∃ C : ℝ, 0 < C ∧
+    ∀ {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (N : ℝ),
+    0 < N →
+    IsSeparatedFamily (1 / N) ξ →
+    ∀ left right T : ℝ,
+    T = right - left →
+    left ≤ right →
+    |(∫ t in Set.Icc left right, ‖∑ r, a r * 𝐞 (ξ r * t)‖ ^ 2) -
+        T * ∑ r, ‖a r‖ ^ 2| ≤
+      C * N * ∑ r, ‖a r‖ ^ 2 := by
+  obtain ⟨C, hC, hestimate⟩ := l2_integral_estimate
+  refine ⟨C, hC, ?_⟩
+  intro ι _ a ξ N hN hsep left right T hT hleft_right
+  obtain ⟨θ, hθ, hidentity⟩ :=
+    hestimate a ξ N hN hsep left right T hT hleft_right
+  let S := ∑ r, ‖a r‖ ^ 2
+  have hS : 0 ≤ S := Finset.sum_nonneg fun r _ => sq_nonneg ‖a r‖
+  rw [hidentity]
+  calc
+    |(T + θ * N) * S - T * S| = |θ| * N * S := by
+      rw [show (T + θ * N) * S - T * S = θ * N * S by ring,
+        abs_mul, abs_mul, abs_of_pos hN, abs_of_nonneg hS]
+    _ ≤ C * N * S := by gcongr
 
 end

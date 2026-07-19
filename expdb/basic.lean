@@ -28,17 +28,17 @@ open Filter Topology Real
 --  Separated families and sets
 -- ===========================================================
 
-/-- A family of real numbers is `δ`-separated when distinct indices have values at least
-`δ` apart. -/
-def IsSeparatedFamily {ι : Type*} (δ : ℝ) (x : ι → ℝ) : Prop :=
-  ∀ i j, i ≠ j → δ ≤ |x i - x j|
+/-- A family in a pseudo-metric space is `δ`-separated when distinct indices have values at
+least `δ` apart. This uses a non-strict inequality, unlike `Metric.IsSeparated`. -/
+def IsSeparatedFamily {ι α : Type*} [PseudoMetricSpace α] (δ : ℝ) (x : ι → α) : Prop :=
+  Pairwise fun i j => δ ≤ dist (x i) (x j)
 
 /-- λ-Separated Sets: distance between distinct elements is at least λ -/
-def IsLambdaSeparated (lam : ℝ) (W : Finset ℝ) : Prop :=
-  IsSeparatedFamily lam fun t : W.attach => (t : ℝ)
+def IsLambdaSeparated {α : Type*} [PseudoMetricSpace α] (lam : ℝ) (W : Finset α) : Prop :=
+  IsSeparatedFamily lam fun t : W => (t : α)
 
 /-- 1-Separated Sets: distance between distinct elements is at least 1. -/
-abbrev IsOneSeparated (W : Finset ℝ) : Prop :=
+abbrev IsOneSeparated {α : Type*} [PseudoMetricSpace α] (W : Finset α) : Prop :=
   IsLambdaSeparated 1 W
 
 -- ===========================================================
@@ -148,94 +148,30 @@ theorem underspill (X Y : ℕ → ℝ) :
     (X ≤o Y) ↔
     (∀ ε : ℝ, ε > 0 → X ≤o (fun i => Y i + ε)) := by
   constructor
-
-  -- =======================
-  -- Forward Direction (→)
-  -- =======================
   · intro ⟨εseq, hεseq_inf, hεseq_bound⟩ ε hε
-    -- We choose the exact same sequence εseq
-    -- x_i ≤ y_i + εseq_i ≤ y_i + ε + εseq_i
-    use εseq
-    constructor
-    · exact hεseq_inf
+    refine ⟨εseq, hεseq_inf, ?_⟩
     · filter_upwards [hεseq_bound] with i hi
-      -- hi : x_i ≤ y_i + εseq_i
-      -- Goal: x_i ≤ (y_i + ε) + εseq_i
       linarith
-
-  -- =======================
-  -- Backward Direction (←)
-  -- =======================
   · intro h
-    -- We want to construct an infinitesimal sequence d_i such that x_i ≤ y_i + d_i
-    -- Strategy: For each c > 0, by hypothesis with ε = c/2:
-    --   x_i ≤ y_i + c/2 + d_i where d_i → 0
-    --   For sufficiently large i: d_i < c/2
-    --   Therefore: x_i ≤ y_i + c
-    -- This implies: x_i - y_i ≤ c for all c > 0
-    -- We build the sequence explicitly.
-
-    -- For each n : ℕ, use ε = 1/(n+1)
-    -- From the hypothesis, we obtain d^n_i such that x_i ≤ y_i + 1/(n+1) + d^n_i
-    -- We define ε_i = inf_{n} (1/(n+1) + d^n_i)
-    -- However, this is complex, so we use a more direct approach:
-
-    -- We define z_i = max(x_i - y_i, 0)
-    -- and prove that z_i → 0
-
-    -- First, we prove: ∀ c > 0, ∀ᶠ i, x_i - y_i < c
     have key : ∀ c : ℝ, c > 0 → ∀ᶠ i in atTop, X i - Y i < c := by
       intro c hc
-      -- Use the hypothesis with ε = c/2
       have hc2 : c / 2 > 0 := by linarith
       obtain ⟨dseq, hdseq_inf, hdseq_bound⟩ := h (c / 2) hc2
-      -- dseq → 0, so ∀ᶠ i, |dseq i| < c/2
       rw [Metric.tendsto_nhds] at hdseq_inf
       have hdseq_small := hdseq_inf (c / 2) hc2
-      -- For sufficiently large i: x_i ≤ y_i + c/2 + dseq_i and |dseq_i| < c/2
       filter_upwards [hdseq_bound, hdseq_small] with i hi_bound hi_small
-      -- hi_bound : x_i ≤ y_i + c/2 + dseq_i
-      -- hi_small : dist (dseq i) 0 < c/2, i.e., |dseq_i| < c/2
       rw [Real.dist_eq] at hi_small
       simp at hi_small
-      -- dseq_i < c/2 follows from |dseq_i| < c/2
-      have hdseq_lt : dseq i < c / 2 := by
-        exact lt_of_abs_lt hi_small
+      have hdseq_lt : dseq i < c / 2 := lt_of_abs_lt hi_small
       linarith
-
-    -- Now we construct the infinitesimal sequence
-    -- We use the sequence z_i = max(x_i - y_i, 0)
-    -- and prove that it converges to 0
-
-    -- Alternatively, more simply: we use x_i - y_i directly
-    -- and prove that (x_i - y_i)⁺ → 0, then conclude
-
-    -- For simplicity, we show the existence of ε_i = max(x_i - y_i, 1/i) approximately
-    -- But the simplest proof uses the squeeze theorem
-
-    -- We define ε_i explicitly via: for any i, take 1/(i+1) as an approximation
-    -- If x_i ≤ y_i + 1/(i+1) + d_i where d_i → 0
-
-    -- Direct proof: we show x_i - y_i → 0 by definition
-    use fun i => max (X i - Y i) 0
-    constructor
-    · -- We prove that max(x_i - y_i, 0) → 0
+    refine ⟨fun i => max (X i - Y i) 0, ?_, Filter.Eventually.of_forall fun i => ?_⟩
+    ·
       rw [Metric.tendsto_nhds]
       intro δ hδ
-      -- From key with c = δ
-      have h_ev := key δ hδ
-      -- We also need x_i - y_i > -δ, but this is not guaranteed
-      -- In fact, max(z, 0) ≤ |z|, so it suffices that |x_i - y_i| < δ
-      -- But key only provides x_i - y_i < δ
-      -- We use key with c = δ
-      filter_upwards [h_ev] with i hi
-      -- hi : x_i - y_i < δ
+      filter_upwards [key δ hδ] with i hi
       rw [Real.dist_eq, sub_zero, abs_of_nonneg (le_max_right _ _)]
       exact max_lt hi hδ
-    · -- We prove x_i ≤ y_i + max(x_i - y_i, 0)
-      apply Filter.Eventually.of_forall
-      intro i
-      have : max (X i - Y i) 0 ≥ X i - Y i := le_max_left _ _
+    · have : X i - Y i ≤ max (X i - Y i) 0 := le_max_left _ _
       linarith
 
 -- ============================================================
@@ -256,23 +192,25 @@ def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Pr
 -- Proposition 2.1 — Automatic uniformity
 -- ============================================================
 
--- Helper: rewrite |f(φ m)(y(φ m))| as |f(φ m)(x_bad m)| avoiding cast issues.
+private noncomputable def extend_subsequence
+    (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
+    (φ : ℕ → ℕ) (x : ∀ n, E (φ n)) : ∀ j, E j := by
+  classical
+  exact fun j =>
+    if h : ∃ n, φ n = j then
+      (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x h.choose
+    else ⟨(hE j).choose, (hE j).choose_spec⟩
+
 open Classical in
-private lemma abs_y_eq_abs_x_bad
-    {E : ℕ → Set ℝ} {f : ∀ i, E i → ℂ}
-    {φ : ℕ → ℕ} (hφ : StrictMono φ)
-    {x_bad : ∀ n, E (φ n)}
-    {default_elem : ∀ i, E i}
-    (m : ℕ) :
-    let y : ∀ j, E j := fun j =>
-      if h : ∃ n, φ n = j then
-        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
-      else default_elem j
-    ‖f (φ m) (y (φ m))‖ = ‖f (φ m) (x_bad m)‖ := by
-  simp only []
+private lemma norm_extend_subsequence_apply
+    {E : ℕ → Set ℝ} (hE : ∀ i, (E i).Nonempty)
+    {f : ∀ i, E i → ℂ} {φ : ℕ → ℕ} (hφ : StrictMono φ)
+    (x : ∀ n, E (φ n)) (m : ℕ) :
+    ‖f (φ m) (extend_subsequence E hE φ x (φ m))‖ = ‖f (φ m) (x m)‖ := by
+  simp only [extend_subsequence]
   split_ifs with h
   · have hm : h.choose = m := hφ.injective h.choose_spec
-    have hx : x_bad h.choose ≍ x_bad m := by rw [hm]
+    have hx : x h.choose ≍ x m := by rw [hm]
     apply congrArg
     apply congrArg
     apply eq_of_heq
@@ -299,14 +237,7 @@ theorem automatic_uniformity_i
       rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
       exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
-    -- Extend x_bad to a full variable sequence y
-    let default_elem : ∀ i, E i :=
-      fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
-    classical
-    let y : ∀ j, E j := fun j =>
-      if h : ∃ n, φ n = j then
-        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
-      else default_elem j
+    let y : ∀ j, E j := extend_subsequence E hE φ x_bad
     -- Apply pointwise bound to y
     obtain ⟨C_y, hC_y⟩ := hf y
     rw [Filter.eventually_atTop] at hC_y
@@ -317,9 +248,7 @@ theorem automatic_uniformity_i
       obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
       exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
     -- Derive contradiction
-    have heq :=
-      abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
-        (default_elem := default_elem) hφ m
+    have heq := norm_extend_subsequence_apply hE (f := f) hφ x_bad m
     linarith [hj₀ (φ m) hm_ge,
               hx_bad m,
               show C_y < (m:ℝ) from
@@ -354,20 +283,12 @@ theorem automatic_uniformity_ii
       fun j => by obtain ⟨i, hi, x, hx⟩ := h_fail j; exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ :=
       extract_bad_seq_ii E f bad
-    let default_elem : ∀ i, E i :=
-      fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
-    classical
-    let y : ∀ j, E j := fun j =>
-      if h : ∃ m, φ m = j then
-        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
-      else default_elem j
+    let y : ∀ j, E j := extend_subsequence E hE φ x_bad
     have hfy := hf y
     rw [Metric.tendsto_atTop] at hfy
     obtain ⟨N₀, hN₀⟩ := hfy (1/(2*n)) (by positivity)
     obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop N₀) |>.exists
-    have heq :=
-      abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
-      (default_elem := default_elem) hφ m
+    have heq := norm_extend_subsequence_apply hE (f := f) hφ x_bad m
     have h1 : ‖f (φ m) (y (φ m))‖ < 1/(2*n) := by
       have := hN₀ (φ m) hm
       rwa [Real.dist_eq, sub_zero, abs_of_nonneg (norm_nonneg _)] at this
