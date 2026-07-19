@@ -3,6 +3,8 @@ import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.Distribution.FourierSchwartz
 import Mathlib.Analysis.InnerProductSpace.Orthonormal
+import Mathlib.Algebra.Order.Interval.Set.Group
+import Mathlib.Analysis.PSeries
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 import Mathlib.Tactic
@@ -452,12 +454,11 @@ theorem goal2 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 -- Goal 2 at scale M then gives c·∫_J F ≤ M ≪ψ N.
 -- ============================================================
 
-theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+private theorem goal3_uniform {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
     (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
-    (hsep : IsSeparatedFamily (1 / N) ξ)
-    (a₀ : ℝ) :
-    ∃ C : ℝ, 0 < C ∧
+    (hsep : IsSeparatedFamily (1 / N) ξ) :
+    ∃ C : ℝ, 0 < C ∧ ∀ a₀ : ℝ,
     ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ C * N := by
   obtain ⟨c, δ, hc, hδ, hlb⟩ := psiHat_lower_bound
   -- Enlarge the smoothing scale so that the whole interval lies in the
@@ -475,6 +476,8 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     apply le_trans _ (hsep r s hrs)
     apply (div_le_div_iff₀ hM hN).2
     simpa using hNM
+  refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
+  intro a₀
   set t₀ := a₀ + N / 2
   have h2 := goal2 a ξ M hM t₀ hnorm hsepM
   have hlb_J : ∀ t ∈ Set.Icc a₀ (a₀ + N),
@@ -500,7 +503,6 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     by_contra h
     rw [integral_undef h] at h2
     linarith
-  refine ⟨(1 + 1 / δ) / c, by positivity, ?_⟩
   have hFub : c * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ M := by
     calc c * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t
         = ∫ t in Set.Icc a₀ (a₀ + N), c * expSumSq a ξ t :=
@@ -526,6 +528,16 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
   apply (le_div_iff₀ hc).2
   nlinarith
 
+theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
+    (N : ℝ) (hN : 0 < N)
+    (hnorm : ∑ r, ‖a r‖ ^ 2 = 1)
+    (hsep : IsSeparatedFamily (1 / N) ξ)
+    (a₀ : ℝ) :
+    ∃ C : ℝ, 0 < C ∧
+    ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t ≤ C * N := by
+  obtain ⟨C, hC, hlocal⟩ := goal3_uniform a ξ N hN hnorm hsep
+  exact ⟨C, hC, hlocal a₀⟩
+
 -- ============================================================
 -- GOAL 4: ∫_I F = T - ∫_ℝ F·E  (Fubini identity)
 --
@@ -540,6 +552,21 @@ theorem goal3 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 def kernelE (N : ℝ) (a₀ b₀ : ℝ) (t : ℝ) : ℝ :=
   (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2) -
   Set.indicator (Set.Icc a₀ b₀) (fun _ => (1 : ℝ)) t
+
+private lemma kernelAverage_eq_intervalIntegral (N : ℝ) (hN : 0 < N)
+    (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) (t : ℝ) :
+    (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2) =
+    ∫ u in (t - b₀) / N..(t - a₀) / N, ‖psiHat u‖ ^ 2 := by
+  rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hab]
+  have hchange : (fun t₀ : ℝ => ‖psiHat ((t - t₀) / N)‖ ^ 2) =
+      fun t₀ => ‖psiHat (t / N - t₀ / N)‖ ^ 2 := by
+    funext t₀
+    rw [sub_div]
+  rw [hchange]
+  simpa only [one_div, smul_eq_mul] using
+    (intervalIntegral.inv_smul_integral_comp_sub_div
+      (f := fun u : ℝ => ‖psiHat u‖ ^ 2) (a := a₀) (b := b₀) N (t / N)).trans (by
+        congr 1 <;> field_simp)
 
 theorem goal4 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N)
@@ -734,18 +761,9 @@ theorem goal5 (N : ℝ) (hN : 0 < N)
   have hd : 0 ≤ d := le_min (abs_nonneg _) (abs_nonneg _)
   have hsubst : (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, f ((t - t₀) / N)) =
       ∫ u in Set.Icc Aₜ Bₜ, f u := by
-    rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hab]
-    rw [integral_Icc_eq_integral_Ioc, ← intervalIntegral.integral_of_le hAB]
-    have hchange : (fun t₀ : ℝ => f ((t - t₀) / N)) =
-        fun t₀ => f (t / N - t₀ / N) := by
-      funext t₀
-      congr 1
-      ring
-    rw [hchange]
-    simpa only [one_div, smul_eq_mul, Aₜ, Bₜ] using
-      (intervalIntegral.inv_smul_integral_comp_sub_div
-        (f := f) (a := a₀) (b := b₀) N (t / N)).trans (by
-          congr 1 <;> field_simp)
+    simpa only [f, Aₜ, Bₜ, intervalIntegral.integral_of_le hAB,
+      integral_Icc_eq_integral_Ioc] using
+      kernelAverage_eq_intervalIntegral N hN a₀ b₀ hab t
   have hd_eq : d = min (|t - a₀| / N) (|t - b₀| / N) := by
     dsimp [d, Aₜ, Bₜ]
     rw [abs_div, abs_div, abs_of_pos hN]
@@ -815,17 +833,43 @@ theorem goal5 (N : ℝ) (hN : 0 < N)
     exact (setIntegral_mono_set hf_int.integrableOn (ae_of_all _ hf_nonneg)
       (ae_of_all _ hsubset)).trans (htail d hd)
 
+private lemma kernelE_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
+    (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
+    AEStronglyMeasurable (kernelE N a₀ b₀) := by
+  let f : ℝ → ℝ := fun u => ‖psiHat u‖ ^ 2
+  have hf_int : Integrable f := by
+    by_contra h
+    have hzero := psiHat_l2
+    change ∫ u : ℝ, f u = 1 at hzero
+    rw [integral_undef h] at hzero
+    norm_num at hzero
+  let P : ℝ → ℝ := fun x => ∫ u in 0..x, f u
+  have hP_cont : Continuous P :=
+    intervalIntegral.continuous_primitive (fun x y => hf_int.intervalIntegrable) 0
+  have havg : (fun t : ℝ =>
+      (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2)) =
+      fun t => P ((t - a₀) / N) - P ((t - b₀) / N) := by
+    funext t
+    rw [kernelAverage_eq_intervalIntegral N hN a₀ b₀ hab t]
+    dsimp [P]
+    exact (intervalIntegral.integral_interval_sub_left
+      hf_int.intervalIntegrable hf_int.intervalIntegrable).symm
+  have havg_cont : Continuous (fun t : ℝ =>
+      (1 / N) * (∫ t₀ in Set.Icc a₀ b₀, ‖psiHat ((t - t₀) / N)‖ ^ 2)) := by
+    rw [havg]
+    exact (hP_cont.comp ((continuous_id.sub continuous_const).div_const N)).sub
+      (hP_cont.comp ((continuous_id.sub continuous_const).div_const N))
+  have hind_meas : AEStronglyMeasurable
+      (Set.indicator (Set.Icc a₀ b₀) (fun _ => (1 : ℝ))) :=
+    (Measurable.indicator measurable_const measurableSet_Icc).aestronglyMeasurable
+  exact havg_cont.aestronglyMeasurable.sub hind_meas
+
 -- ============================================================
--- GOAL 6: ∫_ℝ F·E ≪ N  (dyadic decomposition)
+-- GOAL 6: ∫_ℝ F·E ≪ N  (integer-cell summation)
 --
--- From handwritten proof:
---   Case 1 (N ≪ T): divide I into J_k with |J_k| = N
---     Layer ℓ: J with dist(J,∂I) ~ 2^ℓN, contains ~2^ℓ intervals
---     |E(t)| ≪ (2^ℓ)^{-10}  (by Goal 5)
---     ∫_J F ≤ CN  (by Goal 3 = eq 3.2)
---     Sum: ∑_ℓ 2^ℓ · CN · 2^{-10ℓ} = CN ∑ 2^{-9ℓ} ≪ N
---   Cases B,C (outside I): same method
---   Case 2 (T ≪ N): direct application of (3.2)
+-- Partition ℝ into intervals [c+kN,c+(k+1)N), k ∈ ℤ.  Goal 3 gives a
+-- uniform O(N) bound on every cell, while Goal 5 contributes a summable
+-- shifted p-series in k.  Apply this once at each endpoint of I.
 -- ============================================================
 
 theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
@@ -835,101 +879,235 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (a₀ b₀ : ℝ) (hab : a₀ ≤ b₀) :
     ∃ C : ℝ, 0 < C ∧
     |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t| ≤ C * N := by
-  set T := b₀ - a₀
-  obtain ⟨C₃, hC₃, hG3⟩ := goal3 a ξ N hN hnorm hsep a₀
-  obtain ⟨C₅, hC₅, hG5⟩ := goal5 N hN a₀ b₀ hab
-  -- Case 2: T ≤ N (I fits inside one interval J)
-  by_cases hTN : T ≤ N
-  · -- Direct application of Goal 3
-    refine ⟨C₃ * C₅, by positivity, ?_⟩
-    calc |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t|
-        ≤ ∫ t : ℝ, expSumSq a ξ t * |kernelE N a₀ b₀ t| := by
-          apply (abs_integral_le_integral_abs _).trans
-          apply integral_mono_ae
-          · sorry; · sorry
-          · apply ae_of_all; intro t
-            exact mul_le_mul_of_nonneg_left (le_abs_self _)
-              (by simp [expSumSq]; positivity)
-      _ ≤ ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t * C₅ := by
-          -- |E| ≤ C₅ · 1 on [a₀, a₀+N] ⊇ I
-          apply integral_mono_of_subset
-          · intro t ht
-            exact ⟨ht.1, le_trans ht.2 (by linarith)⟩
-          · apply ae_of_all; intro t
-            apply mul_le_mul_of_nonneg_left _ (by simp [expSumSq]; positivity)
-            exact le_trans (hG5 t) (by
-              apply mul_le_mul_of_nonneg_left _ hC₅.le
-              simp [Real.rpow_neg_nonpos])
-          · sorry
-      _ = C₅ * ∫ t in Set.Icc a₀ (a₀ + N), expSumSq a ξ t := by
-          rw [← integral_const_mul]; congr 1; ext t; ring
-      _ ≤ C₅ * (C₃ * N) := mul_le_mul_of_nonneg_left (hG3 a₀) hC₅.le
-      _ = C₃ * C₅ * N := by ring
-  -- Case 1: T > N (dyadic decomposition)
-  · push_neg at hTN
-    -- L = ⌈log₂(T/N)⌉ layers
-    set L := Nat.ceil (Real.log (T / N) / Real.log 2)
-    refine ⟨C₃ * C₅ * 4 / (1 - (2:ℝ)^(-(9:ℝ))), by
-      apply div_pos; positivity
-      linarith [Real.rpow_lt_one (by norm_num) (by norm_num : (0:ℝ) < 2) (by norm_num)],
-      ?_⟩
-    -- The dyadic decomposition argument
-    -- Layer ℓ: intervals J with dist(c(J),∂I) ∈ [2^ℓN, 2^{ℓ+1}N)
-    -- # intervals in layer ℓ: ≤ 2^{ℓ+1}
-    -- |E(t)| on layer ℓ: ≤ C₅ · (2^ℓ)^{-10}
-    -- ∫_J F ≤ C₃ · N  (by Goal 3)
-    -- Sum over layers: ∑_{ℓ=0}^{L} 2^{ℓ+1} · C₃N · C₅·(2^ℓ)^{-10}
-    --                = 2C₃C₅N ∑_{ℓ=0}^{L} 2^{-9ℓ}
-    --                ≤ 2C₃C₅N · 1/(1-2^{-9})
-    calc |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t|
-        ≤ ∑ ℓ in Finset.range (L + 1),
-            ∑ k in Finset.range (2^(ℓ+1)),
-            |∫ t in Set.Icc (a₀ - (k+1) * N) (a₀ - k * N),
-              expSumSq a ξ t * kernelE N a₀ b₀ t| +
-          ∑ ℓ in Finset.range (L + 1),
-            ∑ k in Finset.range (2^(ℓ+1)),
-            |∫ t in Set.Icc (b₀ + k * N) (b₀ + (k+1) * N),
-              expSumSq a ξ t * kernelE N a₀ b₀ t| := by
-          sorry -- partition ℝ into layers
-      _ ≤ ∑ ℓ in Finset.range (L + 1), (2^(ℓ+1) : ℝ) * (C₃ * N) *
-            (C₅ * (2^ℓ)^(-(10:ℝ))) +
-          ∑ ℓ in Finset.range (L + 1), (2^(ℓ+1) : ℝ) * (C₃ * N) *
-            (C₅ * (2^ℓ)^(-(10:ℝ))) := by
-          apply add_le_add
-          all_goals {
-            apply Finset.sum_le_sum; intro ℓ _
-            apply Finset.sum_le_sum_of_subset; simp
-          }
-      _ = 2 * (C₃ * C₅ * N) * ∑ ℓ in Finset.range (L + 1), (2:ℝ)^(-(9:ℝ)*ℓ)  := by
-  have hstep : ∀ ℓ : ℕ, (2^(ℓ+1) : ℝ) * (C₃ * N) * (C₅ * (2^ℓ)^(-(10:ℝ))) =
-      2 * (C₃ * C₅ * N) * (2^(-(9:ℝ)))^ℓ := by
-    intro ℓ
-    have h1 : (2 : ℝ)^(ℓ+1) = 2 * 2^ℓ := by ring
-    have h2 : ((2:ℝ)^ℓ)^(-(10:ℝ)) = ((2:ℝ)^(-(9:ℝ)))^ℓ / (2:ℝ)^ℓ := by
-      rw [← Real.rpow_natCast 2 ℓ]
-      rw [← Real.rpow_mul (by norm_num)]
-      rw [← Real.rpow_natCast 2 ℓ]
-      simp [Real.rpow_neg, mul_comm]
-    rw [h1, h2]
-    ring
-  simp_rw [hstep]
-  rw [← Finset.mul_sum]
-      -- Geometric series: ∑_{ℓ=0}^{L} 2^{-9ℓ} ≤ 1/(1-2^{-9})
-      _ ≤ 2 * (C₃ * C₅ * N) * (1 / (1 - (2:ℝ)^(-(9:ℝ)))) := by
-          apply mul_le_mul_of_nonneg_left _ (by positivity)
-          calc ∑ ℓ in Finset.range (L + 1), (2:ℝ)^(-(9:ℝ)*ℓ)
-              ≤ ∑' ℓ : ℕ, (2:ℝ)^(-(9:ℝ)*ℓ) := by
-                apply sum_le_tsum (Finset.subset_univ _)
-                · intro ℓ _; positivity
-                · apply Summable.of_nonneg_of_le
-                  · intro ℓ; positivity
-                  · intro ℓ; exact le_refl _
-                  · apply summable_geometric_of_abs_lt_one <;> norm_num
-            _ = 1 / (1 - (2:ℝ)^(-(9:ℝ))) := by
-                rw [tsum_geometric_of_abs_lt_one]
-                · norm_num
-                · norm_num
-      _ = C₃ * C₅ * 4 / (1 - (2:ℝ)^(-(9:ℝ))) * N := by ring
+  let F : ℝ → ℝ := expSumSq a ξ
+  have hF_nonneg : ∀ t, 0 ≤ F t := fun t => sq_nonneg _
+  have hF_cont : Continuous F := by
+    dsimp [F]
+    unfold expSumSq expSum e
+    fun_prop
+  obtain ⟨C₃, hC₃, hlocal⟩ := goal3_uniform a ξ N hN hnorm hsep
+  obtain ⟨C₅, hC₅, hE⟩ := goal5 N hN a₀ b₀ hab
+  let weight : ℝ → ℝ → ℝ :=
+    fun c t => (1 + |t - c| / N) ^ (-(10 : ℝ))
+  have hweight_nonneg : ∀ c t, 0 ≤ weight c t :=
+    fun c t => Real.rpow_nonneg (by positivity) _
+  have hweight_cont : ∀ c, Continuous (weight c) := by
+    intro c
+    dsimp [weight]
+    apply Continuous.rpow_const
+    · fun_prop
+    · intro t
+      left
+      positivity
+  let W : ℝ → ℝ → ℝ := fun c t => F t * weight c t
+  have hW_nonneg : ∀ c t, 0 ≤ W c t :=
+    fun c t => mul_nonneg (hF_nonneg t) (hweight_nonneg c t)
+  have hW_cont : ∀ c, Continuous (W c) :=
+    fun c => hF_cont.mul (hweight_cont c)
+  let cell : ℝ → ℤ → Set ℝ :=
+    fun c k => Set.Ico (c + k • N) (c + (k + 1) • N)
+  have hcell_meas : ∀ c k, MeasurableSet (cell c k) :=
+    fun c k => measurableSet_Ico
+  have hcell_pairwise : ∀ c, Pairwise (fun i j => Disjoint (cell c i) (cell c j)) := by
+    intro c
+    simpa only [cell] using Set.pairwise_disjoint_Ico_add_zsmul c N
+  have hcell_cover : ∀ c, ⋃ k : ℤ, cell c k = Set.univ := by
+    intro c
+    simpa only [cell] using iUnion_Ico_add_zsmul hN c
+  let b : ℤ → ℝ := fun k => |(k : ℝ) + 1 / 2| ^ (-(10 : ℝ))
+  have hb_nonneg : ∀ k, 0 ≤ b k :=
+    fun k => Real.rpow_nonneg (abs_nonneg _) _
+  have hb_summable : Summable b := by
+    have h := (Real.summable_one_div_int_add_rpow (1 / 2) 10).2 (by norm_num)
+    apply h.congr
+    intro k
+    dsimp [b]
+    rw [Real.rpow_neg (abs_nonneg _)]
+    rw [one_div]
+  let B := ∑' k : ℤ, b k
+  have hB : 0 ≤ B := tsum_nonneg hb_nonneg
+  have hcell_weight : ∀ c k t, t ∈ cell c k → weight c t ≤ b k := by
+    intro c k t ht
+    have ht' : c + (k : ℝ) * N ≤ t ∧ t < c + ((k : ℝ) + 1) * N := by
+      simpa only [cell, zsmul_eq_mul, Int.cast_add, Int.cast_one] using ht
+    let x := (t - c) / N
+    have hx_left : (k : ℝ) ≤ x := by
+      apply (le_div_iff₀ hN).2
+      dsimp [x]
+      linarith [ht'.1]
+    have hx_right : x < (k : ℝ) + 1 := by
+      apply (div_lt_iff₀ hN).2
+      dsimp [x]
+      linarith [ht'.2]
+    have hmid_pos : 0 < |(k : ℝ) + 1 / 2| := by
+      rw [abs_pos]
+      intro hk
+      have hk' : (2 : ℝ) * (k : ℝ) = -1 := by linarith
+      have hk'' : (2 * k : ℤ) = -1 := by exact_mod_cast hk'
+      omega
+    have hmid : |((k : ℝ) + 1 / 2) - x| ≤ 1 / 2 := by
+      rw [abs_le]
+      constructor <;> linarith
+    have hbase : |(k : ℝ) + 1 / 2| ≤ 1 + |x| := by
+      calc
+        |(k : ℝ) + 1 / 2| = |(((k : ℝ) + 1 / 2) - x) + x| := by ring_nf
+        _ ≤ |((k : ℝ) + 1 / 2) - x| + |x| := abs_add_le _ _
+        _ ≤ 1 / 2 + |x| := by linarith
+        _ ≤ 1 + |x| := by linarith
+    have hrpow := Real.rpow_le_rpow_of_nonpos hmid_pos hbase (by norm_num : (-(10 : ℝ)) ≤ 0)
+    have hxabs : |t - c| / N = |x| := by
+      dsimp [x]
+      rw [abs_div, abs_of_pos hN]
+    simpa only [weight, b, hxabs] using hrpow
+  have hcell_bound : ∀ c k,
+      ∫ t in cell c k, W c t ≤ b k * (C₃ * N) := by
+    intro c k
+    let s := c + k • N
+    have hend : c + (k + 1) • N = s + N := by
+      dsimp [s]
+      rw [add_smul, one_smul]
+      ring
+    have hcell_eq : cell c k = Set.Ico s (s + N) := by
+      dsimp [cell]
+      rw [hend]
+    have hWcell : IntegrableOn (W c) (cell c k) :=
+      (hW_cont c).integrableOn_Icc.mono_set (by
+        rw [hcell_eq]
+        exact Set.Ico_subset_Icc_self)
+    have hbFcell : IntegrableOn (fun t => b k * F t) (cell c k) :=
+      ((continuous_const.mul hF_cont).integrableOn_Icc).mono_set (by
+        rw [hcell_eq]
+        exact Set.Ico_subset_Icc_self)
+    have hFcell :
+        ∫ t in cell c k, F t ≤ ∫ t in Set.Icc s (s + N), F t := by
+      apply setIntegral_mono_set hF_cont.integrableOn_Icc
+        (ae_of_all _ fun t => hF_nonneg t)
+      apply ae_of_all
+      rw [hcell_eq]
+      exact Set.Ico_subset_Icc_self
+    calc
+      ∫ t in cell c k, W c t ≤ ∫ t in cell c k, b k * F t := by
+        apply setIntegral_mono_on hWcell hbFcell (hcell_meas c k)
+        intro t ht
+        dsimp [W]
+        calc
+          F t * weight c t ≤ F t * b k :=
+            mul_le_mul_of_nonneg_left (hcell_weight c k t ht) (hF_nonneg t)
+          _ = b k * F t := by ring
+      _ = b k * ∫ t in cell c k, F t := integral_const_mul _ _
+      _ ≤ b k * ∫ t in Set.Icc s (s + N), F t :=
+        mul_le_mul_of_nonneg_left hFcell (hb_nonneg k)
+      _ ≤ b k * (C₃ * N) :=
+        mul_le_mul_of_nonneg_left (hlocal s) (hb_nonneg k)
+  have hW : ∀ c, Integrable (W c) ∧ ∫ t : ℝ, W c t ≤ B * (C₃ * N) := by
+    intro c
+    have hcell_int : ∀ k, IntegrableOn (W c) (cell c k) := by
+      intro k
+      exact (hW_cont c).integrableOn_Icc.mono_set Set.Ico_subset_Icc_self
+    have hmajor_summable : Summable (fun k => b k * (C₃ * N)) :=
+      hb_summable.mul_right (C₃ * N)
+    have hsum_norm : Summable (fun k => ∫ t in cell c k, ‖W c t‖) := by
+      refine Summable.of_nonneg_of_le
+        (f := fun k => b k * (C₃ * N)) (g := fun k => ∫ t in cell c k, ‖W c t‖) ?_ ?_
+        hmajor_summable
+      · intro k
+        exact setIntegral_nonneg (hcell_meas c k) fun t _ => norm_nonneg _
+      · intro k
+        rw [show (fun t => ‖W c t‖) = W c by
+          funext t
+          exact Real.norm_of_nonneg (hW_nonneg c t)]
+        exact hcell_bound c k
+    have hsum : Summable (fun k => ∫ t in cell c k, W c t) := by
+      apply hsum_norm.congr
+      intro k
+      rw [show (fun t => ‖W c t‖) = W c by
+        funext t
+        exact Real.norm_of_nonneg (hW_nonneg c t)]
+    have hW_int : Integrable (W c) := by
+      have hu := integrableOn_iUnion_of_summable_integral_norm hcell_int hsum_norm
+      rw [hcell_cover c] at hu
+      simpa only [integrableOn_univ] using hu
+    refine ⟨hW_int, ?_⟩
+    have hpartition :
+        ∫ t : ℝ, W c t = ∑' k : ℤ, ∫ t in cell c k, W c t := by
+      rw [← setIntegral_univ, ← hcell_cover c]
+      exact integral_iUnion (hcell_meas c) (hcell_pairwise c) hW_int.integrableOn
+    rw [hpartition]
+    calc
+      ∑' k : ℤ, ∫ t in cell c k, W c t ≤ ∑' k : ℤ, b k * (C₃ * N) :=
+        hsum.tsum_le_tsum (hcell_bound c) hmajor_summable
+      _ = B * (C₃ * N) := by
+        exact hb_summable.tsum_mul_right (C₃ * N)
+  have hmin_split : ∀ t,
+      (1 + min (|t - a₀| / N) (|t - b₀| / N)) ^ (-(10 : ℝ)) ≤
+      weight a₀ t + weight b₀ t := by
+    intro t
+    rcases le_total (|t - a₀| / N) (|t - b₀| / N) with h | h
+    · rw [min_eq_left h]
+      dsimp [weight]
+      exact le_add_of_nonneg_right (Real.rpow_nonneg (by positivity) _)
+    · rw [min_eq_right h]
+      dsimp [weight]
+      exact le_add_of_nonneg_left (Real.rpow_nonneg (by positivity) _)
+  have hmajor : ∀ t,
+      F t * |kernelE N a₀ b₀ t| ≤ C₅ * (W a₀ t + W b₀ t) := by
+    intro t
+    calc
+      F t * |kernelE N a₀ b₀ t| ≤
+          F t * (C₅ * (1 + min (|t - a₀| / N) (|t - b₀| / N)) ^ (-(10 : ℝ))) :=
+        mul_le_mul_of_nonneg_left (hE t) (hF_nonneg t)
+      _ ≤ F t * (C₅ * (weight a₀ t + weight b₀ t)) :=
+        mul_le_mul_of_nonneg_left
+          (mul_le_mul_of_nonneg_left (hmin_split t) hC₅.le) (hF_nonneg t)
+      _ = C₅ * (W a₀ t + W b₀ t) := by
+        dsimp [W]
+        ring
+  have hW_a := hW a₀
+  have hW_b := hW b₀
+  have hmajor_int : Integrable (fun t => C₅ * (W a₀ t + W b₀ t)) :=
+    (hW_a.1.add hW_b.1).const_mul C₅
+  have hkernel_meas := kernelE_aestronglyMeasurable N hN a₀ b₀ hab
+  have hkernel_abs_meas : AEStronglyMeasurable
+      (fun t => |kernelE N a₀ b₀ t|) := by
+    simpa only [Real.norm_eq_abs] using hkernel_meas.norm
+  have hFEabs_meas : AEStronglyMeasurable
+      (fun t => F t * |kernelE N a₀ b₀ t|) :=
+    hF_cont.aestronglyMeasurable.mul hkernel_abs_meas
+  have hFEabs : Integrable (fun t => F t * |kernelE N a₀ b₀ t|) := by
+    apply hmajor_int.mono' hFEabs_meas
+    filter_upwards with t
+    rw [Real.norm_eq_abs, abs_of_nonneg
+      (mul_nonneg (hF_nonneg t) (abs_nonneg _))]
+    exact hmajor t
+  have hFE : Integrable (fun t => F t * kernelE N a₀ b₀ t) := by
+    apply hFEabs.mono' (hF_cont.aestronglyMeasurable.mul hkernel_meas)
+    filter_upwards with t
+    change |F t * kernelE N a₀ b₀ t| ≤ F t * |kernelE N a₀ b₀ t|
+    rw [abs_mul, abs_of_nonneg (hF_nonneg t)]
+  refine ⟨2 * C₅ * C₃ * (B + 1), by positivity, ?_⟩
+  calc
+    |∫ t : ℝ, expSumSq a ξ t * kernelE N a₀ b₀ t| =
+        |∫ t : ℝ, F t * kernelE N a₀ b₀ t| := by rfl
+    _ ≤ ∫ t : ℝ, |F t * kernelE N a₀ b₀ t| :=
+      abs_integral_le_integral_abs
+    _ = ∫ t : ℝ, F t * |kernelE N a₀ b₀ t| := by
+      congr 1
+      funext t
+      rw [abs_mul, abs_of_nonneg (hF_nonneg t)]
+    _ ≤ ∫ t : ℝ, C₅ * (W a₀ t + W b₀ t) :=
+      integral_mono hFEabs hmajor_int hmajor
+    _ = C₅ * ((∫ t : ℝ, W a₀ t) + ∫ t : ℝ, W b₀ t) := by
+      rw [integral_const_mul, integral_add hW_a.1 hW_b.1]
+    _ ≤ C₅ * (B * (C₃ * N) + B * (C₃ * N)) := by
+      gcongr
+      · exact hW_a.2
+      · exact hW_b.2
+    _ ≤ 2 * C₅ * C₃ * (B + 1) * N := by
+      calc
+        C₅ * (B * (C₃ * N) + B * (C₃ * N)) = (2 * C₅ * C₃ * N) * B := by ring
+        _ ≤ (2 * C₅ * C₃ * N) * (B + 1) :=
+          mul_le_mul_of_nonneg_left (le_add_of_nonneg_right zero_le_one) (by positivity)
+        _ = 2 * C₅ * C₃ * (B + 1) * N := by ring
 
 -- ============================================================
 -- GOAL 7: Lemma 3.1 (Assembly)
@@ -940,7 +1118,6 @@ theorem goal6 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
 --         = T + O(N)·1   (by Goal 6: |∫ F·E| ≪ N)
 --              = (T + O(N)) · ∑|aᵣ|²  (by Goal 1: WLOG)
 -- ============================================================
-
 theorem lemma3_1 {R : ℕ} (a : Fin R → ℂ) (ξ : Fin R → ℝ)
     (N : ℝ) (hN : 0 < N) (hsep : IsSeparatedFamily (1 / N) ξ)
     (a₀ b₀ : ℝ) (T : ℝ) (hT : T = b₀ - a₀) (hab : a₀ ≤ b₀) :
