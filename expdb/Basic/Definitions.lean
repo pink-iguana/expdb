@@ -7,9 +7,12 @@ import Mathlib.Topology.MetricSpace.Pseudo.Defs
 
 This module contains the definitions mentioned in Chapter 2 of the ANTEDB blueprint.
 
-Indicator functions, suprema and infima, finite cardinalities, and standard asymptotic relations
-use their existing Mathlib definitions and notation. When the blueprint uses `e(θ)`,
-we use Mathlib's `𝐞 θ` after `open scoped FourierTransform`.
+When a blueprint convention already has a standard Mathlib representation,
+prefer using that representation directly, for example:
+-the notation `e(θ)` is `𝐞 θ` after `open scoped FourierTransform`;
+-for indicator functions, use `Set.indicator`;
+-for suprema and infima, including those of empty sets, use Mathlib's `sSup` and `sInf`;
+-for finite cardinalities use `Finset.card`;
 -/
 
 namespace Expdb

@@ -4,6 +4,7 @@ Expdb.IsOneSeparated
 Expdb.IsBoundedFamily
 Expdb.IsOneBounded
 Expdb.IsLEUpToInfinitesimal
+Expdb.isLEUpToInfinitesimal_iff_forall_pos
 Expdb.underspill
 Expdb.IsPointwiseBounded
 Expdb.IsPointwiseInfinitesimal
