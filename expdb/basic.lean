@@ -1,167 +1,113 @@
-/-
-  ANTEDB Blueprint -- Chapter 2: Basic Notation
-  ===============================================
--/
-
-import Mathlib.Analysis.SpecialFunctions.Complex.Circle
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import Mathlib.Topology.Algebra.Order.LiminfLimsup
+import Mathlib.Analysis.Complex.Circle
 import Mathlib.Analysis.Normed.Field.Basic
-import Mathlib.Analysis.Asymptotics.Defs
-import Mathlib.Data.EReal.Basic
+import Mathlib.Analysis.Complex.Norm
+import Mathlib.Analysis.SpecificLimits.Basic
 import Mathlib.Order.Filter.Basic
 import Mathlib.Topology.MetricSpace.Sequences
 
-open Filter Topology Asymptotics Real
+/-!
+# ANTEDB Blueprint — Chapter 2: Basic notation
+
+This file defines the project-specific notions used in Chapter 2. When a blueprint convention
+already has a standard Mathlib representation, prefer using that representation directly:
+-the notation `e(θ)` is `𝐞 θ` after `open scoped FourierTransform`; it is coerced from
+  `Circle` to `ℂ` when the surrounding expression requires a complex number;
+-indicator functions are written using `Set.indicator`;
+-suprema and infima, including those of empty sets, use Mathlib's `sSup` and `sInf`;
+-finite cardinalities use `Finset.card`;
+-standard asymptotic relations use Mathlib's `Asymptotics` API.
+
+The blueprint also uses non-standard objects indexed by some ambient
+parameter. Their asymptotic properties can be expressed using Mathlib's filter API:
+-a bounded variable `X` satisfies
+ `∃ C : ℝ, ∀ᶠ i in atTop, ‖X i‖ ≤ C`;
+-an unbounded variable `X` satisfies
+ `Tendsto (fun i => ‖X i‖) atTop atTop`;
+-an infinitesimal variable `X` satisfies
+ `Tendsto X atTop (nhds 0)`.
+
+If these conditions recur sufficiently often in later chapters, they may be given the
+project-specific names `IsBoundedVariable`, `IsUnboundedVariable`, and
+`IsInfinitesimalVariable`.
+
+New declarations are introduced here only when the notion used by the blueprint is genuinely
+project-specific or differs from the corresponding Mathlib notion.
+-/
+
+open Filter Topology Real
 
 -- ===========================================================
---  Function e(θ) = exp(2πiθ)
+--  Separated families and sets
 -- ===========================================================
 
-/-- Definition: e(θ) := e^(2πiθ) as defined in Blueprint p. 4 -/
-noncomputable def e (θ : ℝ) : ℂ :=
-  Complex.exp (2 * Real.pi * θ * Complex.I)
-
-/-- Base case: e(0) = 1 -/
-lemma e_zero : e 0 = 1 := by
-  simp [e]
-
-/-- Absolute value / Norm: |e(θ)| = 1 for all θ -/
-lemma norm_e (θ : ℝ) : ‖e θ‖ = 1 := by
-  rw [e, Complex.norm_exp]
-  simp
-
-/-- Homomorphism property: e(θ₁ + θ₂) = e(θ₁) * e(θ₂) -/
-lemma e_add (θ₁ θ₂ : ℝ) : e (θ₁ + θ₂) = e θ₁ * e θ₂ := by
-  simp [e, ← Complex.exp_add]
-  congr 1
-  ring
-
-/-- Periodicity over integers: e(n) = 1 for any n : ℤ -/
-lemma e_int (n : ℤ) : e n = 1 := by
-  have h : (2 * Real.pi * (n : ℝ) * Complex.I) = (n : ℂ) * (2 * Real.pi * Complex.I) := by
-    push_cast; ring
-  rw [e, h]
-  exact Complex.exp_int_mul_two_pi_mul_I n
-
--- ===========================================================
--- Empty Supremum / Infimum Conventions
--- ===========================================================
-
-/-- Convention: empty supremum = -∞ (⊥ in EReal) -/
-lemma blueprintSup_empty_convention :
-    sSup (∅ : Set EReal) = ⊥ :=
-  sSup_empty
-
-/-- Convention: empty infimum = +∞ (⊤ in EReal) -/
-lemma blueprintInf_empty_convention :
-    sInf (∅ : Set EReal) = ⊤ :=
-  sInf_empty
-
-/-- sup_{σ₀ ≤ σ < σ₁} f(σ) = -∞ when σ₁ < σ₀ -/
-noncomputable def blueprintSup (σ₀ σ₁ : ℝ) (f : ℝ → EReal) : EReal :=
-  sSup (f '' {σ : ℝ | σ₀ ≤ σ ∧ σ < σ₁})
-
-lemma blueprintSup_empty {σ₀ σ₁ : ℝ} (f : ℝ → EReal) (h : σ₁ < σ₀) :
-    blueprintSup σ₀ σ₁ f = ⊥ := by
-  have h_empty : {σ : ℝ | σ₀ ≤ σ ∧ σ < σ₁} = ∅ := by
-    ext σ
-    simp only [Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false]
-    intro ⟨h1, h2⟩
-    linarith
-  simp [blueprintSup, h_empty]
-
--- ===========================================================
--- N^(-∞) = 0 Convention
--- ===========================================================
-
-/-- Extended real power: handles N^r for r : EReal.
-    The only special case stated in the blueprint is N^(-∞) = 0 when N > 1.
-    For r = +∞ we leave it as the natural limit (not specified by blueprint). -/
-noncomputable def blueprintPower (N : ℝ) (r : EReal) : ℝ :=
-  if r = ⊥ then 0
-  else N ^ r.toReal
-
-/-- Blueprint convention: N^(-∞) = 0 for N > 1 -/
-lemma blueprintPower_bot {N : ℝ} (hN : N > 1) :
-    blueprintPower N ⊥ = 0 := by
-  simp [blueprintPower]
-
-/-- For finite exponents, blueprintPower agrees with real power -/
-lemma blueprintPower_coe {N : ℝ} (r : ℝ) :
-    blueprintPower N (r : EReal) = N ^ r := by
-  simp [blueprintPower, EReal.coe_ne_bot, EReal.toReal_coe]
-
--- ===========================================================
--- Indicator Function
--- ===========================================================
-
-/-- 1_I(n) = 1 if n ∈ I, else 0 -/
-def indicatorFunction {α : Type*} [DecidableEq α] (I : Set α)
-    [DecidablePred (· ∈ I)] (n : α) : ℝ :=
-  if n ∈ I then 1 else 0
-
-/-- Indicator is 0 or 1 -/
-lemma indicatorFunction_values {α : Type*} [DecidableEq α]
-    (I : Set α) [DecidablePred (· ∈ I)] (n : α) :
-    indicatorFunction I n = 0 ∨ indicatorFunction I n = 1 := by
-  unfold indicatorFunction
-  split_ifs <;> simp
-
--- ===========================================================
--- Cardinality |W| for Finsets
--- ===========================================================
-
-/-- We use Finset.card for cardinality, written |W| in the blueprint.
-    In Lean we use W.card or Finset.card W to avoid notation conflicts. -/
-example (W : Finset ℝ) : W.card = Finset.card W := rfl
-
--- ===========================================================
---  Separated Sequences
--- ===========================================================
-
-/-- 1-Separated Sets: distance between distinct elements is at least 1 -/
-def IsSeparated (W : Finset ℝ) : Prop :=
-  ∀ t ∈ W, ∀ t' ∈ W, t ≠ t' → 1 ≤ |t - t'|
+/-- A family in a pseudo-metric space is `δ`-separated when distinct indices have values at
+least `δ` apart. This uses a non-strict inequality, unlike `Metric.IsSeparated`. -/
+def IsSeparatedFamily {ι α : Type*} [PseudoMetricSpace α] (δ : ℝ) (x : ι → α) : Prop :=
+  Pairwise fun i j => δ ≤ dist (x i) (x j)
 
 /-- λ-Separated Sets: distance between distinct elements is at least λ -/
-def IsLambdaSeparated (lam : ℝ) (W : Finset ℝ) : Prop :=
-  ∀ t ∈ W, ∀ t' ∈ W, t ≠ t' → lam ≤ |t - t'|
+def IsLambdaSeparated {α : Type*} [PseudoMetricSpace α] (lam : ℝ) (W : Finset α) : Prop :=
+  IsSeparatedFamily lam fun t : W => (t : α)
 
-/-- 1-separated is structurally identical to λ-separated with λ = 1 -/
-lemma isSeparated_iff_isLambdaSeparated_one (W : Finset ℝ) :
-    IsSeparated W ↔ IsLambdaSeparated 1 W := by
-  rfl
+/-- 1-Separated Sets: distance between distinct elements is at least 1. -/
+abbrev IsOneSeparated {α : Type*} [PseudoMetricSpace α] (W : Finset α) : Prop :=
+  IsLambdaSeparated 1 W
 
 -- ===========================================================
--- 1-Bounded Sequences
+-- Bounded families
 -- ===========================================================
 
-/-- 1-Bounded complex sequence: |aₙ| ≤ 1 for all n -/
-def IsOneBounded (a : ℕ → ℂ) : Prop :=
-  ∀ n, ‖a n‖ ≤ 1
+/-- A family in a normed type is `C`-bounded when every value has norm at most `C`. -/
+def IsBoundedFamily {ι β : Type*} [Norm β] (C : ℝ) (a : ι → β) : Prop :=
+  ∀ i, ‖a i‖ ≤ C
 
-/-- The phase sequence e(θₙ) is always 1-bounded -/
-lemma e_is_one_bounded (θ : ℕ → ℝ) : IsOneBounded (fun n => e (θ n)) := by
-  intro n
-  rw [norm_e]
+/-- A family in a normed type is 1-bounded. -/
+abbrev IsOneBounded {ι β : Type*} [Norm β] (a : ι → β) : Prop :=
+  IsBoundedFamily 1 a
 
 -- ===========================================================
 -- Asymptotic Notation
 -- ===========================================================
 
-/-- An infinitesimal sequence: a sequence that converges to 0 -/
-def IsInfinitesimal (X : ℕ → ℝ) : Prop :=
-  Tendsto X atTop (nhds 0)
+/-- The one-sided asymptotic relation `X ≤ Y + o(1)` from the blueprint.
 
-/-- X ≤ Y + o(1) in a strict sense:
-    There exists an infinitesimal sequence ε_i such that x_i ≤ y_i + ε_i eventually. -/
+It holds when there is a real error sequence tending to zero such that
+`X i ≤ Y i + err i` eventually. Equivalently, for every fixed `δ > 0`, one eventually has
+`X i ≤ Y i + δ`.
+
+This does not assert that `X - Y` tends to zero; it only requires the positive part of `X - Y`
+to tend to zero. -/
 def EventuallyLeUpToInfinitesimal (X Y : ℕ → ℝ) : Prop :=
-  ∃ ε : ℕ → ℝ, IsInfinitesimal ε ∧
-               (∀ᶠ i in atTop, X i ≤ Y i + ε i)
+  ∃ err : ℕ → ℝ, Tendsto err atTop (nhds 0) ∧
+    ∀ᶠ i in atTop, X i ≤ Y i + err i
 
--- Notation shorthand
+/-- `X ≤o Y` denotes the complete blueprint expression `X ≤ Y + o(1)`; it is not the
+little-o relation `X = o(Y)`. -/
 notation X " ≤o " Y => EventuallyLeUpToInfinitesimal X Y
+
+/-- The relation `X ≤ Y + o(1)` is equivalent to `X i ≤ Y i + δ` eventually for every fixed
+positive `δ`. -/
+theorem eventuallyLeUpToInfinitesimal_iff_forall_pos (X Y : ℕ → ℝ) :
+    (X ≤o Y) ↔
+    ∀ δ : ℝ, 0 < δ → ∀ᶠ i in atTop, X i ≤ Y i + δ := by
+  constructor
+  · rintro ⟨err, herr, hXY⟩ δ hδ
+    rw [Metric.tendsto_nhds] at herr
+    have herr_small := herr δ hδ
+    filter_upwards [hXY, herr_small] with i hi hierr
+    rw [Real.dist_eq, sub_zero] at hierr
+    have herr_lt : err i < δ := lt_of_le_of_lt (le_abs_self _) hierr
+    linarith
+  · intro h
+    refine ⟨fun i => max (X i - Y i) 0, ?_, Filter.Eventually.of_forall fun i => ?_⟩
+    · rw [Metric.tendsto_nhds]
+      intro δ hδ
+      have hδ2 : 0 < δ / 2 := by linarith
+      filter_upwards [h (δ / 2) hδ2] with i hi
+      rw [Real.dist_eq, sub_zero, abs_of_nonneg (le_max_right _ _)]
+      exact max_lt (by linarith) hδ
+    · have hi : X i - Y i ≤ max (X i - Y i) 0 := le_max_left _ _
+      linarith
 
 -- ============================================================
 --  Auxiliary lemmas for subsequence extraction
@@ -239,127 +185,25 @@ private lemma build_increasing_thresholds
 -- Underspill Principle
 -- ===========================================================
 
-/-- Underspill Principle:
-    X ≤ Y + o(1)  ↔  For every constant ε > 0, X ≤ Y + ε + o(1) -/
+/-- **Underspill principle.** The relation `X ≤ Y + o(1)` holds if and only if
+`X ≤ Y + ε + o(1)` for every fixed `ε > 0`. -/
 theorem underspill (X Y : ℕ → ℝ) :
     (X ≤o Y) ↔
     (∀ ε : ℝ, ε > 0 → X ≤o (fun i => Y i + ε)) := by
   constructor
-
-  -- =======================
-  -- Forward Direction (→)
-  -- =======================
-  · intro ⟨εseq, hεseq_inf, hεseq_bound⟩ ε hε
-    -- We choose the exact same sequence εseq
-    -- x_i ≤ y_i + εseq_i ≤ y_i + ε + εseq_i
-    use εseq
-    constructor
-    · exact hεseq_inf
-    · filter_upwards [hεseq_bound] with i hi
-      -- hi : x_i ≤ y_i + εseq_i
-      -- Goal: x_i ≤ (y_i + ε) + εseq_i
-      linarith
-
-  -- =======================
-  -- Backward Direction (←)
-  -- =======================
+  · intro h ε hε
+    apply (eventuallyLeUpToInfinitesimal_iff_forall_pos X (fun i => Y i + ε)).2
+    intro δ hδ
+    filter_upwards [(eventuallyLeUpToInfinitesimal_iff_forall_pos X Y).1 h δ hδ] with i hi
+    linarith
   · intro h
-    -- We want to construct an infinitesimal sequence d_i such that x_i ≤ y_i + d_i
-    -- Strategy: For each c > 0, by hypothesis with ε = c/2:
-    --   x_i ≤ y_i + c/2 + d_i where d_i → 0
-    --   For sufficiently large i: d_i < c/2
-    --   Therefore: x_i ≤ y_i + c
-    -- This implies: x_i - y_i ≤ c for all c > 0
-    -- We build the sequence explicitly.
-
-    -- For each n : ℕ, use ε = 1/(n+1)
-    -- From the hypothesis, we obtain d^n_i such that x_i ≤ y_i + 1/(n+1) + d^n_i
-    -- We define ε_i = inf_{n} (1/(n+1) + d^n_i)
-    -- However, this is complex, so we use a more direct approach:
-
-    -- We define z_i = max(x_i - y_i, 0)
-    -- and prove that z_i → 0
-
-    -- First, we prove: ∀ c > 0, ∀ᶠ i, x_i - y_i < c
-    have key : ∀ c : ℝ, c > 0 → ∀ᶠ i in atTop, X i - Y i < c := by
-      intro c hc
-      -- Use the hypothesis with ε = c/2
-      have hc2 : c / 2 > 0 := by linarith
-      obtain ⟨dseq, hdseq_inf, hdseq_bound⟩ := h (c / 2) hc2
-      -- dseq → 0, so ∀ᶠ i, |dseq i| < c/2
-      rw [IsInfinitesimal, Metric.tendsto_nhds] at hdseq_inf
-      have hdseq_small := hdseq_inf (c / 2) hc2
-      -- For sufficiently large i: x_i ≤ y_i + c/2 + dseq_i and |dseq_i| < c/2
-      filter_upwards [hdseq_bound, hdseq_small] with i hi_bound hi_small
-      -- hi_bound : x_i ≤ y_i + c/2 + dseq_i
-      -- hi_small : dist (dseq i) 0 < c/2, i.e., |dseq_i| < c/2
-      rw [Real.dist_eq] at hi_small
-      simp at hi_small
-      -- dseq_i < c/2 follows from |dseq_i| < c/2
-      have hdseq_lt : dseq i < c / 2 := by
-        exact lt_of_abs_lt hi_small
-      linarith
-
-    -- Now we construct the infinitesimal sequence
-    -- We use the sequence z_i = max(x_i - y_i, 0)
-    -- and prove that it converges to 0
-
-    -- Alternatively, more simply: we use x_i - y_i directly
-    -- and prove that (x_i - y_i)⁺ → 0, then conclude
-
-    -- For simplicity, we show the existence of ε_i = max(x_i - y_i, 1/i) approximately
-    -- But the simplest proof uses the squeeze theorem
-
-    -- We define ε_i explicitly via: for any i, take 1/(i+1) as an approximation
-    -- If x_i ≤ y_i + 1/(i+1) + d_i where d_i → 0
-
-    -- Direct proof: we show x_i - y_i → 0 by definition
-    use fun i => max (X i - Y i) 0
-    constructor
-    · -- We prove that max(x_i - y_i, 0) → 0
-      rw [IsInfinitesimal, Metric.tendsto_nhds]
-      intro δ hδ
-      -- From key with c = δ
-      have h_ev := key δ hδ
-      -- We also need x_i - y_i > -δ, but this is not guaranteed
-      -- In fact, max(z, 0) ≤ |z|, so it suffices that |x_i - y_i| < δ
-      -- But key only provides x_i - y_i < δ
-      -- We use key with c = δ
-      filter_upwards [h_ev] with i hi
-      -- hi : x_i - y_i < δ
-      rw [Real.dist_eq, sub_zero, abs_of_nonneg (le_max_right _ _)]
-      exact max_lt hi hδ
-    · -- We prove x_i ≤ y_i + max(x_i - y_i, 0)
-      apply Filter.Eventually.of_forall
-      intro i
-      have : max (X i - Y i) 0 ≥ X i - Y i := le_max_left _ _
-      linarith
-
--- ============================================================
--- Asymptotic relations  X = O(Y),  X ≪ Y,  X ≍ Y
--- ============================================================
-
-/-- X = O(Y): there exists a fixed C with |X| ≤ C·Y eventually. -/
-def IsBigOSeq (X Y : ℕ → ℝ) : Prop :=
-  ∃ C : ℝ, 0 < C ∧ ∀ᶠ i in atTop, |X i| ≤ C * Y i
-
-/-- X ≪ Y  (X is much less than Y):
-    same as X = O(Y) in the blueprint's variable-quantity sense. -/
-def IsVeryLT (X Y : ℕ → ℝ) : Prop := IsBigOSeq X Y
-
-notation X " ≪ " Y => IsVeryLT X Y
-notation Y " ≫ " X => IsVeryLT X Y
-
-/-- X = o(Y): there exists an infinitesimal c with |X| ≤ c·Y eventually. -/
-def IsLittleOSeq (X Y : ℕ → ℝ) : Prop :=
-  ∃ c : ℕ → ℝ, IsInfinitesimal c ∧ ∀ᶠ i in atTop, |X i| ≤ c i * Y i
-
-/-- X ≍ Y  (X and Y are comparable):
-    X ≪ Y and Y ≪ X,  i.e. X = O(Y) and Y = O(X). -/
-def IsAsymptoticallyEquiv (X Y : ℕ → ℝ) : Prop :=
-  (X ≪ Y) ∧ (Y ≪ X)
-
-notation X " ≍ " Y => IsAsymptoticallyEquiv X Y
+    apply (eventuallyLeUpToInfinitesimal_iff_forall_pos X Y).2
+    intro ε hε
+    have hε2 : 0 < ε / 2 := by linarith
+    have hbound := (eventuallyLeUpToInfinitesimal_iff_forall_pos
+      X (fun i => Y i + ε / 2)).1 (h (ε / 2) hε2) (ε / 2) hε2
+    filter_upwards [hbound] with i hi
+    linarith
 
 -- ============================================================
 -- Pointwise-bounded and pointwise-infinitesimal functions
@@ -373,29 +217,31 @@ def IsPointwiseBounded (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
 /-- f is pointwise o(1): for every variable sequence (x_i) ∈ E_i,
     the values (f_i(x_i)) tend to 0. -/
 def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
-  ∀ x : ∀ i, E i, IsInfinitesimal (fun i => ‖f i (x i)‖)
+  ∀ x : ∀ i, E i, Tendsto (fun i => ‖f i (x i)‖) atTop (nhds 0)
 
 -- ============================================================
 -- Proposition 2.1 — Automatic uniformity
 -- ============================================================
 
--- Helper: rewrite |f(φ m)(y(φ m))| as |f(φ m)(x_bad m)| avoiding cast issues.
+private noncomputable def extend_subsequence
+    (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
+    (φ : ℕ → ℕ) (x : ∀ n, E (φ n)) : ∀ j, E j := by
+  classical
+  exact fun j =>
+    if h : ∃ n, φ n = j then
+      (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x h.choose
+    else ⟨(hE j).choose, (hE j).choose_spec⟩
+
 open Classical in
-private lemma abs_y_eq_abs_x_bad
-    {E : ℕ → Set ℝ} {f : ∀ i, E i → ℂ}
-    {φ : ℕ → ℕ} (hφ : StrictMono φ)
-    {x_bad : ∀ n, E (φ n)}
-    {default_elem : ∀ i, E i}
-    (m : ℕ) :
-    let y : ∀ j, E j := fun j =>
-      if h : ∃ n, φ n = j then
-        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
-      else default_elem j
-    ‖f (φ m) (y (φ m))‖ = ‖f (φ m) (x_bad m)‖ := by
-  simp only []
+private lemma norm_extend_subsequence_apply
+    {E : ℕ → Set ℝ} (hE : ∀ i, (E i).Nonempty)
+    {f : ∀ i, E i → ℂ} {φ : ℕ → ℕ} (hφ : StrictMono φ)
+    (x : ∀ n, E (φ n)) (m : ℕ) :
+    ‖f (φ m) (extend_subsequence E hE φ x (φ m))‖ = ‖f (φ m) (x m)‖ := by
+  simp only [extend_subsequence]
   split_ifs with h
   · have hm : h.choose = m := hφ.injective h.choose_spec
-    have hx : x_bad h.choose ≍ x_bad m := by rw [hm]
+    have hx : x h.choose ≍ x m := by rw [hm]
     apply congrArg
     apply congrArg
     apply eq_of_heq
@@ -422,14 +268,7 @@ theorem automatic_uniformity_i
       rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
       exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
-    -- Extend x_bad to a full variable sequence y
-    let default_elem : ∀ i, E i :=
-      fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
-    classical
-    let y : ∀ j, E j := fun j =>
-      if h : ∃ n, φ n = j then
-        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
-      else default_elem j
+    let y : ∀ j, E j := extend_subsequence E hE φ x_bad
     -- Apply pointwise bound to y
     obtain ⟨C_y, hC_y⟩ := hf y
     rw [Filter.eventually_atTop] at hC_y
@@ -440,9 +279,7 @@ theorem automatic_uniformity_i
       obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
       exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
     -- Derive contradiction
-    have heq :=
-      abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
-        (default_elem := default_elem) hφ m
+    have heq := norm_extend_subsequence_apply hE (f := f) hφ x_bad m
     linarith [hj₀ (φ m) hm_ge,
               hx_bad m,
               show C_y < (m:ℝ) from
@@ -465,7 +302,7 @@ theorem automatic_uniformity_ii
     (f : ∀ i, E i → ℂ)
     (hf : IsPointwiseInfinitesimal E f) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
-    ∃ c : ℕ → ℝ, IsInfinitesimal c ∧
+    ∃ c : ℕ → ℝ, Tendsto c atTop (nhds 0) ∧
     ∀ i, ∀ x : E (φ i),
     ‖f (φ i) x‖ ≤ c i := by
   -- Step 1: for each n ≥ 1, the bound 1/n eventually holds uniformly
@@ -477,20 +314,12 @@ theorem automatic_uniformity_ii
       fun j => by obtain ⟨i, hi, x, hx⟩ := h_fail j; exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ :=
       extract_bad_seq_ii E f bad
-    let default_elem : ∀ i, E i :=
-      fun i => ⟨(hE i).choose, (hE i).choose_spec⟩
-    classical
-    let y : ∀ j, E j := fun j =>
-      if h : ∃ m, φ m = j then
-        (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x_bad h.choose
-      else default_elem j
+    let y : ∀ j, E j := extend_subsequence E hE φ x_bad
     have hfy := hf y
-    rw [IsInfinitesimal, Metric.tendsto_atTop] at hfy
+    rw [Metric.tendsto_atTop] at hfy
     obtain ⟨N₀, hN₀⟩ := hfy (1/(2*n)) (by positivity)
     obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop N₀) |>.exists
-    have heq :=
-      abs_y_eq_abs_x_bad (f := f) (φ := φ) (x_bad := x_bad)
-      (default_elem := default_elem) hφ m
+    have heq := norm_extend_subsequence_apply hE (f := f) hφ x_bad m
     have h1 : ‖f (φ m) (y (φ m))‖ < 1/(2*n) := by
       have := hN₀ (φ m) hm
       rwa [Real.dist_eq, sub_zero, abs_of_nonneg (norm_nonneg _)] at this
@@ -501,5 +330,4 @@ theorem automatic_uniformity_ii
   -- Step 2: build strictly increasing thresholds and conclude
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
   refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, hφ_bd⟩
-  rw [IsInfinitesimal]
   exact tendsto_one_div_add_atTop_nhds_zero_nat
