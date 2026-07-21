@@ -1,117 +1,18 @@
-import Mathlib.Analysis.Complex.Circle
-import Mathlib.Analysis.Normed.Field.Basic
+import expdb.Basic.Asymptotics
 import Mathlib.Analysis.Complex.Norm
-import Mathlib.Analysis.SpecificLimits.Basic
-import Mathlib.Order.Filter.Basic
-import Mathlib.Topology.MetricSpace.Sequences
 
 /-!
-# ANTEDB Blueprint — Chapter 2: Basic notation
+# Automatic uniformity
 
-This file defines the project-specific notions used in Chapter 2. When a blueprint convention
-already has a standard Mathlib representation, prefer using that representation directly:
--the notation `e(θ)` is `𝐞 θ` after `open scoped FourierTransform`; it is coerced from
-  `Circle` to `ℂ` when the surrounding expression requires a complex number;
--indicator functions are written using `Set.indicator`;
--suprema and infima, including those of empty sets, use Mathlib's `sSup` and `sInf`;
--finite cardinalities use `Finset.card`;
--standard asymptotic relations use Mathlib's `Asymptotics` API.
-
-The blueprint also uses non-standard objects indexed by some ambient
-parameter. Their asymptotic properties can be expressed using Mathlib's filter API:
--a bounded variable `X` satisfies
- `∃ C : ℝ, ∀ᶠ i in atTop, ‖X i‖ ≤ C`;
--an unbounded variable `X` satisfies
- `Tendsto (fun i => ‖X i‖) atTop atTop`;
--an infinitesimal variable `X` satisfies
- `Tendsto X atTop (nhds 0)`.
-
-If these conditions recur sufficiently often in later chapters, they may be given the
-project-specific names `IsBoundedVariable`, `IsUnboundedVariable`, and
-`IsInfinitesimalVariable`.
-
-New declarations are introduced here only when the notion used by the blueprint is genuinely
-project-specific or differs from the corresponding Mathlib notion.
+This module formalizes Proposition 2.1 of the ANTEDB blueprint: pointwise boundedness or
+infinitesimality along every variable sequence can be made uniform after passing to a subsequence.
 -/
 
-open Filter Topology Real
+open Filter Topology
 
--- ===========================================================
---  Separated families and sets
--- ===========================================================
+namespace Expdb
 
-/-- A family in a pseudo-metric space is `δ`-separated when distinct indices have values at
-least `δ` apart. This uses a non-strict inequality, unlike `Metric.IsSeparated`. -/
-def IsSeparatedFamily {ι α : Type*} [PseudoMetricSpace α] (δ : ℝ) (x : ι → α) : Prop :=
-  Pairwise fun i j => δ ≤ dist (x i) (x j)
-
-/-- λ-Separated Sets: distance between distinct elements is at least λ -/
-def IsLambdaSeparated {α : Type*} [PseudoMetricSpace α] (lam : ℝ) (W : Finset α) : Prop :=
-  IsSeparatedFamily lam fun t : W => (t : α)
-
-/-- 1-Separated Sets: distance between distinct elements is at least 1. -/
-abbrev IsOneSeparated {α : Type*} [PseudoMetricSpace α] (W : Finset α) : Prop :=
-  IsLambdaSeparated 1 W
-
--- ===========================================================
--- Bounded families
--- ===========================================================
-
-/-- A family in a normed type is `C`-bounded when every value has norm at most `C`. -/
-def IsBoundedFamily {ι β : Type*} [Norm β] (C : ℝ) (a : ι → β) : Prop :=
-  ∀ i, ‖a i‖ ≤ C
-
-/-- A family in a normed type is 1-bounded. -/
-abbrev IsOneBounded {ι β : Type*} [Norm β] (a : ι → β) : Prop :=
-  IsBoundedFamily 1 a
-
--- ===========================================================
--- Asymptotic Notation
--- ===========================================================
-
-/-- The one-sided asymptotic relation `X ≤ Y + o(1)` from the blueprint.
-
-It holds when there is a real error sequence tending to zero such that
-`X i ≤ Y i + err i` eventually. Equivalently, for every fixed `δ > 0`, one eventually has
-`X i ≤ Y i + δ`.
-
-This does not assert that `X - Y` tends to zero; it only requires the positive part of `X - Y`
-to tend to zero. -/
-def EventuallyLeUpToInfinitesimal (X Y : ℕ → ℝ) : Prop :=
-  ∃ err : ℕ → ℝ, Tendsto err atTop (nhds 0) ∧
-    ∀ᶠ i in atTop, X i ≤ Y i + err i
-
-/-- `X ≤o Y` denotes the complete blueprint expression `X ≤ Y + o(1)`; it is not the
-little-o relation `X = o(Y)`. -/
-notation X " ≤o " Y => EventuallyLeUpToInfinitesimal X Y
-
-/-- The relation `X ≤ Y + o(1)` is equivalent to `X i ≤ Y i + δ` eventually for every fixed
-positive `δ`. -/
-theorem eventuallyLeUpToInfinitesimal_iff_forall_pos (X Y : ℕ → ℝ) :
-    (X ≤o Y) ↔
-    ∀ δ : ℝ, 0 < δ → ∀ᶠ i in atTop, X i ≤ Y i + δ := by
-  constructor
-  · rintro ⟨err, herr, hXY⟩ δ hδ
-    rw [Metric.tendsto_nhds] at herr
-    have herr_small := herr δ hδ
-    filter_upwards [hXY, herr_small] with i hi hierr
-    rw [Real.dist_eq, sub_zero] at hierr
-    have herr_lt : err i < δ := lt_of_le_of_lt (le_abs_self _) hierr
-    linarith
-  · intro h
-    refine ⟨fun i => max (X i - Y i) 0, ?_, Filter.Eventually.of_forall fun i => ?_⟩
-    · rw [Metric.tendsto_nhds]
-      intro δ hδ
-      have hδ2 : 0 < δ / 2 := by linarith
-      filter_upwards [h (δ / 2) hδ2] with i hi
-      rw [Real.dist_eq, sub_zero, abs_of_nonneg (le_max_right _ _)]
-      exact max_lt (by linarith) hδ
-    · have hi : X i - Y i ≤ max (X i - Y i) 0 := le_max_left _ _
-      linarith
-
--- ============================================================
---  Auxiliary lemmas for subsequence extraction
--- ============================================================
+/-! ### Auxiliary lemmas for subsequence extraction -/
 
 /-- From a property holding arbitrarily late, extract a strictly
     increasing sequence on which it holds. -/
@@ -130,7 +31,7 @@ private lemma extract_strictMono_subseq {P : ℕ → Prop}
     with |f(φ n)(x n)| > n.  Used in the proof of Proposition 2.1(i). -/
 private lemma extract_bad_seq_i
     (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ)
-    (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j : ℝ) < ‖f i x‖):
+    (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j : ℝ) < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ x : ∀ n, E (φ n), ∀ n, n < ‖f (φ n) (x n)‖ := by
   have step : ∀ (n prev : ℕ), ∃ i > prev, ∃ x : E i, (n : ℝ) < ‖f i x‖ :=
@@ -181,63 +82,35 @@ private lemma build_increasing_thresholds
   have hb := hi_seq n (φ n) hge x
   rwa [Nat.cast_add, Nat.cast_one] at hb
 
--- ===========================================================
--- Underspill Principle
--- ===========================================================
+/-! ### Pointwise hypotheses -/
 
-/-- **Underspill principle.** The relation `X ≤ Y + o(1)` holds if and only if
-`X ≤ Y + ε + o(1)` for every fixed `ε > 0`. -/
-theorem underspill (X Y : ℕ → ℝ) :
-    (X ≤o Y) ↔
-    (∀ ε : ℝ, ε > 0 → X ≤o (fun i => Y i + ε)) := by
-  constructor
-  · intro h ε hε
-    apply (eventuallyLeUpToInfinitesimal_iff_forall_pos X (fun i => Y i + ε)).2
-    intro δ hδ
-    filter_upwards [(eventuallyLeUpToInfinitesimal_iff_forall_pos X Y).1 h δ hδ] with i hi
-    linarith
-  · intro h
-    apply (eventuallyLeUpToInfinitesimal_iff_forall_pos X Y).2
-    intro ε hε
-    have hε2 : 0 < ε / 2 := by linarith
-    have hbound := (eventuallyLeUpToInfinitesimal_iff_forall_pos
-      X (fun i => Y i + ε / 2)).1 (h (ε / 2) hε2) (ε / 2) hε2
-    filter_upwards [hbound] with i hi
-    linarith
-
--- ============================================================
--- Pointwise-bounded and pointwise-infinitesimal functions
--- ============================================================
-
-/-- f is pointwise O(1): for every variable sequence (x_i) ∈ E_i,
-    the values (f_i(x_i)) are eventually bounded. -/
+/-- A dependent family is pointwise `O(1)` when its values along every variable sequence are
+eventually bounded. -/
 def IsPointwiseBounded (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
   ∀ x : ∀ i, E i, ∃ C : ℝ, ∀ᶠ i in atTop, ‖f i (x i)‖ ≤ C
 
-/-- f is pointwise o(1): for every variable sequence (x_i) ∈ E_i,
-    the values (f_i(x_i)) tend to 0. -/
+/-- A dependent family is pointwise `o(1)` when its norms along every variable sequence tend
+to zero. -/
 def IsPointwiseInfinitesimal (E : ℕ → Set ℝ) (f : ∀ i, E i → ℂ) : Prop :=
   ∀ x : ∀ i, E i, Tendsto (fun i => ‖f i (x i)‖) atTop (nhds 0)
 
--- ============================================================
--- Proposition 2.1 — Automatic uniformity
--- ============================================================
+/-! ### Proposition 2.1: automatic uniformity -/
 
+open Classical in
 private noncomputable def extend_subsequence
     (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
-    (φ : ℕ → ℕ) (x : ∀ n, E (φ n)) : ∀ j, E j := by
-  classical
-  exact fun j =>
+    (φ : ℕ → ℕ) (x : ∀ n, E (φ n)) : ∀ j, E j :=
+  fun j =>
     if h : ∃ n, φ n = j then
       (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x h.choose
     else ⟨(hE j).choose, (hE j).choose_spec⟩
 
-open Classical in
 private lemma norm_extend_subsequence_apply
     {E : ℕ → Set ℝ} (hE : ∀ i, (E i).Nonempty)
     {f : ∀ i, E i → ℂ} {φ : ℕ → ℕ} (hφ : StrictMono φ)
     (x : ∀ n, E (φ n)) (m : ℕ) :
     ‖f (φ m) (extend_subsequence E hE φ x (φ m))‖ = ‖f (φ m) (x m)‖ := by
+  classical
   simp only [extend_subsequence]
   split_ifs with h
   · have hm : h.choose = m := hφ.injective h.choose_spec
@@ -251,7 +124,7 @@ private lemma norm_extend_subsequence_apply
 /-- **Proposition 2.1(i) — Automatic uniform bound.**
     If f(x) = O(1) for every variable x ∈ E, then after passing to a
     subsequence there exists a *fixed* C with |f(x)| ≤ C for all x ∈ E. -/
-theorem automatic_uniformity_i
+theorem automatic_uniformity_of_pointwise_bounded
     (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
     (f : ∀ i, E i → ℂ)
     (hf : IsPointwiseBounded E f) :
@@ -297,7 +170,7 @@ theorem automatic_uniformity_i
 /-- **Proposition 2.1(ii) — Automatic uniform infinitesimal.**
     If f(x) = o(1) for every variable x ∈ E, then after passing to a
     subsequence there exists an *infinitesimal* c with |f(x)| ≤ c for all x ∈ E. -/
-theorem automatic_uniformity_ii
+theorem automatic_uniformity_of_pointwise_infinitesimal
     (E : ℕ → Set ℝ) (hE : ∀ i, (E i).Nonempty)
     (f : ∀ i, E i → ℂ)
     (hf : IsPointwiseInfinitesimal E f) :
@@ -331,3 +204,5 @@ theorem automatic_uniformity_ii
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
   refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, hφ_bd⟩
   exact tendsto_one_div_add_atTop_nhds_zero_nat
+
+end Expdb

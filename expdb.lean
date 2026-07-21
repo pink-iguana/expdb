@@ -1,2 +1,2 @@
-import expdb.basic
-import expdb.basic_fourier_estimates
+import expdb.Basic.AutomaticUniformity
+import expdb.Fourier.L2Integral

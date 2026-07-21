@@ -12,6 +12,7 @@ on:
       - 'lean-toolchain'
       - 'lakefile.toml'
       - 'lake-manifest.json'
+      - 'scripts/lean_declarations.txt'
   pull_request:
     branches:
       - main
@@ -23,6 +24,7 @@ on:
       - 'lean-toolchain'
       - 'lakefile.toml'
       - 'lake-manifest.json'
+      - 'scripts/lean_declarations.txt'
   workflow_dispatch: # Allow manual triggering of the workflow from the GitHub Actions interface
 
 # Cancel previous runs if a new commit is pushed to the same PR or branch
@@ -65,6 +67,9 @@ jobs:
           build: true
           lint: false
           mk_all-check: false
+
+      - name: Check public Lean declarations
+        run: lake exe checkdecls scripts/lean_declarations.txt
 
       - name: Compile blueprint and documentation
         uses: leanprover-community/docgen-action@deed0cdc44dd8e5de07a300773eb751d33e32fc8 # 2025-10-26
