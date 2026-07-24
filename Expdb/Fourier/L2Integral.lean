@@ -1,4 +1,4 @@
-import expdb.Basic.Definitions
+import Expdb.Basic.Definitions
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.Distribution.FourierSchwartz
