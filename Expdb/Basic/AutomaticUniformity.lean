@@ -135,7 +135,7 @@ theorem automatic_uniformity_of_pointwise_bounded
       ∃ φ : ℕ → ℕ, StrictMono φ ∧
       ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : E (φ i), ‖f (φ i) x‖ ≤ C := by
     by_contra h_fail
-    push_neg at h_fail
+    push Not at h_fail
     -- Build a bad sequence: for each j find i ≥ j and x with |f i x| > j
     have bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j:ℝ) < ‖f i x‖ := fun j => by
       rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
@@ -182,7 +182,7 @@ theorem automatic_uniformity_of_pointwise_infinitesimal
   have scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : E i,
       ‖f i x‖ ≤ 1/n := by
     intro n hn
-    by_contra h_fail; push_neg at h_fail
+    by_contra h_fail; push Not at h_fail
     have bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (1:ℝ)/n < ‖f i x‖ :=
       fun j => by obtain ⟨i, hi, x, hx⟩ := h_fail j; exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ :=

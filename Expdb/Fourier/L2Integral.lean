@@ -1,7 +1,7 @@
 import Expdb.Basic.Definitions
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
-import Mathlib.Analysis.Distribution.FourierSchwartz
+import Mathlib.Analysis.Distribution.SchwartzSpace.Fourier
 import Mathlib.Analysis.InnerProductSpace.Orthonormal
 import Mathlib.Algebra.Order.Interval.Set.Group
 import Mathlib.Analysis.PSeries
@@ -16,17 +16,17 @@ import Mathlib.Tactic.Positivity
 import Mathlib.Tactic.Push
 import Mathlib.Tactic.Ring
 
-open MeasureTheory Real Complex Filter Topology BigOperators
-open scoped FourierTransform SchwartzMap ContDiff
-
-noncomputable section
-
 /-!
 # L² integral estimate
 
 This module formalizes Lemma 3.1 from Chapter 3 of the ANTEDB blueprint. It proves both the
 blueprint's equality with a bounded error coefficient and the corresponding absolute-error bound.
 -/
+
+open MeasureTheory Real Complex Filter Topology BigOperators
+open scoped FourierTransform SchwartzMap ContDiff
+
+noncomputable section
 
 namespace Expdb
 
@@ -38,12 +38,22 @@ private def rawBump : ContDiffBump (0 : ℝ) :=
 private def rawL2 : ℝ := ∫ x : ℝ, (rawBump x) ^ 2
 
 private lemma rawL2_pos : 0 < rawL2 := by
+  have hraw : Continuous (rawBump : ℝ → ℝ) :=
+    (rawBump.contDiff (n := ⊤)).continuous
+  have hsq : Continuous (fun x : ℝ => (rawBump x) ^ 2) := by
+    convert (continuous_pow 2).comp hraw using 1
+    ext x
+    rfl
   apply integral_pos_of_integrable_nonneg_nonzero (x := 0)
-  · simpa using ((rawBump.contDiff (n := ⊤)).continuous.pow 2)
-  · apply ((rawBump.contDiff (n := ⊤)).continuous.pow 2).integrable_of_hasCompactSupport
+  · exact hsq
+  · apply hsq.integrable_of_hasCompactSupport
     apply HasCompactSupport.of_support_subset_isCompact rawBump.hasCompactSupport.isCompact
-    simpa only [Function.support_pow rawBump (by norm_num : 2 ≠ 0)] using
-      (subset_tsupport (rawBump : ℝ → ℝ))
+    intro x hx
+    apply subset_tsupport rawBump
+    simp only [Function.mem_support] at hx ⊢
+    intro hzero
+    apply hx
+    simp [hzero]
   · intro x
     positivity
   · have hzero : (rawBump : ℝ → ℝ) 0 = 1 := by
@@ -54,7 +64,8 @@ private lemma rawL2_pos : 0 < rawL2 := by
 private def bump (x : ℝ) : ℝ := rawBump x / Real.sqrt rawL2
 
 private lemma bump_smooth : ContDiff ℝ ∞ bump := by
-  simpa [bump] using (rawBump.contDiff (n := ⊤)).div_const (Real.sqrt rawL2)
+  change ContDiff ℝ ∞ (fun x => rawBump x / Real.sqrt rawL2)
+  exact (rawBump.contDiff (n := ⊤)).div_const (Real.sqrt rawL2)
 
 private lemma bump_hasCompactSupport : HasCompactSupport bump := by
   apply HasCompactSupport.of_support_subset_isCompact rawBump.hasCompactSupport.isCompact
@@ -100,7 +111,7 @@ private lemma bump_integrable : Integrable bump :=
 private lemma bump_integral_pos : 0 < ∫ x : ℝ, bump x := by
   have hne : ∃ x, bump x ≠ 0 := by
     by_contra h
-    push_neg at h
+    push Not at h
     have hsquare : ∫ x : ℝ, (bump x) ^ 2 = 0 := by
       calc
         ∫ x : ℝ, (bump x) ^ 2
@@ -157,8 +168,8 @@ private lemma bump_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ =>
       simpa only [neg_div] using h)
 
 private lemma bump_complex_smooth : ContDiff ℝ ∞ (fun x : ℝ => (bump x : ℂ)) := by
-  simpa only [ContinuousLinearMap.coe_comp', Function.comp_apply, Complex.ofRealCLM_apply] using
-    (Complex.ofRealCLM.contDiff (n := ∞)).comp bump_smooth
+  change ContDiff ℝ ∞ (Complex.ofRealCLM ∘ bump)
+  exact (Complex.ofRealCLM.contDiff (n := ∞)).comp bump_smooth
 
 private def bumpSchwartz : 𝓢(ℝ, ℂ) :=
   bump_complex_hasCompactSupport.toSchwartzMap bump_complex_smooth
@@ -266,8 +277,8 @@ private def bumpShift (w : ℝ) : 𝓢(ℝ, ℂ) := by
     have h := abs_le.mp (bump_supp (x + w) hx')
     constructor <;> linarith
   have hsmooth : ContDiff ℝ ∞ f := by
-    simpa only [f, Function.comp_apply] using
-      bump_complex_smooth.comp (contDiff_id.add contDiff_const)
+    change ContDiff ℝ ∞ ((fun x : ℝ => (bump x : ℂ)) ∘ fun x => x + w)
+    exact bump_complex_smooth.comp (contDiff_id.add contDiff_const)
   exact hcomp.toSchwartzMap hsmooth
 
 private lemma bumpShift_apply (w x : ℝ) : bumpShift w x = bump (x + w) := rfl
@@ -322,11 +333,12 @@ private lemma bumpShift_inner_self (w : ℝ) :
       rw [integral_add_right_eq_self (fun x : ℝ => (bump x) ^ 2) w]
     _ = 1 := by rw [bump_l2norm]; norm_num
 
-private lemma bumpShift_orthonormal {ι : Type*} [Fintype ι]
+private lemma bumpShift_orthonormal {ι : Type*} [Finite ι]
     (ξ : ι → ℝ) (N : ℝ) (hN : 0 < N)
     (hsep : IsSeparatedFamily (1 / N) ξ) :
     Orthonormal ℂ (fun r => (bumpShift (N * ξ r)).toLp 2) := by
   classical
+  letI := Fintype.ofFinite ι
   rw [orthonormal_iff_ite]
   intro r s
   rw [SchwartzMap.inner_toL2_toL2_eq
@@ -360,9 +372,9 @@ private theorem weighted_l2_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) 
       induction s using Finset.induction_on with
       | empty => simp
       | @insert r s hrs ih =>
-          simp [Finset.sum_insert, hrs, SchwartzMap.add_apply, ih]
+          simp [Finset.sum_insert, hrs, ih]
     rw [hsum_apply Finset.univ]
-    simp_rw [SchwartzMap.smul_apply, smul_eq_mul]
+    simp_rw [smul_apply, smul_eq_mul]
     have hshift (r : ι) :
         SchwartzMap.fourierTransformCLM ℂ (bumpShift (N * ξ r)) u =
           𝐞 ((N * ξ r) * u) * bumpFourier u := by
@@ -416,8 +428,8 @@ private theorem weighted_l2_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) 
     rw [hG_toLp, hsum_norm, hc_norm]
   have hG_inner : inner ℂ (G.toLp 2) (G.toLp 2) = 1 := by
     rw [inner_self_eq_norm_sq_to_K]
-    simpa only [Complex.ofReal_pow, Complex.ofReal_one] using
-      congrArg (fun x : ℝ => (x : ℂ)) hG_norm
+    rw [← RCLike.ofReal_pow]
+    exact congrArg (RCLike.ofReal : ℝ → ℂ) hG_norm
   have hG_l2 : ∫ x : ℝ, ‖G x‖ ^ 2 = 1 := by
     have hinner_integral : ∫ x : ℝ, inner ℂ (G x) (G x) = 1 := by
       rw [← SchwartzMap.inner_toL2_toL2_eq G G volume]
@@ -886,15 +898,14 @@ private theorem smoothing_error_bound :
   have hcell_weight : ∀ c k t, t ∈ cell c k → weight c t ≤ b k := by
     intro c k t ht
     have ht' : c + (k : ℝ) * N ≤ t ∧ t < c + ((k : ℝ) + 1) * N := by
-      simpa only [cell, zsmul_eq_mul, Int.cast_add, Int.cast_one] using ht
+      change c + k • N ≤ t ∧ t < c + (k + 1) • N at ht
+      simpa only [zsmul_eq_mul, Int.cast_add, Int.cast_one] using ht
     let x := (t - c) / N
     have hx_left : (k : ℝ) ≤ x := by
       apply (le_div_iff₀ hN).2
-      dsimp [x]
       linarith [ht'.1]
     have hx_right : x < (k : ℝ) + 1 := by
       apply (div_lt_iff₀ hN).2
-      dsimp [x]
       linarith [ht'.2]
     have hmid_pos : 0 < |(k : ℝ) + 1 / 2| := by
       rw [abs_pos]
