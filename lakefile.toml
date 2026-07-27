@@ -1,5 +1,5 @@
 name = "expdb"
-defaultTargets = ["Expdb"]
+defaultTargets = ["Expdb", "ExpdbTest"]
 
 [leanOptions]
 pp.unicode.fun = true
@@ -17,3 +17,6 @@ git = "https://github.com/PatrickMassot/checkdecls.git"
 
 [[lean_lib]]
 name = "Expdb"
+
+[[lean_lib]]
+name = "ExpdbTest"
