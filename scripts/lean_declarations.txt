@@ -169,3 +169,13 @@ Expdb.EulerMaclaurin.abs_saw_le
 Expdb.EulerMaclaurin.sawBound_nonneg
 Expdb.EulerMaclaurin.sum_Icc_eq_integral_add
 Expdb.EulerMaclaurin.norm_sum_Icc_nat_sub_integral_le
+Expdb.IsExponentPairBound
+Expdb.IsExponentPair
+Expdb.isExponentPair_iff_forall_exponentSumGrowthExponent_le
+Expdb.isExponentPair_zero_one
+Expdb.isExponentPair_half_half
+Expdb.vanDerCorputA
+Expdb.vanDerCorputB
+Expdb.exponentPairs
+Expdb.isClosed_exponentPairs
+Expdb.convex_exponentPairs

@@ -2,6 +2,7 @@ module
 
 public import Expdb.Basic.AutomaticUniformity
 public import Expdb.Basic.PowerAsymptotics
+public import Expdb.ExponentialSums.ExponentPairs
 public import Expdb.ExponentialSums.ExponentSumGrowthNonAsymptotic
 public import Expdb.ExponentialSums.LogPhase
 public import Expdb.ExponentialSums.FixedExponentialSum
