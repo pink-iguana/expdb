@@ -1,6 +1,9 @@
 \chapter{Exponent pairs}\label{exponent-pairs-chapter}
 
-\begin{definition}[Exponent pair]\label{exp-pair-def}\uses{phase-def}  An exponent pair is a (fixed) element $(k,\ell)$ of the triangle
+\begin{definition}[Exponent pair]\label{exp-pair-def}\uses{phase-def}
+\lean{Expdb.IsExponentPair, Expdb.IsExponentPairBound}
+\leanok
+An exponent pair is a (fixed) element $(k,\ell)$ of the triangle
 \begin{equation}\label{exp-pair-triangle}
     \{ (k,\ell) \in \R^2: 0 \leq k \leq 1/2 \leq \ell \leq 1, k+\ell \leq 1 \}
 \end{equation}
@@ -28,7 +31,10 @@ The proof of this lemma is similar to that of Lemma \ref{beta-asymp} and is omit
 
 Exponent pairs are closely related to the function $\beta$ from the previous chapter:
 
-\begin{lemma}[Duality between exponent pairs and $\beta$]\label{beta-duality}\uses{beta-def, exp-pair-def}  Let $(k,\ell)$ be in the triangle \eqref{exp-pair-triangle}.  Then the following are equivalent:
+\begin{lemma}[Duality between exponent pairs and $\beta$]\label{beta-duality}\uses{beta-def, exp-pair-def}
+\lean{Expdb.isExponentPair_iff_forall_exponentSumGrowthExponent_le}
+\leanok
+Let $(k,\ell)$ be in the triangle \eqref{exp-pair-triangle}.  Then the following are equivalent:
     \begin{itemize}
     \item[(i)] $(k,\ell)$ is an exponent pair.
     \item[(ii)] $\beta(\alpha) \leq k + (\ell-k)\alpha$ for all $0 \leq \alpha \leq 1$.
@@ -57,13 +63,18 @@ giving the claim.
 \end{proof}
 
 
-\begin{corollary}[Exponent pairs closed and convex]\label{exp-pair-closed}\uses{exp-pair-def} The set of exponent pairs is closed and convex.
+\begin{corollary}[Exponent pairs closed and convex]\label{exp-pair-closed}\uses{exp-pair-def}
+\lean{Expdb.exponentPairs, Expdb.isClosed_exponentPairs, Expdb.convex_exponentPairs}
+\leanok
+The set of exponent pairs is closed and convex.
 \end{corollary}
 
 \begin{proof}\uses{beta-duality} Immediate from Lemma \ref{beta-duality}.
 \end{proof}
 
-\begin{proposition}[Trivial exponent pairs]\label{exp-pair-trivial}\uses{exp-pair-def}  $(0,1)$ and $(1/2,1/2)$ are exponent pairs.
+\begin{proposition}[Trivial exponent pairs]\label{exp-pair-trivial}\uses{exp-pair-def}
+\lean{Expdb.isExponentPair_zero_one, Expdb.isExponentPair_half_half}
+$(0,1)$ and $(1/2,1/2)$ are exponent pairs.  (In Lean, the pair $(0,1)$ is proved; the pair $(1/2,1/2)$ is reduced, in \texttt{Expdb.isExponentPair\_half\_half\_of\_exponentSumGrowthExponent\_le\_half}, to the bound $\beta(\alpha) \leq 1/2$ for $1/2 \leq \alpha \leq 1$, which awaits the van der Corput $B$-process.)
 \end{proposition}
 
 \python{exponent_pair}
@@ -85,7 +96,9 @@ giving the claim.
 \begin{proof}\uses{beta-duality, beta-triv} Clear from Lemma \ref{beta-duality} and Lemma \ref{beta-triv}.
 \end{proof}
 
-\begin{proposition}[Van der Corput $A$-process]\label{vdc-a}  If $(k,\ell)$ is an exponent pair, then so is
+\begin{proposition}[Van der Corput $A$-process]\label{vdc-a}
+\lean{Expdb.vanDerCorputA}
+If $(k,\ell)$ is an exponent pair, then so is
     $$A(k,\ell) := \left(\frac{k}{2k+2}, \frac{\ell}{2k+2} + \frac{1}{2}\right).$$
 \end{proposition}
 
@@ -95,7 +108,9 @@ giving the claim.
 \begin{proof}\uses{vdca-beta, beta-duality} See \cite[Lemma 2.8]{ivic}. It can also be deduced from Lemma \ref{vdca-beta} and Lemma \ref{beta-duality}.
 \end{proof}
 
-\begin{proposition}[Van der Corput $B$-process]\label{vdc-b}  If $(k,\ell)$ is an exponent pair, then so is
+\begin{proposition}[Van der Corput $B$-process]\label{vdc-b}
+\lean{Expdb.vanDerCorputB}
+If $(k,\ell)$ is an exponent pair, then so is
     $$B(k,\ell) := \left(\ell-\frac{1}{2}, k+\frac{1}{2}\right).$$
 \end{proposition}
 
