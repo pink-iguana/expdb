@@ -7,31 +7,8 @@ public import Expdb.ExponentialSums.ExponentSumGrowthBounds
 
 This module formalizes the blueprint's Exponent pairs chapter (`exponent-pairs-chapter`).
 
-An *exponent pair* is a point `(k, ℓ)` of the triangle
-`{(k, ℓ) : 0 ≤ k ≤ 1/2 ≤ ℓ ≤ 1, k + ℓ ≤ 1}` such that for all model phase functions `F`, all
-`T ≥ N ≥ 1` and all intervals `I ⊆ [N, 2N]`, one has
-`∑ n ∈ I, e(T F(n / N)) ≪ (T / N) ^ (k + o(1)) N ^ (ℓ + o(1))`.
-
-## Main definitions
-
-* `Expdb.IsExponentPairBound`: the analytic exponential-sum bound of the definition, with the
-  `o(1)` losses spelled out as an arbitrarily small fixed `ε > 0`.
-* `Expdb.IsExponentPair`: the blueprint's Definition `exp-pair-def`, that is, membership in the
-  triangle together with `IsExponentPairBound`.
-* `Expdb.exponentPairs`: the set of exponent pairs, as a subset of the plane.
-* `Expdb.vanDerCorputA` and `Expdb.vanDerCorputB`: the van der Corput `A` and `B` transforms.
-
-## Main results
-
-* `Expdb.IsExponentPair.k_le_half`, `Expdb.IsExponentPair.half_le_l`,
-  `Expdb.IsExponentPair.add_le_one`: the triangle constraints.
-* `Expdb.isExponentPair_iff_forall_exponentSumGrowthExponent_le`: the duality between exponent
-  pairs and the exponential sum growth exponent `β` (blueprint Lemma `beta-duality`).
-* `Expdb.isClosed_exponentPairs` and `Expdb.convex_exponentPairs`: the set of exponent pairs is
-  closed and convex (blueprint Corollary `exp-pair-closed`).
-* `Expdb.isExponentPair_zero_one`: `(0, 1)` is an exponent pair.
-* `Expdb.isExponentPair_half_half_of_exponentSumGrowthExponent_le_half`: `(1/2, 1/2)` is an
-  exponent pair as soon as `β(α) ≤ 1/2` for `1/2 ≤ α ≤ 1`.
+It defines exponent pairs and the van der Corput transforms, proves duality with the exponential
+sum growth exponent, and shows that the set of exponent pairs is closed and convex.
 -/
 
 @[expose] public section

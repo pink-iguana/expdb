@@ -46,6 +46,15 @@ def IsValid (b : AffineBetaBound) : Prop :=
   ∀ α : ℝ≥0, (b.lower : ℝ) ≤ α → (α : ℝ) ≤ b.upper →
     exponentSumGrowthExponent α ≤ b.eval α
 
+/-- The assertion that every affine bound in a list is valid. -/
+def AllValid (bounds : List AffineBetaBound) : Prop :=
+  ∀ b ∈ bounds, b.IsValid
+
+/-- Extract the validity of a member of a valid list of affine bounds. -/
+theorem AllValid.isValid {bounds : List AffineBetaBound} (h : AllValid bounds)
+    {b : AffineBetaBound} (hb : b ∈ bounds) : b.IsValid :=
+  h b hb
+
 end AffineBetaBound
 
 /-- Extend the exponential sum growth exponent to real inputs by truncating negative inputs to
@@ -85,6 +94,27 @@ theorem exponentSumGrowthExponent_le_vanDerCorput
           (1 - (α : ℝ)) / ((2 : ℝ) ^ k - 2)) := by
   sorry
 
+/-- The `k = 2` case displayed in blueprint Proposition `beta-vdc`. -/
+theorem exponentSumGrowthExponent_le_vanDerCorput_two
+    (α : ℝ≥0) (hα : 0 < α) :
+    exponentSumGrowthExponent α ≤
+      max (1 / 2) ((2 * (α : ℝ) - 1) / 2) := by
+  sorry
+
+/-- The `k = 3` case displayed in blueprint Proposition `beta-vdc`. -/
+theorem exponentSumGrowthExponent_le_vanDerCorput_three
+    (α : ℝ≥0) (hα : 0 < α) :
+    exponentSumGrowthExponent α ≤
+      max ((1 + 3 * (α : ℝ)) / 6) ((6 * (α : ℝ) - 1) / 3) := by
+  sorry
+
+/-- The `k = 4` case displayed in blueprint Proposition `beta-vdc`. -/
+theorem exponentSumGrowthExponent_le_vanDerCorput_four
+    (α : ℝ≥0) (hα : 0 < α) :
+    exponentSumGrowthExponent α ≤
+      max ((10 * (α : ℝ) + 1) / 14) ((29 * (α : ℝ) - 2) / 28) := by
+  sorry
+
 /-- The exponential sum growth exponent at one is `1 / 2`. -/
 @[simp] theorem exponentSumGrowthExponent_one :
     exponentSumGrowthExponent 1 = 1 / 2 := by
@@ -100,6 +130,14 @@ theorem exponentSumGrowthExponent_le_vanDerCorput_sInf
     exponentSumGrowthExponent α ≤
       sInf {x : ℝ | ∃ k : ℕ, 2 ≤ k ∧
         x = (α : ℝ) + (1 - k * (α : ℝ)) / ((2 : ℝ) ^ k - 2)} := by
+  sorry
+
+/-- The three-term bound displayed in blueprint Corollary `vdc-opt`. -/
+theorem exponentSumGrowthExponent_le_vanDerCorput_min
+    (α : ℝ≥0) (hα : 0 < α) :
+    exponentSumGrowthExponent α ≤
+      min (min (1 / 2) ((1 + 3 * (α : ℝ)) / 6))
+        ((10 * (α : ℝ) + 1) / 14) := by
   sorry
 
 /-! ## Full dyadic intervals -/
