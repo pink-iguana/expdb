@@ -91,7 +91,7 @@ theorem exponentSumGrowthExponent_le_vanDerCorput
     exponentSumGrowthExponent α ≤
       max ((α : ℝ) + (1 - k * (α : ℝ)) / ((2 : ℝ) ^ k - 2))
         ((1 - 2 ^ (2 - (k : ℤ))) * (α : ℝ) -
-          (1 - (α : ℝ)) / ((2 : ℝ) ^ k - 2)) := by
+          (1 - k * (α : ℝ)) / ((2 : ℝ) ^ k - 2)) := by
   sorry
 
 /-- The `k = 2` case displayed in blueprint Proposition `beta-vdc`. -/
@@ -105,7 +105,7 @@ theorem exponentSumGrowthExponent_le_vanDerCorput_two
 theorem exponentSumGrowthExponent_le_vanDerCorput_three
     (α : ℝ≥0) (hα : 0 < α) :
     exponentSumGrowthExponent α ≤
-      max ((1 + 3 * (α : ℝ)) / 6) ((6 * (α : ℝ) - 1) / 3) := by
+      max ((1 + 3 * (α : ℝ)) / 6) ((6 * (α : ℝ) - 1) / 6) := by
   sorry
 
 /-- The `k = 4` case displayed in blueprint Proposition `beta-vdc`. -/

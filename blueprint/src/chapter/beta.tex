@@ -138,7 +138,7 @@ and the claim follows after evaluating all terms as powers of $T$.
 
 
 \begin{proposition}[Van der Corput inequality]\label{beta-vdc}\uses{beta-def} For any natural number $k \geq 2$ and any $\alpha>0$, one has
-    $$ \beta(\alpha) \leq \max\left( \alpha + \frac{1-k\alpha}{2^k-2}, (1 - 2^{2-k})\alpha - \frac{1-\alpha}{2^k-2}\right).$$
+    $$ \beta(\alpha) \leq \max\left( \alpha + \frac{1-k\alpha}{2^k-2}, (1 - 2^{2-k})\alpha - \frac{1-k\alpha}{2^k-2}\right).$$
     Thus for instance when $k=2$ we have
     $$ \beta(\alpha) \leq \max\left( \frac{1}{2}, \frac{2\alpha-1}{2} \right),$$
     so in particular
@@ -147,7 +147,7 @@ and the claim follows after evaluating all terms as powers of $T$.
     \end{equation}
         by Lemma \ref{beta-triv},
     when $k=3$ one has
-    $$ \beta(\alpha) \leq \max\left( \frac{1+3\alpha}{6}, \frac{6\alpha-1}{3} \right),$$
+    $$ \beta(\alpha) \leq \max\left( \frac{1+3\alpha}{6}, \frac{6\alpha-1}{6} \right),$$
     and when $k=4$ one has
     $$ \beta(\alpha) \leq \max\left( \frac{10\alpha+1}{14}, \frac{29\alpha-2}{28} \right).$$
 \end{proposition}
@@ -170,11 +170,11 @@ Let $\beta_k(\alpha) = \alpha + (1 - k\alpha)/(2^k - 2)$ and
 \]
 Via a routine computation, $\beta_k(\alpha) \le \beta_{k+1}(\alpha)$ for $\alpha \ge \alpha_k$ and any $k \ge 2$. Thus, to verify that $\beta(\alpha) \le \beta_k(\alpha)$ for $0 \le \alpha \le 1/2$, it suffices to just show that the same result holds for $0 \le \alpha \le \alpha_{k}$. However, for $0 \le \alpha \le \alpha_k$ and $k \ge 2$, we have
 \[
-0 \le \alpha \le \alpha_k \le \frac{2^{k + 1}}{(k - 3)2^k + 8}
+0 \le \alpha \le \alpha_k \le \frac{2^k}{(k - 2)2^k + 4}
 \]
 which rearranges to give
 \[
-\alpha + \frac{1-k\alpha}{2^k-2}\geq (1 - 2^{2-k})\alpha - \frac{1-\alpha}{2^k-2},\qquad (0 \le \alpha \le \alpha_k, k \ge 2)
+\alpha + \frac{1-k\alpha}{2^k-2}\geq (1 - 2^{2-k})\alpha - \frac{1-k\alpha}{2^k-2},\qquad (0 \le \alpha \le \alpha_k, k \ge 2)
 \]
 which completes the proof in view of Proposition \ref{beta-vdc}.  See Figure \ref{fig:vdc}.
 \end{proof}
