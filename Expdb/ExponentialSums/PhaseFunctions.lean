@@ -48,6 +48,7 @@ def modelPhaseError
     VariableFunction (VariableObject.fixed phaseInterval) ℝ :=
   fun i u ↦ modelPhaseErrorAt (F i) σ p u
 
+/-- Evaluate the variable model phase error at an ambient index. -/
 @[simp] theorem modelPhaseError_apply
     (F : VariableFunction (VariableObject.fixed ℝ) ℝ) (σ : ℝ) (p i : ℕ)
     (u : phaseInterval) :

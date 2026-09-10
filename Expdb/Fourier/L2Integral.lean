@@ -28,7 +28,7 @@ namespace Expdb
 
 open L2Bump
 
-/-! ### The exponential sum -/
+/-! ## The exponential sum -/
 
 /-- The exponential sum with coefficients `a` and frequencies `ξ`, evaluated at `t`. -/
 def expSum {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ : ι → ℝ) (t : ℝ) : ℂ :=
@@ -172,7 +172,7 @@ private lemma weighted_l2_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) (�
     simpa only [H] using (SchwartzMap.integral_norm_sq_fourier G).trans hG_l2]
   simp [abs_of_pos hN]
 
-/-! ### Local `L²` bound -/
+/-! ## Local `L²` bound -/
 
 private lemma local_l2_bound :
     ∃ C : ℝ, 0 < C ∧
@@ -255,7 +255,7 @@ private lemma local_l2_bound :
   apply (le_div_iff₀ hc).2
   nlinarith
 
-/-! ### Smoothing identity -/
+/-! ## Smoothing identity -/
 
 -- E(t) = 1/N ∫_I |bump̂((t-t₀)/N)|² dt₀ - 1_I(t)
 private def smoothingKernel (N : ℝ) (left right : ℝ) (t : ℝ) : ℝ :=
@@ -381,7 +381,7 @@ private lemma smoothing_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) (ξ 
   field_simp
   ring
 
-/-! ### Decay of the smoothing error -/
+/-! ## Decay of the smoothing error -/
 
 private lemma smoothing_kernel_decay :
     ∃ C : ℝ, 0 < C ∧
@@ -567,7 +567,7 @@ private lemma smoothingKernel_aestronglyMeasurable (N : ℝ) (hN : 0 < N)
   exact (smoothingKernelAverage_continuous N hN left right hleft_right).aestronglyMeasurable.sub
     hind_meas
 
-/-! ### Integrated smoothing-error bound -/
+/-! ## Integrated smoothing-error bound -/
 
 private lemma smoothing_error_bound :
     ∃ C : ℝ, 0 < C ∧
@@ -814,7 +814,7 @@ private lemma smoothing_error_bound :
           mul_le_mul_of_nonneg_left (le_add_of_nonneg_right zero_le_one) (by positivity)
         _ = 2 * C₅ * C₃ * (B + 1) * N * ∑ r, ‖a r‖ ^ 2 := by ring
 
-/-! ### `L²` integral estimate lemma -/
+/-! ## `L²` integral estimate lemma -/
 
 /-- If `ξ` is a finite `1 / N`-separated
   family of real numbers, then over any interval of length `T`,

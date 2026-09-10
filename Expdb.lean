@@ -4,6 +4,7 @@ public import Expdb.Basic.AutomaticUniformity
 public import Expdb.Basic.PowerAsymptotics
 public import Expdb.ExponentialSums.ExponentPairs
 public import Expdb.ExponentialSums.ExponentSumGrowthNonAsymptotic
+public import Expdb.ExponentialSums.ExponentSumGrowthLiterature
 public import Expdb.ExponentialSums.LogPhase
 public import Expdb.ExponentialSums.FixedExponentialSum
 public import Expdb.ExponentialSums.OscillatoryBounds
@@ -14,3 +15,9 @@ public import Expdb.Fourier.Bump
 public import Expdb.Fourier.L2Integral
 public import Expdb.Mathlib.EulerMaclaurin
 public import Expdb.Mathlib.IteratedDeriv
+
+/-!
+# Exponent database
+
+This is the root import for the Lean development of the analytic number theory exponent database.
+-/

@@ -302,6 +302,7 @@ theorem isPowerAsymptotic_zero_of_tendsto_one
 def floorRpow (T : VariableObject ℝ) (κ : ℝ) : VariableObject ℕ :=
   fun i ↦ max 1 ⌊T i ^ κ⌋₊
 
+/-- The positive natural power scale is nonzero. -/
 theorem floorRpow_pos (T : VariableObject ℝ) (κ : ℝ) (i : ℕ) :
     0 < floorRpow T κ i := by
   simp [floorRpow]

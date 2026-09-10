@@ -19,7 +19,7 @@ namespace Expdb
 
 variable {α : Type*} [SeminormedAddCommGroup α]
 
-/-! ### Auxiliary lemmas for subsequence extraction -/
+/-! ## Auxiliary lemmas for subsequence extraction -/
 
 /-- From a property holding arbitrarily late, extract a strictly
     increasing sequence on which it holds. -/
@@ -91,7 +91,7 @@ private lemma build_increasing_thresholds
   have hb := hi_seq n (φ n) hge x
   rwa [Nat.cast_add, Nat.cast_one] at hb
 
-/-! ### Automatic uniformity (`auto`) -/
+/-! ## Automatic uniformity (`auto`) -/
 
 open Classical in
 private noncomputable def extend_subsequence
@@ -133,22 +133,22 @@ theorem automatic_uniformity_of_choicewise_bounded
       ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : E (φ i), ‖f (φ i) x‖ ≤ C := by
     by_contra h_fail
     push Not at h_fail
-    -- Build a bad sequence: for each j find i ≥ j and x with |f i x| > j
+    -- Build a bad sequence: for each `j`, find `i ≥ j` and `x` with `|f i x| > j`.
     have bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j:ℝ) < ‖f i x‖ := fun j => by
       rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
       exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
     let y : ∀ j, E j := extend_subsequence E hE φ x_bad
-    -- Apply the choicewise bound to y
+    -- Apply the choicewise bound to `y`.
     obtain ⟨C_y, hC_y⟩ := hf y
     rw [Filter.eventually_atTop] at hC_y
     obtain ⟨j₀, hj₀⟩ := hC_y
     obtain ⟨n₁, hn₁⟩ := exists_nat_gt C_y
-    -- Find m with φ(m) ≥ j₀ and m > n₁
+    -- Find `m` with `φ m ≥ j₀` and `m > n₁`.
     obtain ⟨m, hm_ge, hm_large⟩ : ∃ m, φ m ≥ j₀ ∧ m > n₁ := by
       obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
       exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
-    -- Derive contradiction
+    -- Derive a contradiction.
     have heq := norm_extend_subsequence_apply hE (f := f) hφ x_bad m
     linarith [hj₀ (φ m) hm_ge,
               hx_bad m,
@@ -175,7 +175,7 @@ theorem automatic_uniformity_of_choicewise_infinitesimal
     ∃ c : VariableObject ℝ, c.IsInfinitesimal ∧
     ∀ i, ∀ x : E (φ i),
     ‖f (φ i) x‖ ≤ c i := by
-  -- Step 1: for each n ≥ 1, the bound 1/n eventually holds uniformly
+  -- For each `n ≥ 1`, the bound `1 / n` eventually holds uniformly.
   have scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : E i,
       ‖f i x‖ ≤ 1/n := by
     intro n hn
@@ -198,7 +198,7 @@ theorem automatic_uniformity_of_choicewise_infinitesimal
               show (1:ℝ)/(2*n) < 1/n by
                 have hn : (0 : ℝ) < n := by positivity
                 exact one_div_lt_one_div_of_lt hn (by nlinarith)]
-  -- Step 2: build strictly increasing thresholds and conclude
+  -- Build strictly increasing thresholds and conclude.
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
   refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, hφ_bd⟩
   rw [VariableObject.IsInfinitesimal]
@@ -206,7 +206,7 @@ theorem automatic_uniformity_of_choicewise_infinitesimal
     tendsto_one_div_add_atTop_nhds_zero_nat
   simpa using hc.norm
 
-/-! ### Full-tail uniformity -/
+/-! ## Full-tail uniformity -/
 
 /-- Boundedness along every variable choice is equivalent to an eventual bound uniform over
 the original variable sets. This strengthens `automatic_uniformity_of_choicewise_bounded`. -/

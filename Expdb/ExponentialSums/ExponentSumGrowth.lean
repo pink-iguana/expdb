@@ -38,6 +38,7 @@ def exponentialSum
     VariableObject ℂ :=
   fun i ↦ exponentialSumAt (F i) (T i) (N i) (a i) (b i)
 
+/-- Evaluate a variable exponential sum at an ambient index. -/
 @[simp] theorem exponentialSum_apply
     (F : VariableFunction (VariableObject.fixed ℝ) ℝ)
     (T N : VariableObject ℝ) (a b : VariableObject ℕ) (i : ℕ) :
@@ -61,6 +62,7 @@ def IsExponentSumBound (α : ℝ≥0) (β : ℝ) : Prop :=
 def exponentSumBounds (α : ℝ≥0) : Set ℝ :=
   {β : ℝ | IsExponentSumBound α β}
 
+/-- Membership in the set of admissible exponential sum exponents. -/
 @[simp] theorem mem_exponentSumBounds {α : ℝ≥0} {β : ℝ} :
     β ∈ exponentSumBounds α ↔ IsExponentSumBound α β :=
   Iff.rfl
