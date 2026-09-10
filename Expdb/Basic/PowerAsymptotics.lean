@@ -10,7 +10,7 @@ public import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 # Power asymptotics
 
 This module collects the project-wide notation and elementary calculus for quantities of the
-form `T ^ (α + o(1))`.  It is independent of exponential sums and can therefore be reused by
+form `T ^ (α + o(1))`. It is independent of exponential sums and can therefore be reused by
 all later asymptotic arguments.
 -/
 
@@ -81,7 +81,7 @@ theorem isPowerAsymptotic_of_logb_tendsto
   · filter_upwards [hT, hN] with i hiT hiN
     exact (Real.rpow_logb (zero_lt_one.trans hiT) hiT.ne' hiN).symm
 
-/-- A variable power sandwich with an infinitesimal error determines a power asymptotic.  No
+/-- A variable power sandwich with an infinitesimal error determines a power asymptotic. No
 sign condition on the error is needed. -/
 theorem isPowerAsymptotic_of_between_of_infinitesimal
     {N T δ : VariableObject ℝ} {α : ℝ}
@@ -110,7 +110,7 @@ theorem isPowerAsymptotic_of_between_of_infinitesimal
       (hT i).ne' (hN i)).symm
 
 /-- A variable power sandwich with a nonnegative infinitesimal error determines a power
-asymptotic.  This is the compatibility form of
+asymptotic. This is the compatibility form of
 `isPowerAsymptotic_of_between_of_infinitesimal`. -/
 theorem isPowerAsymptotic_of_between
     {N T δ : VariableObject ℝ} {α : ℝ}

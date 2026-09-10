@@ -11,7 +11,7 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Deriv
 
 This module formalizes the non-asymptotic definition of exponential sum exponent from the
 blueprint's Exponential sum growth exponents chapter (`beta-chapter`). It gives a fixed-parameter,
-epsilon--delta characterization of the exponential sum growth exponent.
+epsilon–delta characterization of the exponential sum growth exponent.
 -/
 
 @[expose] public section
@@ -41,7 +41,7 @@ structure IsModelPhaseSumSetupAt
   /-- The summation interval ends in the dyadic block. -/
   end_le_two_mul_scale : (b : ℝ) ≤ 2 * N
 
-/-- The fixed-parameter epsilon--delta bound from the blueprint lemma `beta-asymp`
+/-- The fixed-parameter epsilon–delta bound from the blueprint lemma `beta-asymp`
     (Non-asymptotic definition of `β`). -/
 def IsExponentSumBoundNonAsymptotic (α : ℝ≥0) (β : ℝ) : Prop :=
   ∀ ε : ℝ, 0 < ε →

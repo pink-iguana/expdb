@@ -133,22 +133,19 @@ theorem automatic_uniformity_of_choicewise_bounded
       ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : E (φ i), ‖f (φ i) x‖ ≤ C := by
     by_contra h_fail
     push Not at h_fail
-    -- Build a bad sequence: for each `j`, find `i ≥ j` and `x` with `|f i x| > j`.
+    -- Failure of uniformity gives a choice whose norm grows along a subsequence.
     have bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j:ℝ) < ‖f i x‖ := fun j => by
       rcases Filter.frequently_atTop.mp (h_fail id strictMono_id j) j with ⟨i, hi, x, hx⟩
       exact ⟨i, hi, x, hx⟩
     obtain ⟨φ, hφ, x_bad, hx_bad⟩ := extract_bad_seq_i E f bad
     let y : ∀ j, E j := extend_subsequence E hE φ x_bad
-    -- Apply the choicewise bound to `y`.
     obtain ⟨C_y, hC_y⟩ := hf y
     rw [Filter.eventually_atTop] at hC_y
     obtain ⟨j₀, hj₀⟩ := hC_y
     obtain ⟨n₁, hn₁⟩ := exists_nat_gt C_y
-    -- Find `m` with `φ m ≥ j₀` and `m > n₁`.
     obtain ⟨m, hm_ge, hm_large⟩ : ∃ m, φ m ≥ j₀ ∧ m > n₁ := by
       obtain ⟨m, hm⟩ := (hφ.tendsto_atTop).eventually (eventually_ge_atTop j₀) |>.exists
       exact ⟨max m (n₁+1), le_trans hm (hφ.monotone (le_max_left _ _)), by omega⟩
-    -- Derive a contradiction.
     have heq := norm_extend_subsequence_apply hE (f := f) hφ x_bad m
     linarith [hj₀ (φ m) hm_ge,
               hx_bad m,
@@ -175,7 +172,7 @@ theorem automatic_uniformity_of_choicewise_infinitesimal
     ∃ c : VariableObject ℝ, c.IsInfinitesimal ∧
     ∀ i, ∀ x : E (φ i),
     ‖f (φ i) x‖ ≤ c i := by
-  -- For each `n ≥ 1`, the bound `1 / n` eventually holds uniformly.
+  -- Failure at a fixed scale contradicts choicewise infinitesimality along a subsequence.
   have scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : E i,
       ‖f i x‖ ≤ 1/n := by
     intro n hn
@@ -198,7 +195,7 @@ theorem automatic_uniformity_of_choicewise_infinitesimal
               show (1:ℝ)/(2*n) < 1/n by
                 have hn : (0 : ℝ) < n := by positivity
                 exact one_div_lt_one_div_of_lt hn (by nlinarith)]
-  -- Build strictly increasing thresholds and conclude.
+  -- Diagonalize the uniform thresholds into an infinitesimal majorant.
   obtain ⟨φ, hφ, hφ_bd⟩ := build_increasing_thresholds E f scale
   refine ⟨φ, hφ, fun n => 1/(↑n+1), ?_, hφ_bd⟩
   rw [VariableObject.IsInfinitesimal]
