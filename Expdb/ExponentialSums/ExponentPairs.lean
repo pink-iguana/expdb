@@ -1,7 +1,6 @@
 module
 
-public import Expdb.ExponentialSums.TrivialBounds
-public import Expdb.ExponentialSums.UpperSemicontinuity
+public import Expdb.ExponentialSums.ExponentSumGrowthBounds
 
 /-!
 # Exponent pairs
@@ -32,9 +31,7 @@ An *exponent pair* is a point `(k, ℓ)` of the triangle
   closed and convex (blueprint Corollary `exp-pair-closed`).
 * `Expdb.isExponentPair_zero_one`: `(0, 1)` is an exponent pair.
 * `Expdb.isExponentPair_half_half_of_exponentSumGrowthExponent_le_half`: `(1/2, 1/2)` is an
-  exponent pair as soon as `β(α) ≤ 1/2` for `1/2 ≤ α ≤ 1`; that bound is the van der Corput
-  `B`-process, which is not part of this development, so `Expdb.isExponentPair_half_half` is
-  still open.
+  exponent pair as soon as `β(α) ≤ 1/2` for `1/2 ≤ α ≤ 1`.
 -/
 
 @[expose] public section
@@ -286,7 +283,7 @@ theorem isExponentPairBound_of_forall_exponentSumGrowthExponent_le
       Real.one_le_rpow (hT1 i) (by linarith)
     have h2 : (1 : ℝ) ≤ N i ^ (l - k) := Real.one_le_rpow (hN i) hlk
     nlinarith
-  -- extract a subsequence along which the claimed bound fails badly
+  -- Extract a subsequence along which the claimed bound fails badly.
   have hfreq : ∀ n : ℕ, ∃ᶠ i in atTop,
       (n : ℝ) * ‖R i‖ < ‖exponentialSum F T N a b i‖ := by
     intro n
@@ -294,7 +291,7 @@ theorem isExponentPairBound_of_forall_exponentSumGrowthExponent_le
     push Not at hO
     simpa using hO n
   obtain ⟨φ, hφ, hφprop⟩ := extraction_forall_of_frequently hfreq
-  -- the scales along this subsequence tend to infinity
+  -- The scales along this subsequence tend to infinity.
   have hNlarge : ∀ j : ℕ, (j : ℝ) ≤ 3 * N (φ j) := by
     intro j
     have h1 := hφprop j
@@ -311,7 +308,7 @@ theorem isExponentPairBound_of_forall_exponentSumGrowthExponent_le
     exact (div_le_iff₀ (show (0:ℝ) < 3 by norm_num)).2 (by linarith [hNlarge j])
   have hTtop : Tendsto (fun j ↦ T (φ j)) atTop atTop :=
     tendsto_atTop_mono (fun j ↦ hNT (φ j)) hNtop
-  -- pass to a further subsequence on which the scale exponent converges
+  -- Pass to a further subsequence on which the scale exponent converges.
   set x : ℕ → ℝ := fun j ↦ max 0 (min 1 (Real.logb (T (φ j)) (N (φ j)))) with hxdef
   have hxmem : ∀ j, x j ∈ Set.Icc (0 : ℝ) 1 := by
     intro j
@@ -360,7 +357,7 @@ theorem isExponentPairBound_of_forall_exponentSumGrowthExponent_le
   obtain ⟨C, hCpos, hCbound⟩ :=
     ((isPowerBounded_iff_forall_pos _ T₂ _ hT₂1 hT₂unbounded).1 hpb
       (ε / 4) (by linarith)).exists_pos
-  -- a lower bound for the majorant along the subsequence
+  -- Bound the majorant below along the subsequence.
   set δ : ℝ := ε / (2 * (l - k + 1)) with hδdef
   have hδpos : 0 < δ := by
     rw [hδdef]
@@ -437,6 +434,7 @@ theorem isExponentPair_iff_forall_exponentSumGrowthExponent_le
 /-- The set of exponent pairs, as a subset of the plane. -/
 def exponentPairs : Set (ℝ × ℝ) := {p | IsExponentPair p.1 p.2}
 
+/-- Membership in the set of exponent pairs. -/
 @[simp] theorem mem_exponentPairs {p : ℝ × ℝ} :
     p ∈ exponentPairs ↔ IsExponentPair p.1 p.2 := Iff.rfl
 
@@ -499,14 +497,18 @@ def vanDerCorputA (p : ℝ × ℝ) : ℝ × ℝ :=
 def vanDerCorputB (p : ℝ × ℝ) : ℝ × ℝ :=
   (p.2 - 1 / 2, p.1 + 1 / 2)
 
+/-- The first coordinate of the van der Corput `A`-transform. -/
 @[simp] theorem vanDerCorputA_fst (k l : ℝ) :
     (vanDerCorputA (k, l)).1 = k / (2 * k + 2) := rfl
 
+/-- The second coordinate of the van der Corput `A`-transform. -/
 @[simp] theorem vanDerCorputA_snd (k l : ℝ) :
     (vanDerCorputA (k, l)).2 = l / (2 * k + 2) + 1 / 2 := rfl
 
+/-- The first coordinate of the van der Corput `B`-transform. -/
 @[simp] theorem vanDerCorputB_fst (k l : ℝ) : (vanDerCorputB (k, l)).1 = l - 1 / 2 := rfl
 
+/-- The second coordinate of the van der Corput `B`-transform. -/
 @[simp] theorem vanDerCorputB_snd (k l : ℝ) : (vanDerCorputB (k, l)).2 = k + 1 / 2 := rfl
 
 /-- The van der Corput `A`-transform maps the exponent pair triangle into itself. -/
@@ -548,9 +550,7 @@ theorem isExponentPair_zero_one : IsExponentPair 0 1 := by
   simpa using exponentSumGrowthExponent_le_self α
 
 /-- The pair `(1/2, 1/2)` is an exponent pair as soon as `β(α) ≤ 1/2` holds on the upper half
-`[1/2, 1]` of the scale range; on the lower half the trivial bound `β(α) ≤ α` already suffices.
-The missing input is the van der Corput `B`-process (equivalently the second derivative test),
-which is not yet available in this development. -/
+`[1/2, 1]` of the scale range; on the lower half the trivial bound `β(α) ≤ α` suffices. -/
 theorem isExponentPair_half_half_of_exponentSumGrowthExponent_le_half
     (hβ : ∀ α : ℝ≥0, 1 / 2 ≤ (α : ℝ) → α ≤ 1 → exponentSumGrowthExponent α ≤ 1 / 2) :
     IsExponentPair (1 / 2) (1 / 2) := by
@@ -561,13 +561,23 @@ theorem isExponentPair_half_half_of_exponentSumGrowthExponent_le_half
   · exact (exponentSumGrowthExponent_le_self α).trans h
   · exact hβ α h.le hα
 
-/-- `(1/2, 1/2)` is an exponent pair (blueprint Proposition `exp-pair-trivial`).
-
-By `isExponentPair_half_half_of_exponentSumGrowthExponent_le_half` this is equivalent to the
-bound `β(α) ≤ 1/2` for `1/2 ≤ α ≤ 1`, that is, to the van der Corput `B`-process (second
-derivative test).  That estimate is not part of the present development, so the proof is left
-open here. -/
+/-- `(1/2, 1/2)` is an exponent pair (blueprint Proposition `exp-pair-trivial`). -/
 theorem isExponentPair_half_half : IsExponentPair (1 / 2) (1 / 2) := by
-  sorry
+  apply isExponentPair_half_half_of_exponentSumGrowthExponent_le_half
+  intro α hhalf hα
+  by_cases hαone : α = 1
+  · subst α
+    simp
+  have hαlt : α < 1 := lt_of_le_of_ne hα hαone
+  let γ : ℝ≥0 := 1 - α
+  have hγpos : 0 < γ := tsub_pos_of_lt hαlt
+  have hαpos : 0 < α := by
+    exact_mod_cast lt_of_lt_of_le (by norm_num : (0 : ℝ) < 1 / 2) hhalf
+  have hγlt : γ < 1 := tsub_lt_self (by norm_num) hαpos
+  have href := exponentSumGrowthExponent_reflection γ hγpos hγlt
+  have hγα : 1 - γ = α := tsub_tsub_cancel_of_le hα
+  rw [hγα] at href
+  rw [href]
+  linarith [exponentSumGrowthExponent_le_self γ]
 
 end Expdb
