@@ -10,9 +10,10 @@ import Mathlib.Topology.Semicontinuity.Basic
 /-!
 # Upper semicontinuity of the exponential-sum growth exponent
 
-This file proves the upper semicontinuity assertion in the blueprint.  The main input is scale
+This file proves Lemma `beta-semicts` from the blueprint's Exponential sum growth exponents
+chapter (`beta-chapter`). The main input is scale
 transference: dilation and finite Fourier inversion increase the scale, while decomposition into
-residue classes decreases it.  Both operations preserve the fixed model order of the phase.
+residue classes decreases it. Both operations preserve the fixed model order of the phase.
 -/
 
 @[expose] public section
@@ -434,7 +435,8 @@ theorem continuousOn_exponentSumGrowthExponent :
     ContinuousOn exponentSumGrowthExponent (Set.Icc 0 1) :=
   lipschitzOnWith_exponentSumGrowthExponent.continuousOn
 
-/-- The exponential-sum growth exponent is upper semicontinuous. -/
+/-- The exponential-sum growth exponent is upper semicontinuous (blueprint Lemma
+`beta-semicts`). -/
 theorem upperSemicontinuous_exponentSumGrowthExponent :
     UpperSemicontinuous exponentSumGrowthExponent := by
   rw [upperSemicontinuous_iff]

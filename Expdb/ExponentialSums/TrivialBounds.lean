@@ -21,7 +21,7 @@ since an admissible exponent must bound every model phase.
 Its sum is essentially `∑ n ^ (iT)` and its integral has size comparable to `N / T`,
 while Euler–Maclaurin contributes only a bounded error, giving `β(α) ≥ α - 1`.
 
-For `0 ≤ α ≤ 1`, the triangle inequality gives `β(α) ≤ α`. The `L^2` integral estimate
+For `0 ≤ α ≤ 1`, the triangle inequality gives `β(α) ≤ α`. The `L²` integral estimate
 lemma is applied to the separated values `log(n/N)` to find a parameter for
 which the logarithmic-phase sum has size comparable to `N ^ (1 / 2)`, yielding
 the lower bound `β(α) ≥ α / 2`.

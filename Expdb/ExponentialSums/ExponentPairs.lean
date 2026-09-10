@@ -24,7 +24,7 @@ namespace Expdb
 
 /-- The analytic content of the definition of an exponent pair: for all model phase functions
 `F`, all scales `T ≥ N ≥ 1` and all intervals `[a, b] ⊆ [N, 2N]`, the exponential sum
-`∑ n ∈ [a, b], e(T F(n / N))` is `≪ (T / N) ^ (k + o(1)) N ^ (ℓ + o(1))`.  As in
+`∑ n ∈ [a, b], e(T F(n / N))` is `≪ (T / N) ^ (k + o(1)) N ^ (ℓ + o(1))`. As in
 `isPowerBounded_iff_forall_pos`, the two `o(1)` losses are expressed by an arbitrary fixed
 `ε > 0`. -/
 def IsExponentPairBound (k l : ℝ) : Prop :=
@@ -393,7 +393,7 @@ theorem isExponentPairBound_of_forall_exponentSumGrowthExponent_le
   have hψj : (j : ℝ) ≤ (ψ j : ℝ) := by exact_mod_cast hψ.le_apply
   linarith
 
-/-- **Duality between exponent pairs and `β`** (blueprint Lemma `beta-duality`).  A point
+/-- **Duality between exponent pairs and `β`** (blueprint Lemma `beta-duality`). A point
 `(k, ℓ)` of the triangle `{0 ≤ k ≤ 1/2 ≤ ℓ ≤ 1, k + ℓ ≤ 1}` is an exponent pair if and only if
 `β(α) ≤ k + (ℓ - k) α` for all `0 ≤ α ≤ 1`. -/
 theorem isExponentPair_iff_forall_exponentSumGrowthExponent_le

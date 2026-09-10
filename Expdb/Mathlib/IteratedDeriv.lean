@@ -13,7 +13,7 @@ currently available in Mathlib in the required two-set form.
 
 namespace Expdb
 
-/-- Iterated derivatives of a function precomposed with an affine map.  Unlike Mathlib's
+/-- Iterated derivatives of a function precomposed with an affine map. Unlike Mathlib's
 `iteratedDerivWithin_comp_const_smul`, the domain and codomain sets may be different. -/
 theorem iteratedDerivWithin_comp_affine_of_mapsTo
     {f : ℝ → ℝ} {s t : Set ℝ} {x c d : ℝ} {n : ℕ}

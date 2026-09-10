@@ -11,7 +11,7 @@ import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Order
 
 /-!
-# Arbitrary-order Euler--Maclaurin summation
+# Arbitrary-order Euler–Maclaurin summation
 
 This file is adapted from
 `Interval/EulerMaclaurin/Bernoulli.lean` and
@@ -137,7 +137,7 @@ lemma abs_saw_le (s : ℕ) (x : ℝ) : |saw s x| ≤ sawBound s := by
   simp only [sawBound]
   positivity
 
-/-! ## Euler--Maclaurin on one unit interval -/
+/-! ## Euler–Maclaurin on one unit interval -/
 
 variable {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
 variable {f : ℝ → E} {t : Set ℝ} {b c : ℤ} {n : ℕ}
@@ -290,7 +290,7 @@ private lemma intervalIntegrable_saw_smul
     simp only [mem_Ioc, ne_eq, Int.cast_add, Int.cast_natCast, mem_Ico] at m ne ⊢
     exact ⟨m.1.le, Ne.lt_of_le ne m.2⟩
 
-/-- The arbitrary-order Euler--Maclaurin formula. -/
+/-- The arbitrary-order Euler–Maclaurin formula. -/
 private lemma trapezoid_sum_eq_integral_add [CompleteSpace E]
     (fc : ContDiffOn ℝ (s + 1) f t) (u : UniqueDiffOn ℝ t)
     (abt : Icc (a : ℝ) (a + n) ⊆ t) :
@@ -324,7 +324,7 @@ private lemma trapezoid_sum_eq_integral_add [CompleteSpace E]
     · exact (fc.continuousOn.mono (by simpa only [hb'])).intervalIntegrable_of_Icc (by linarith)
     · exact (fc.continuousOn.mono (by simpa only [hb'])).intervalIntegrable_of_Icc (by linarith)
 
-/-- The arbitrary-order Euler--Maclaurin formula for a sum over consecutive integers. -/
+/-- The arbitrary-order Euler–Maclaurin formula for a sum over consecutive integers. -/
 theorem sum_Icc_eq_integral_add [CompleteSpace E]
     (fc : ContDiffOn ℝ (s + 1) f t) (u : UniqueDiffOn ℝ t)
     (abt : Icc (a : ℝ) (a + n) ⊆ t) :
@@ -443,7 +443,7 @@ private lemma sum_Icc_int_eq_sum_Icc_nat
   rw [← map_Icc_natCast_int]
   simp
 
-/-- A convenient norm form of Euler--Maclaurin for natural endpoints. Uniform bounds on the
+/-- A convenient norm form of Euler–Maclaurin for natural endpoints. Uniform bounds on the
 function and its derivatives control the difference between the inclusive sum and its integral;
 the right-hand side records the endpoint, correction-term, and remainder contributions. -/
 theorem norm_sum_Icc_nat_sub_integral_le [CompleteSpace E]
