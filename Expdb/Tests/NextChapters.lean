@@ -2,6 +2,7 @@ module
 
 import Expdb.LargeValues.Exponents
 import Expdb.Zeta.GrowthRight
+import Expdb.Zeta.PowerRemainder
 
 /-! Boundary checks for the definitions in the chapters following exponent pairs. -/
 
@@ -36,12 +37,10 @@ example : IsZetaLargeValuePattern (3 / 2) (1 / 2) 10 (fun _ => 0) (1 / 2) ∅ :=
 
 -- Both endpoints of the blueprint's sigma range are covered at the tau = 0 boundary.
 example : largeValueExponent 1 0 = 0 :=
-  le_antisymm (largeValueExponent_le_tau (by norm_num) (by norm_num))
-    (largeValueExponent_nonneg (by norm_num) (by norm_num))
+  largeValueExponent_zero (by norm_num)
 
 example : largeValueExponent (1 / 2) 0 = 0 :=
-  le_antisymm (largeValueExponent_le_tau (by norm_num) (by norm_num))
-    (largeValueExponent_nonneg (by norm_num) (by norm_num))
+  largeValueExponent_zero (by norm_num)
 
 -- The extended-real API retains a genuinely negative-infinite exponent.
 example {σ τ : ℝ} (h : ∀ ρ : ℝ, IsZetaLargeValueBound σ τ ρ) :
@@ -56,3 +55,34 @@ example {σ b : ℝ} (h : IsZetaGrowthBound σ b) {ε : ℝ} (hε : 0 < ε) :
       ‖zetaOnVertical σ (-t)‖ ≤ C * |t| ^ (b + ε) := by
   obtain ⟨C, hC, hb⟩ := h ε hε
   exact ⟨C, hC, fun t ht => by simpa using hb (-t) (by simpa using ht)⟩
+
+-- Symmetry agrees with the literal blueprint expression, including sigma = 1.
+example (t : ℝ) :
+    ‖riemannZeta (1 - (t : ℂ) * Complex.I)‖ =
+      ‖riemannZeta (1 + (t : ℂ) * Complex.I)‖ := by
+  simpa [zetaOnVertical, sub_eq_add_neg] using norm_zetaOnVertical_neg 1 t
+
+-- A conventional positive-height Big-O estimate yields an actual exponent bound.
+open Filter in
+example {σ b : ℝ} (hσ : 1 < σ)
+    (h : (fun t : ℝ => zetaOnVertical σ t) =O[atTop] (fun t => t ^ b)) :
+    zetaGrowthExponent σ ≤ b :=
+  (zetaGrowthExponent_le_iff_of_one_lt hσ).mpr (isZetaGrowthBound_of_isBigO h)
+
+-- Higher-order remainders converge even on lines left of the critical strip.
+example (t : ℝ) :
+    MeasureTheory.IntegrableOn
+      (fun x : ℝ => (EulerMaclaurin.saw 3 x : ℂ) *
+        (x : ℂ) ^ (-(-1 + (t : ℂ) * Complex.I) - 3)) (Set.Ioi 1) := by
+  simpa using integrableOn_zetaPowerRemainder (k := 3) (s := -1 + (t : ℂ) * Complex.I)
+    (by decide) (by norm_num)
+
+example (t : ℝ) :
+    ‖zetaPowerRemainder 3 (-1 + (t : ℂ) * Complex.I)‖ ≤ EulerMaclaurin.sawBound 3 := by
+  have hb := norm_zetaPowerRemainder_le (k := 3) (s := -1 + (t : ℂ) * Complex.I)
+    (by norm_num)
+  norm_num at hb
+  exact hb
+
+example : DifferentiableAt ℂ (zetaPowerRemainder 3) (-1) :=
+  differentiableAt_zetaPowerRemainder (by decide) (by norm_num)

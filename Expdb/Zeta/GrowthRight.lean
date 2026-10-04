@@ -118,4 +118,28 @@ theorem zetaGrowthExponent_eq_zero_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
   · exact (isZetaGrowthBound_zetaGrowthExponent
       (zetaGrowthBounds_nonempty_of_one_lt hσ)).nonneg_of_one_lt hσ
 
+/-- On the right half-plane, the admissible exponents are exactly the nonnegative ones. -/
+theorem isZetaGrowthBound_iff_nonneg_of_one_lt {σ b : ℝ} (hσ : 1 < σ) :
+    IsZetaGrowthBound σ b ↔ 0 ≤ b :=
+  ⟨fun h => h.nonneg_of_one_lt hσ,
+    fun hb => (isZetaGrowthBound_zero_of_one_lt hσ).mono hb⟩
+
+/-- The complete candidate set for `σ > 1` is the closed ray `[0,∞)`. -/
+theorem zetaGrowthBounds_eq_Ici_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
+    zetaGrowthBounds σ = Set.Ici 0 := by
+  ext b
+  exact isZetaGrowthBound_iff_nonneg_of_one_lt hσ
+
+/-- The right-half-plane least-bound API has no additional analytic hypotheses. -/
+theorem zetaGrowthExponent_le_iff_of_one_lt {σ b : ℝ} (hσ : 1 < σ) :
+    zetaGrowthExponent σ ≤ b ↔ IsZetaGrowthBound σ b :=
+  zetaGrowthExponent_le_iff (zetaGrowthBounds_nonempty_of_one_lt hσ)
+    (zetaGrowthBounds_bddBelow_of_one_lt hσ)
+
+/-- The growth exponent is unconditionally the least candidate for `σ > 1`. -/
+theorem isLeast_zetaGrowthExponent_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
+    IsLeast (zetaGrowthBounds σ) (zetaGrowthExponent σ) :=
+  isLeast_zetaGrowthExponent (zetaGrowthBounds_nonempty_of_one_lt hσ)
+    (zetaGrowthBounds_bddBelow_of_one_lt hσ)
+
 end Expdb

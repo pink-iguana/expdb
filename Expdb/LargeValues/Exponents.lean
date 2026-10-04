@@ -106,6 +106,35 @@ theorem isZetaLargeValueBound_of_forall_gt {σ τ ρ : ℝ}
   exact IsPowerBounded.of_forall_gt (fun i => (hp i).1.1.le) hN
     (fun ρ' hρ' => h ρ' hρ' N T V a u W hp hN hT hV)
 
+/-- General candidate sets are closed without restrictions on the scale parameters. -/
+theorem isClosed_largeValueBounds (σ τ : ℝ) : IsClosed (largeValueBounds σ τ) := by
+  rw [← isOpen_compl_iff, isOpen_iff_mem_nhds]
+  intro ρ hρ
+  have hnot : ¬ IsLargeValueBound σ τ ρ := hρ
+  have hbad : ∃ ρ' : ℝ, ρ < ρ' ∧ ¬ IsLargeValueBound σ τ ρ' := by
+    by_contra h
+    push Not at h
+    exact hnot (isLargeValueBound_of_forall_gt h)
+  obtain ⟨ρ', hlt, hb⟩ := hbad
+  apply Filter.mem_of_superset (Iio_mem_nhds hlt)
+  intro x hx
+  exact fun h => hb (h.mono hx.le)
+
+/-- Zeta candidate sets are closed, including regimes with exponent `−∞`. -/
+theorem isClosed_zetaLargeValueBounds (σ τ : ℝ) :
+    IsClosed (zetaLargeValueBounds σ τ) := by
+  rw [← isOpen_compl_iff, isOpen_iff_mem_nhds]
+  intro ρ hρ
+  have hnot : ¬ IsZetaLargeValueBound σ τ ρ := hρ
+  have hbad : ∃ ρ' : ℝ, ρ < ρ' ∧ ¬ IsZetaLargeValueBound σ τ ρ' := by
+    by_contra h
+    push Not at h
+    exact hnot (isZetaLargeValueBound_of_forall_gt h)
+  obtain ⟨ρ', hlt, hb⟩ := hbad
+  apply Filter.mem_of_superset (Iio_mem_nhds hlt)
+  intro x hx
+  exact fun h => hb (h.mono hx.le)
+
 /-- A real zeta candidate bounds the extended-real infimum. -/
 theorem zetaLargeValueExponent_le_of_bound {σ τ ρ : ℝ}
     (h : IsZetaLargeValueBound σ τ ρ) : zetaLargeValueExponent σ τ ≤ (ρ : EReal) :=
@@ -240,6 +269,11 @@ theorem largeValueExponent_le_tau {σ τ : ℝ} (hσ : σ ≤ 1) (hτ : 0 ≤ τ
 /-- General large value exponents are nonnegative. -/
 theorem largeValueExponent_nonneg {σ τ : ℝ} (hσ : σ ≤ 1) (hτ : 0 ≤ τ) :
     0 ≤ largeValueExponent σ τ := (isLargeValueBound_largeValueExponent hσ hτ).nonneg hσ
+
+/-- At scale exponent zero, general large value exponents vanish (`lv-basic`, part iii). -/
+@[simp] theorem largeValueExponent_zero {σ : ℝ} (hσ : σ ≤ 1) :
+    largeValueExponent σ 0 = 0 :=
+  le_antisymm (largeValueExponent_le_tau hσ le_rfl) (largeValueExponent_nonneg hσ le_rfl)
 
 /-- Specialising coefficients can only improve the large value exponent. -/
 theorem zetaLargeValueExponent_le_largeValueExponent {σ τ : ℝ}

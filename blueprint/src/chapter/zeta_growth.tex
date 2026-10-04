@@ -12,7 +12,7 @@ $$ |\zeta(\sigma+it)| \leq C |t|^{\mu(\sigma)+\eps}$$
 for all $t$ with $|t| \geq C$; equivalently, one has
 $$ \mu(\sigma) = \limsup_{|t| \to \infty} \frac{\log |\zeta(\sigma+it)|}{\log|t|}.$$
 
-The Lean development proves that the explicit growth-bound formulation agrees with bounds along every unbounded sequence of heights. The non-emptiness and boundedness below of the candidate set are currently certified for $\sigma>1$; the general least-exponent characterization still requires these analytic hypotheses.
+The Lean development proves that the candidate set is closed and that the explicit growth-bound formulation agrees with bounds along every unbounded sequence of heights; conjugation symmetry also reduces growth bounds to positive heights.\lean{Expdb.isClosed_zetaGrowthBounds, Expdb.isZetaGrowthBound_iff_sequential, Expdb.isZetaGrowthBound_iff_positive_height} The non-emptiness and boundedness below of the candidate set are currently certified for $\sigma>1$; the general least-exponent characterization still requires these analytic hypotheses.
 
 \python{bound_mu}
 \code{Bound_mu}
