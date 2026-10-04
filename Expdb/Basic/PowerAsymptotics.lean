@@ -521,4 +521,18 @@ theorem exponent_le_of_isPowerBounded_of_eventually_norm_ge_rpow
       (Real.rpow_pos_of_pos (zero_lt_one.trans_le (hT i)) _).ne').frequently
   exact hsmall.not_isBigO hnonzero (hpowO.trans hO)
 
+/-- Underspill for power bounds: bounds at every strictly larger exponent give a bound
+at the limiting exponent. -/
+theorem IsPowerBounded.of_forall_gt
+    {E : Type*} [SeminormedAddCommGroup E]
+    {X : VariableObject E} {T : VariableObject ℝ} {β : ℝ}
+    (hT : ∀ i, 1 ≤ T i) (hTunbounded : T.IsUnbounded)
+    (h : ∀ γ : ℝ, β < γ → IsPowerBounded X T γ) :
+    IsPowerBounded X T β := by
+  apply (isPowerBounded_iff_forall_pos X T β hT hTunbounded).2
+  intro ε hε
+  have hb := (isPowerBounded_iff_forall_pos X T (β + ε / 2) hT hTunbounded).1
+    (h (β + ε / 2) (by linarith)) (ε / 2) (by linarith)
+  simpa only [show β + ε / 2 + ε / 2 = β + ε by ring] using hb
+
 end Expdb

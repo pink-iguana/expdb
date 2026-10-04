@@ -1,6 +1,8 @@
 \chapter{Growth exponents for the Riemann zeta function}\label{zeta-growth-chapter}
 
-\begin{definition}[Growth rate of zeta]\label{zeta-grow-def}  For any fixed $\sigma \in \R$, let $\mu(\sigma)$ denote the least possible (fixed) exponent for which one has the bound
+\begin{definition}[Growth rate of zeta]\label{zeta-grow-def}
+\lean{Expdb.IsZetaGrowthBound, Expdb.zetaGrowthExponent}
+For any fixed $\sigma \in \R$, let $\mu(\sigma)$ denote the least possible (fixed) exponent for which one has the bound
     $$ |\zeta(\sigma+it)| \ll |t|^{\mu(\sigma)+o(1)}$$
     for all unbounded $t$.
 \end{definition}
@@ -9,6 +11,8 @@ One can check that for each $\sigma$, the set of possible candidates for $\mu(\s
 $$ |\zeta(\sigma+it)| \leq C |t|^{\mu(\sigma)+\eps}$$
 for all $t$ with $|t| \geq C$; equivalently, one has
 $$ \mu(\sigma) = \limsup_{|t| \to \infty} \frac{\log |\zeta(\sigma+it)|}{\log|t|}.$$
+
+The Lean development proves that the explicit growth-bound formulation agrees with bounds along every unbounded sequence of heights. The non-emptiness and boundedness below of the candidate set are currently certified for $\sigma>1$; the general least-exponent characterization still requires these analytic hypotheses.
 
 \python{bound_mu}
 \code{Bound_mu}

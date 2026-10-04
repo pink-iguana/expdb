@@ -15,6 +15,8 @@ public import Expdb.Fourier.Bump
 public import Expdb.Fourier.L2Integral
 public import Expdb.Mathlib.EulerMaclaurin
 public import Expdb.Mathlib.IteratedDeriv
+public import Expdb.LargeValues.Exponents
+public import Expdb.Zeta.GrowthRight
 
 /-!
 # Exponent database
