@@ -539,6 +539,8 @@ theorem isExponentPair_half_half_of_exponentSumGrowthExponent_le_half
   · exact hβ α h.le hα
 
 /-- `(1/2, 1/2)` is an exponent pair (blueprint Proposition `exp-pair-trivial`). -/
+-- TODO: Complete `exponentSumGrowthExponent_reflection` (the van der Corput B-process),
+-- whose unfinished proof this theorem depends on.
 theorem isExponentPair_half_half : IsExponentPair (1 / 2) (1 / 2) := by
   apply isExponentPair_half_half_of_exponentSumGrowthExponent_le_half
   intro α hhalf hα
