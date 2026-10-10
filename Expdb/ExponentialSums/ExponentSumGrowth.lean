@@ -85,6 +85,13 @@ theorem IsExponentSumBound.mono {α : ℝ≥0} {β γ : ℝ}
   exact (hβ N T F a b hN hT hTunbounded hNT hF hab).mono
     (Filter.Eventually.of_forall hT) hβγ
 
+/-- Bounds at every strictly larger exponent imply a bound at the limiting exponent. -/
+theorem isExponentSumBound_of_forall_gt {α : ℝ≥0} {β : ℝ}
+    (h : ∀ γ : ℝ, β < γ → IsExponentSumBound α γ) : IsExponentSumBound α β := by
+  intro N T F a b hN hT hTunbounded hNT hF hab
+  exact IsPowerBounded.of_forall_gt hT hTunbounded
+    (fun γ hγ ↦ h γ hγ N T F a b hN hT hTunbounded hNT hF hab)
+
 /-! ### Nonemptiness and lower bound -/
 
 private lemma norm_exponentialSum_le_three_mul
@@ -159,40 +166,13 @@ private lemma exponentSumBounds_bddBelow {α : ℝ≥0} :
 
 /-! ## The least admissible exponent -/
 
-private lemma exists_isExponentSumBound_lt_add
-    (α : ℝ≥0) {ε : ℝ} (hε : 0 < ε) :
-    ∃ β : ℝ, IsExponentSumBound α β ∧
-      β < exponentSumGrowthExponent α + ε := by
-  let S : Set ℝ := exponentSumBounds α
-  have hS : S.Nonempty := exponentSumBounds_nonempty α
-  have hinf_lt : sInf S < sInf S + ε := by linarith
-  obtain ⟨β, hβ, hβlt⟩ := exists_lt_of_csInf_lt hS hinf_lt
-  change IsExponentSumBound α β at hβ
-  refine ⟨β, hβ, ?_⟩
-  simpa [S, exponentSumGrowthExponent] using hβlt
-
 /-- By underspill, the infimum of the admissible exponents is itself admissible. -/
 theorem isExponentSumBound_exponentSumGrowthExponent (α : ℝ≥0) :
     IsExponentSumBound α (exponentSumGrowthExponent α) := by
-  intro N T F a b hN hT hTunbounded hNT hF hab
-  apply (isPowerBounded_iff_forall_pos
-    (exponentialSum F T N a b) T (exponentSumGrowthExponent α)
-    hT hTunbounded).2
-  intro ε hε
-  -- Choose an admissible exponent within `ε / 2` of the infimum.
-  obtain ⟨β, hβ, hβlt⟩ :=
-    exists_isExponentSumBound_lt_add α (show 0 < ε / 2 by linarith)
-  have hβpower := hβ N T F a b hN hT hTunbounded hNT hF hab
-  have hβbound := (isPowerBounded_iff_forall_pos
-    (exponentialSum F T N a b) T β hT hTunbounded).1
-      hβpower (ε / 2) (by linarith)
-  refine hβbound.trans (Asymptotics.IsBigO.of_bound 1 ?_)
-  exact Filter.Eventually.of_forall fun i ↦ by
-    have hT0 : 0 ≤ T i := le_trans zero_le_one (hT i)
-    rw [one_mul, Real.norm_eq_abs, abs_of_nonneg (Real.rpow_nonneg hT0 _),
-      Real.norm_eq_abs, abs_of_nonneg (Real.rpow_nonneg hT0 _)]
-    apply Real.rpow_le_rpow_of_exponent_le (hT i)
-    linarith
+  apply isExponentSumBound_of_forall_gt
+  intro γ hγ
+  obtain ⟨β, hβ, hβγ⟩ := exists_lt_of_csInf_lt (exponentSumBounds_nonempty α) hγ
+  exact IsExponentSumBound.mono hβ hβγ.le
 
 /-- The defining universal property of the exponential sum growth exponent. -/
 theorem exponentSumGrowthExponent_le_iff {α : ℝ≥0} {β : ℝ} :

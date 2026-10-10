@@ -94,6 +94,7 @@ Expdb.exponentSumBounds
 Expdb.mem_exponentSumBounds
 Expdb.exponentSumGrowthExponent
 Expdb.IsExponentSumBound.mono
+Expdb.isExponentSumBound_of_forall_gt
 Expdb.isExponentSumBound_self
 Expdb.IsExponentSumBound.nonneg
 Expdb.isExponentSumBound_exponentSumGrowthExponent
