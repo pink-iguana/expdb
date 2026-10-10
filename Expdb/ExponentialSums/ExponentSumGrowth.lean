@@ -58,6 +58,26 @@ def IsExponentSumBound (α : ℝ≥0) (β : ℝ) : Prop :=
     (∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i) →
     IsPowerBounded (exponentialSum F T N a b) T β
 
+/-- The exponential sum bound obtained by testing only the full interval `[N, 2N]`. -/
+def IsFullIntervalExponentSumBound (α : ℝ≥0) (β : ℝ) : Prop :=
+  ∀ (N T : VariableObject ℝ)
+    (F : VariableFunction (VariableObject.fixed ℝ) ℝ),
+    (∀ i, 1 ≤ N i) →
+    (∀ i, 1 ≤ T i) →
+    T.IsUnbounded →
+    IsPowerAsymptotic N T (α : ℝ) →
+    IsModelPhaseFunction F →
+    IsPowerBounded
+      (exponentialSum F T N (fun i ↦ ⌈N i⌉₊) (fun i ↦ ⌊2 * N i⌋₊)) T β
+
+/-- Every arbitrary-interval bound applies to the full dyadic interval. -/
+theorem IsExponentSumBound.fullInterval {α : ℝ≥0} {β : ℝ}
+    (h : IsExponentSumBound α β) : IsFullIntervalExponentSumBound α β := by
+  intro N T F hN hT hTunbounded hNT hF
+  apply h N T F _ _ hN hT hTunbounded hNT hF
+  intro i
+  exact ⟨Nat.le_ceil _, Nat.floor_le (by linarith [hN i])⟩
+
 /-- The set of admissible exponential-sum growth exponents at scale `α`. -/
 def exponentSumBounds (α : ℝ≥0) : Set ℝ :=
   {β : ℝ | IsExponentSumBound α β}

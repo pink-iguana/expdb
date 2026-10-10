@@ -155,6 +155,22 @@ theorem IsModelPhaseFunction.exists_with
   rcases hF with ⟨hphase, σ, hσ, herror⟩
   exact ⟨σ, hσ, ⟨hphase, herror⟩⟩
 
+/-- Model phases remain model phases after restricting the ambient sequence. -/
+theorem IsModelPhaseFunctionWith.comp_tendsto
+    {F : VariableFunction (VariableObject.fixed ℝ) ℝ} {σ : ℝ}
+    (hF : IsModelPhaseFunctionWith F σ) {φ : ℕ → ℕ} (hφ : Tendsto φ atTop atTop) :
+    IsModelPhaseFunctionWith (fun i ↦ F (φ i)) σ := by
+  refine ⟨fun i ↦ hF.isPhaseFunction (φ i), ?_⟩
+  intro p u
+  apply (VariableObject.isInfinitesimal_iff_forall_pos _).2
+  intro ε hε
+  have hsmall :=
+    (VariableFunction.isChoicewiseInfinitesimal_iff_forall_pos_uniform
+      (VariableObject.fixed phaseInterval)
+      (fun _ ↦ ⟨1, by simp [phaseInterval]⟩)
+      (modelPhaseError F σ p)).1 (hF.error_isChoicewiseInfinitesimal p) ε hε
+  exact (hφ.eventually hsmall).mono fun i hi ↦ hi (u i)
+
 /-- Adding a linear function changes only the zeroth model-phase error. -/
 theorem modelPhaseErrorAt_add_linear
     {F : ℝ → ℝ} {σ c u : ℝ} {p : ℕ}
