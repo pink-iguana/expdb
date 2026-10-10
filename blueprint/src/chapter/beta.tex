@@ -157,7 +157,7 @@ This form of upper bound of $\beta(\alpha)$ - as the maximum of a finite number 
 \begin{proof}\uses{vdca-beta} Follows from \cite[Theorem 8.20]{ik}. It is also possible to prove this by induction on $k$ using Lemma \ref{vdca-beta}.
 \end{proof}
 
-    \begin{corollary}[Optimizing the van der Corput inequality]\label{vdc-opt}\uses{beta-def}  For any $\alpha > 0$ one has
+    \begin{corollary}[Optimizing the van der Corput inequality]\label{vdc-opt}\uses{beta-def}  For any $0 < \alpha \leq 1$ one has
     $$\beta(\alpha) \leq \inf_{k \in \N: k \geq 2} \alpha + \frac{1-k\alpha}{2^k-2}.$$
     Thus for instance
     $$ \beta(\alpha) \leq \min\left( \frac{1}{2}, \frac{1+3\alpha}{6}, \frac{10\alpha+1}{14}\right).$$
@@ -168,13 +168,13 @@ Let $\beta_k(\alpha) = \alpha + (1 - k\alpha)/(2^k - 2)$ and
 \[
 \alpha_k = \frac{2^k}{(k - 1)2^k + 2}.
 \]
-Via a routine computation, $\beta_k(\alpha) \le \beta_{k+1}(\alpha)$ for $\alpha \ge \alpha_k$ and any $k \ge 2$. Thus, to verify that $\beta(\alpha) \le \beta_k(\alpha)$ for $0 \le \alpha \le 1/2$, it suffices to just show that the same result holds for $0 \le \alpha \le \alpha_{k}$. However, for $0 \le \alpha \le \alpha_k$ and $k \ge 2$, we have
+For $k=2$, the claim follows from Proposition \ref{beta-vdc} for $0 < \alpha \leq 1$. We proceed by induction on $k$. Via a routine computation, $\beta_{k-1}(\alpha) \le \beta_k(\alpha)$ for $\alpha \ge \alpha_{k-1}$ and any $k \ge 3$. Thus, by the induction hypothesis, to verify that $\beta(\alpha) \le \beta_k(\alpha)$ for $0 < \alpha \leq 1$, it suffices to just show that the same result holds for $0 < \alpha \le \alpha_{k-1}$. However, for $0 < \alpha \le \alpha_{k-1}$ and $k \ge 3$, we have
 \[
-0 \le \alpha \le \alpha_k \le \frac{2^k}{(k - 2)2^k + 4}
+0 < \alpha \le \alpha_{k-1} = \frac{2^k}{(k - 2)2^k + 4}
 \]
 which rearranges to give
 \[
-\alpha + \frac{1-k\alpha}{2^k-2}\geq (1 - 2^{2-k})\alpha - \frac{1-k\alpha}{2^k-2},\qquad (0 \le \alpha \le \alpha_k, k \ge 2)
+\alpha + \frac{1-k\alpha}{2^k-2}\geq (1 - 2^{2-k})\alpha - \frac{1-k\alpha}{2^k-2},\qquad (0 < \alpha \le \alpha_{k-1}, k \ge 3)
 \]
 which completes the proof in view of Proposition \ref{beta-vdc}.  See Figure \ref{fig:vdc}.
 \end{proof}
