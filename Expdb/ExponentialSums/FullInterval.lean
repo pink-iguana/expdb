@@ -56,6 +56,9 @@ private lemma completion_factor_bound {α : ℝ≥0} {N T : VariableObject ℝ}
 
 /-- Below scale one, finite Fourier completion turns full-interval bounds into
 arbitrary-interval bounds. This also includes scale zero. -/
+/- The blueprint uses smoothing and a Fourier integral. Here we use finite
+Fourier completion instead: its logarithmic loss is T^{o(1)}, and its linear
+twist preserves the model-phase conditions because N / T → 0 when α < 1. -/
 theorem IsFullIntervalExponentSumBound.of_lt_one {α : ℝ≥0} {β : ℝ}
     (hbound : IsFullIntervalExponentSumBound α β) (hα : α < 1) :
     IsExponentSumBound α β := by
