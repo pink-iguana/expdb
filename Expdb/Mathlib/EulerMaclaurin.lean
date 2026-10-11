@@ -13,14 +13,15 @@ import Mathlib.Tactic.Order
 /-!
 # Arbitrary-order Euler–Maclaurin summation
 
-This file is adapted from
-`Interval/EulerMaclaurin/Bernoulli.lean` and
+Adapted from `Interval/EulerMaclaurin/Bernoulli.lean` and
 `Interval/EulerMaclaurin/EulerMaclaurin.lean` in
 [`girving/interval`](https://github.com/girving/interval) at commit
 `f4a3231fd735cdf6d5265864d9a9207744a7aca2`, licensed under Apache-2.0.
 
-The source has been modified, namespaced for Expdb, and updated for newer version of Mathlib.
-
+Adaptations for Expdb: combined the Bernoulli and Euler–Maclaurin developments in one
+module, retained the summation identity, and provided an explicit norm bound for sums
+over closed natural-number intervals. Auxiliary declarations are private; namespaces
+and proofs were updated for the current Mathlib API.
 -/
 
 namespace Expdb.EulerMaclaurin

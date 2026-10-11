@@ -20,13 +20,12 @@ import Mathlib.MeasureTheory.Integral.Bochner.ContinuousLinearMap
 
 Adapted from `lean/OAI/Dynamics/ThreeTorus/StationaryPhase.lean` and
 `lean/OAI/MeasureTheory/Falconer/Fourier/SchwartzFourierMomentBounds.lean` in
-[OpenAI Math](https://github.com/openai/math) at revision
-`fd4aeeb2ee4fc729c18d98444fed42fd0529eeeb`, under Apache-2.0 (see the root LICENSE).
+[OpenAI Math](https://github.com/openai/math) at commit
+`fd4aeeb2ee4fc729c18d98444fed42fd0529eeeb`, licensed under Apache-2.0 (see the root LICENSE).
 
-Modified for Expdb: extracted only the quadratic identity, quantitative remainder,
-and Fourier moment estimate; narrowed imports and changed the namespace.
-The remainder becomes uniform over amplitudes with bounded second and fourth
-L¹ derivative norms. General nonquadratic phases still require a change of variables.
+Adaptations for Expdb: retained the quadratic identity, quantitative remainder,
+and Fourier moment estimate. Imports were narrowed, and namespaces and proofs
+were updated for the current Mathlib API.
 -/
 
 @[expose] public section

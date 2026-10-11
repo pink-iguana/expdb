@@ -10,7 +10,8 @@ import Mathlib.Tactic.FieldSimp
 # Differencing at fixed exponential-sum parameters
 
 This is the bridge from the finite van der Corput inequality to the model-phase
-sums used in the blueprint. It keeps the sum over shifts explicit.
+sums used in the blueprint. It keeps the sum over shifts explicit for the dyadic
+pigeonhole argument in the A-process.
 -/
 
 @[expose] public section

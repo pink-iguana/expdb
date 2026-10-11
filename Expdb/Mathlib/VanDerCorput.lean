@@ -9,16 +9,14 @@ import Mathlib.Algebra.Order.Chebyshev
 # Van der Corput differencing
 
 Adapted from `MoltResearch/Discrepancy/ExpSums.lean` in
-[ProofFleet/prooffleet](https://github.com/ProofFleet/prooffleet), commit
+[ProofFleet/prooffleet](https://github.com/ProofFleet/prooffleet) at commit
 `9f6f78688f83561d04616ab88e93b9cf81531e47`, licensed under Apache-2.0
 (see the repository's `LICENSE`).
 
-This file has been modified: only differencing and its dependencies are retained,
-implementation helpers are private, and the character identities use Mathlib's
-Fourier character. The public interface uses closed natural-number intervals.
-
-The differencing estimate retains the sum over shifts, which is needed for the dyadic
-pigeonhole argument in the exponential-sum A-process.
+Adaptations for Expdb: retained differencing and its dependencies, made implementation
+helpers private, and expressed character identities using Mathlib's Fourier character.
+The public interface uses closed natural-number intervals; namespaces and proofs
+were updated for the current Mathlib API.
 -/
 
 @[expose] public section

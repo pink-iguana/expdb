@@ -12,13 +12,12 @@ import Mathlib.Tactic.FunProp
 
 Adapted from `Proof/MRTNonstationaryPhaseTwoIBP.lean` in
 [`jconorgrogan/prime-minor-arcs-2-15`](https://github.com/jconorgrogan/prime-minor-arcs-2-15)
-at revision `f369f267b4dcfebf010c8e7baa2c9602e2960eba`, under Apache-2.0
+at commit `f369f267b4dcfebf010c8e7baa2c9602e2960eba`, licensed under Apache-2.0
 (see the root LICENSE).
 
-Modified for Expdb: extracted the two general calculus lemmas, removed the
-project-specific import, changed the namespace, and updated the Mathlib API.
-The inverse phase derivative is represented by `q`, so applications only need
-bounds for it and its first two derivatives.
+Adaptations for Expdb: retained the two integrations-by-parts estimates with an explicit
+inverse phase derivative `q`, and removed the project-specific import. Namespaces
+and proofs were updated for the current Mathlib API.
 -/
 
 @[expose] public section

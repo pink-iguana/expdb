@@ -17,16 +17,16 @@ import Mathlib.Tactic.GCongr
 Adapted from `DifferentialGeometry/Analysis/Calculus/SmoothExtension/BorelHalfLine/Basic.lean`
 and `DifferentialGeometry/Analysis/Calculus/SmoothExtension/JetGluing/Seam.lean` in
 [`qinz1yang/differential-geometry`](https://github.com/qinz1yang/differential-geometry)
-at revision `fd2f07fba4c6c102ba626c59153ad98da8f0d442`, under Apache-2.0
+at commit `fd2f07fba4c6c102ba626c59153ad98da8f0d442`, licensed under Apache-2.0
 (see the root LICENSE). Applicable upstream NOTICE:
 
 > DifferentialGeometry
 > Copyright 2026 The DifferentialGeometry contributors
 
-Modified for Expdb: extracted the Borel series and closed-interval gluing theorem,
-removed manifold dependencies, made construction helpers private, and updated
-the Mathlib API. Added finite-order uniform bounds, including a rescaling argument for small jets.
-Only controlled jet realization is exposed from the Borel core.
+Adaptations for Expdb: retained the Borel construction and closed-interval gluing theorem,
+removed manifold dependencies, and added finite-order uniform bounds with a rescaling
+argument for small prescribed derivatives. Construction helpers are private; namespaces
+and proofs were updated for the current Mathlib API.
 -/
 
 @[expose] public section

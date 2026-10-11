@@ -20,15 +20,8 @@ import Mathlib.MeasureTheory.Function.Jacobian
 /-!
 # The quantitative van der Corput transformation
 
-The stationary-phase estimate uses `Expdb.Mathlib.StationaryPhase` with a uniform amplitude
-bound to obtain an error of order `T⁻³ᐟ²`. Integration by parts controls the nonstationary
-frequencies by a summable bound.
-
-Specializing `Expdb.Fourier.poisson_scaled` to a smoothly weighted exponential sum combines
-these estimates in `norm_smooth_sum_sub_main_le`.
-
-The cutoff is supported in `(3/4, 9/4)`. The larger interval `[5/8, 19/8]` provides room for
-integration by parts without boundary terms.
+Proves a quantitative van der Corput transformation for smoothly weighted exponential sums,
+combining Poisson summation with stationary and nonstationary phase estimates.
 -/
 
 @[expose] public section
@@ -93,7 +86,8 @@ private theorem integral_norm_le_of_support {g : ℝ → ℝ} {R B : ℝ} (hR : 
       · rw [abs_of_pos (by linarith)]; linarith
     simp [hzero y this]
 
-/-- Stationary phase for a fixed globally concave phase. -/
+/-- Stationary phase for a fixed globally concave phase. A quadratic change of variables
+reduces the integral to the estimates in `Expdb.Mathlib.StationaryPhase`. -/
 private theorem norm_integral_stationary_sub_le {H w X : ℝ → ℝ} {c C lam R B v : ℝ}
     (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
     (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
@@ -815,7 +809,8 @@ section
 
 variable {H : ℝ → ℝ} {c C : ℝ}
 
-/-- The stationary estimate at a single frequency. -/
+/-- The stationary estimate at a single frequency. Bounds on the second and fourth
+derivatives of the transformed amplitude give an error of order `T⁻³ᐟ²`. -/
 private theorem norm_integral_sub_mainTerm_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
     (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
     {T ν M0 Bamp : ℝ} (hT : 0 < T) (hv : |phaseInverse H ν| ≤ M0)
@@ -851,7 +846,10 @@ private theorem norm_integral_sub_mainTerm_le (hH : ContDiff ℝ ∞ H) (hc : 0 
   convert hst using 3
   simp only [mainTerm, mainAmplitude, legendre, ← hvdef]
 
-/-- The nonstationary estimate at a single frequency. -/
+/-- The nonstationary estimate at a single frequency. The cutoff is supported in
+`(3/4, 9/4)`; the larger interval `[5/8, 19/8]` allows integration by parts without
+boundary terms. Bounds on the inverse phase derivative and its first two derivatives
+give a summable bound via `Expdb.Mathlib.NonstationaryPhase`. -/
 private theorem norm_integral_nonstationary_freq_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
     (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
     {T ν δ C3 W : ℝ} (hT : 0 < T) (hδ : 0 < δ)
