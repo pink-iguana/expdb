@@ -52,27 +52,16 @@ theorem IsPowerAsymptotic.comp_tendsto
   rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal] at he ⊢
   exact he.comp hφ
 
-/-- Restrict a power bound along a sequence tending to infinity. -/
-theorem IsPowerBounded.comp_tendsto {E : Type*} [SeminormedAddCommGroup E]
-    {X : VariableObject E} {T : VariableObject ℝ} {β : ℝ}
-    (h : IsPowerBounded X T β) {φ : ℕ → ℕ} (hφ : Tendsto φ atTop atTop) :
-    IsPowerBounded (X ∘ φ) (T ∘ φ) β := by
-  obtain ⟨e, he, hbound⟩ := h
-  refine ⟨e ∘ φ, ?_, hbound.comp_tendsto hφ⟩
-  rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal] at he ⊢
-  exact he.comp hφ
-
-private theorem tendsto_of_isEqUpToInfinitesimal_fixed {e : VariableObject ℝ} {α : ℝ}
-    (he : e =o VariableObject.fixed α) : Tendsto e atTop (𝓝 α) := by
-  rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal] at he
-  have hzero : Tendsto (fun i ↦ e i - α) atTop (𝓝 0) :=
-    tendsto_zero_iff_norm_tendsto_zero.mpr he
-  simpa using hzero.add (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))
-
-private theorem isEqUpToInfinitesimal_fixed_of_tendsto {e : VariableObject ℝ} {α : ℝ}
-    (he : Tendsto e atTop (𝓝 α)) : e =o VariableObject.fixed α := by
+private theorem isEqUpToInfinitesimal_fixed_iff_tendsto {e : VariableObject ℝ} {α : ℝ} :
+    e =o VariableObject.fixed α ↔ Tendsto e atTop (𝓝 α) := by
   rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal]
-  simpa using (he.sub (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))).norm
+  constructor
+  · intro he
+    have hzero : Tendsto (fun i ↦ e i - α) atTop (𝓝 0) :=
+      tendsto_zero_iff_norm_tendsto_zero.mpr he
+    simpa using hzero.add (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))
+  · intro he
+    simpa using (he.sub (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))).norm
 
 /-- Changing to a height of positive growth divides the scale exponent. -/
 theorem IsPowerAsymptotic.change_base {N S T : VariableObject ℝ} {α κ : ℝ}
@@ -81,31 +70,15 @@ theorem IsPowerAsymptotic.change_base {N S T : VariableObject ℝ} {α κ : ℝ}
     IsPowerAsymptotic N S (α / κ) := by
   obtain ⟨a, ha, hNa⟩ := hN
   obtain ⟨b, hb, hSb⟩ := hS
-  have hatop := tendsto_of_isEqUpToInfinitesimal_fixed ha
-  have hbtop := tendsto_of_isEqUpToInfinitesimal_fixed hb
-  refine ⟨a / b, isEqUpToInfinitesimal_fixed_of_tendsto (hatop.div hbtop hκ.ne'), ?_⟩
+  have hatop := isEqUpToInfinitesimal_fixed_iff_tendsto.mp ha
+  have hbtop := isEqUpToInfinitesimal_fixed_iff_tendsto.mp hb
+  refine ⟨a / b, isEqUpToInfinitesimal_fixed_iff_tendsto.mpr (hatop.div hbtop hκ.ne'), ?_⟩
   have hbpos := hbtop.eventually (lt_mem_nhds hκ)
   filter_upwards [hNa, hSb, hbpos] with i hiN hiS hiB
   rw [hiN, hiS, ← Real.rpow_mul (zero_le_one.trans (hT i))]
   congr 1
   dsimp
   field_simp
-
-/-- A power bound in a height of growth `κ` becomes a bound of exponent `κ * β`
-in the original height. -/
-theorem IsPowerBounded.change_base {E : Type*} [SeminormedAddCommGroup E]
-    {X : VariableObject E} {S T : VariableObject ℝ} {β κ : ℝ}
-    (hX : IsPowerBounded X S β) (hS : IsPowerAsymptotic S T κ)
-    (hT : ∀ i, 1 ≤ T i) : IsPowerBounded X T (κ * β) := by
-  obtain ⟨a, ha, hXa⟩ := hX
-  obtain ⟨b, hb, hSb⟩ := hS
-  have hatop := tendsto_of_isEqUpToInfinitesimal_fixed ha
-  have hbtop := tendsto_of_isEqUpToInfinitesimal_fixed hb
-  refine ⟨b * a, isEqUpToInfinitesimal_fixed_of_tendsto (hbtop.mul hatop), ?_⟩
-  apply hXa.congr' Filter.EventuallyEq.rfl
-  filter_upwards [hSb] with i hiS
-  rw [hiS, ← Real.rpow_mul (zero_le_one.trans (hT i))]
-  rfl
 
 /-- If `N = T ^ (α + o(1))`, then `N` eventually lies between the powers with exponents
 `α - ε` and `α + ε`. -/
@@ -348,7 +321,7 @@ theorem IsPowerAsymptotic.tendsto_logb {N T : VariableObject ℝ} {α : ℝ}
     (hNT : IsPowerAsymptotic N T α) (hT : ∀ᶠ i in atTop, 1 < T i) :
     Tendsto (fun i ↦ Real.logb (T i) (N i)) atTop (𝓝 α) := by
   obtain ⟨e, he, heq⟩ := hNT
-  apply (tendsto_of_isEqUpToInfinitesimal_fixed he).congr'
+  apply (isEqUpToInfinitesimal_fixed_iff_tendsto.mp he).congr'
   filter_upwards [heq, hT] with i hi hiT
   rw [hi, Real.logb_rpow (zero_lt_one.trans hiT) hiT.ne']
 
@@ -377,31 +350,6 @@ theorem isPowerAsymptotic_zero_of_tendsto_one
   isPowerAsymptotic_zero_of_tendsto_pos zero_lt_one hX hT hTunbounded
 
 /-! ## Natural-valued power scales -/
-
-/-- A power asymptotic also gives the corresponding upper bound. -/
-theorem IsPowerAsymptotic.isPowerBounded {N T : VariableObject ℝ} {α : ℝ}
-    (h : IsPowerAsymptotic N T α) : IsPowerBounded N T α := by
-  obtain ⟨e, he, heq⟩ := h
-  have heq' : N =ᶠ[atTop] (fun i ↦ T i ^ e i) := heq
-  exact ⟨e, he, (Asymptotics.isBigO_refl _ atTop).congr' heq'.symm Filter.EventuallyEq.rfl⟩
-
-/-- Taking norms preserves power bounds. -/
-theorem IsPowerBounded.norm {E : Type*} [SeminormedAddCommGroup E]
-    {X : VariableObject E} {T : VariableObject ℝ} {β : ℝ}
-    (h : IsPowerBounded X T β) : IsPowerBounded (fun i ↦ ‖X i‖) T β := by
-  obtain ⟨e, he, hbound⟩ := h
-  exact ⟨e, he, hbound.norm_left⟩
-
-/-- Multiplying real power bounds adds their exponents. -/
-theorem IsPowerBounded.mul {X Y T : VariableObject ℝ} {β γ : ℝ}
-    (hX : IsPowerBounded X T β) (hY : IsPowerBounded Y T γ)
-    (hT : ∀ i, 1 ≤ T i) : IsPowerBounded (X * Y) T (β + γ) := by
-  obtain ⟨e, he, hXe⟩ := hX
-  obtain ⟨f, hf, hYf⟩ := hY
-  refine ⟨e + f, he.add hf, ?_⟩
-  apply (hXe.mul hYf).congr' Filter.EventuallyEq.rfl
-  filter_upwards [] with i
-  simpa using (Real.rpow_add (zero_lt_one.trans_le (hT i)) (e i) (f i)).symm
 
 /-- The positive natural scale obtained by taking the floor of `T ^ κ`. -/
 def floorRpow (T : VariableObject ℝ) (κ : ℝ) : VariableObject ℕ :=
@@ -463,6 +411,57 @@ theorem isPowerAsymptotic_floorRpow
   ring
 
 /-! ## Power bounds -/
+
+/-- Restrict a power bound along a sequence tending to infinity. -/
+theorem IsPowerBounded.comp_tendsto {E : Type*} [SeminormedAddCommGroup E]
+    {X : VariableObject E} {T : VariableObject ℝ} {β : ℝ}
+    (h : IsPowerBounded X T β) {φ : ℕ → ℕ} (hφ : Tendsto φ atTop atTop) :
+    IsPowerBounded (X ∘ φ) (T ∘ φ) β := by
+  obtain ⟨e, he, hbound⟩ := h
+  refine ⟨e ∘ φ, ?_, hbound.comp_tendsto hφ⟩
+  rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal] at he ⊢
+  exact he.comp hφ
+
+/-- A power bound in a height of growth `κ` becomes a bound of exponent `κ * β`
+in the original height. -/
+theorem IsPowerBounded.change_base {E : Type*} [SeminormedAddCommGroup E]
+    {X : VariableObject E} {S T : VariableObject ℝ} {β κ : ℝ}
+    (hX : IsPowerBounded X S β) (hS : IsPowerAsymptotic S T κ)
+    (hT : ∀ i, 1 ≤ T i) : IsPowerBounded X T (κ * β) := by
+  obtain ⟨a, ha, hXa⟩ := hX
+  obtain ⟨b, hb, hSb⟩ := hS
+  have hatop := isEqUpToInfinitesimal_fixed_iff_tendsto.mp ha
+  have hbtop := isEqUpToInfinitesimal_fixed_iff_tendsto.mp hb
+  refine ⟨b * a, isEqUpToInfinitesimal_fixed_iff_tendsto.mpr (hbtop.mul hatop), ?_⟩
+  apply hXa.congr' Filter.EventuallyEq.rfl
+  filter_upwards [hSb] with i hiS
+  rw [hiS, ← Real.rpow_mul (zero_le_one.trans (hT i))]
+  rfl
+
+/-- A power asymptotic also gives the corresponding upper bound. -/
+theorem IsPowerAsymptotic.isPowerBounded {N T : VariableObject ℝ} {α : ℝ}
+    (h : IsPowerAsymptotic N T α) : IsPowerBounded N T α := by
+  obtain ⟨e, he, heq⟩ := h
+  have heq' : N =ᶠ[atTop] (fun i ↦ T i ^ e i) := heq
+  exact ⟨e, he, (Asymptotics.isBigO_refl _ atTop).congr' heq'.symm Filter.EventuallyEq.rfl⟩
+
+/-- Taking norms preserves power bounds. -/
+theorem IsPowerBounded.norm {E : Type*} [SeminormedAddCommGroup E]
+    {X : VariableObject E} {T : VariableObject ℝ} {β : ℝ}
+    (h : IsPowerBounded X T β) : IsPowerBounded (fun i ↦ ‖X i‖) T β := by
+  obtain ⟨e, he, hbound⟩ := h
+  exact ⟨e, he, hbound.norm_left⟩
+
+/-- Multiplying real power bounds adds their exponents. -/
+theorem IsPowerBounded.mul {X Y T : VariableObject ℝ} {β γ : ℝ}
+    (hX : IsPowerBounded X T β) (hY : IsPowerBounded Y T γ)
+    (hT : ∀ i, 1 ≤ T i) : IsPowerBounded (X * Y) T (β + γ) := by
+  obtain ⟨e, he, hXe⟩ := hX
+  obtain ⟨f, hf, hYf⟩ := hY
+  refine ⟨e + f, he.add hf, ?_⟩
+  apply (hXe.mul hYf).congr' Filter.EventuallyEq.rfl
+  filter_upwards [] with i
+  simpa using (Real.rpow_add (zero_lt_one.trans_le (hT i)) (e i) (f i)).symm
 
 /-- Strictly increasing a fixed exponent makes a real power little-o along a base tending to
 infinity. -/
@@ -648,9 +647,9 @@ theorem IsPowerBounded.add {X Y T : VariableObject ℝ} {β γ : ℝ}
   obtain ⟨f, hf, hYf⟩ := hY
   let m : VariableObject ℝ := fun i ↦ max (e i) (f i)
   have hm : m =o VariableObject.fixed (max β γ) :=
-    isEqUpToInfinitesimal_fixed_of_tendsto
-      ((tendsto_of_isEqUpToInfinitesimal_fixed he).max
-        (tendsto_of_isEqUpToInfinitesimal_fixed hf))
+    isEqUpToInfinitesimal_fixed_iff_tendsto.mpr
+      ((isEqUpToInfinitesimal_fixed_iff_tendsto.mp he).max
+        (isEqUpToInfinitesimal_fixed_iff_tendsto.mp hf))
   have hupper (g : VariableObject ℝ) (hg : ∀ i, g i ≤ m i) :
       Asymptotics.IsBigO atTop (fun i ↦ T i ^ g i) (fun i ↦ T i ^ m i) := by
     apply Asymptotics.IsBigO.of_bound 1
@@ -678,24 +677,15 @@ theorem IsPowerBounded.of_norm_sq {E : Type*} [SeminormedAddCommGroup E]
   intro ε hε
   have hO := (isPowerBounded_iff_forall_pos _ T (2 * β) hT hTunbounded).1 hX
     (2 * ε) (by linarith)
-  obtain ⟨C, hCpos, hC⟩ := hO.exists_pos
-  refine Asymptotics.IsBigO.of_bound (C + 1) ?_
-  filter_upwards [hC.bound] with i hi
-  have hpow : (T i ^ (β + ε)) ^ 2 = T i ^ (2 * β + 2 * ε) := by
+  have hpow (i : ℕ) : (T i ^ (β + ε)) ^ 2 = T i ^ (2 * β + 2 * ε) := by
     rw [← Real.rpow_natCast, ← Real.rpow_mul (zero_le_one.trans (hT i))]
     congr 1
     norm_num
     ring
-  have hp : 0 < T i ^ (β + ε) := Real.rpow_pos_of_pos (zero_lt_one.trans_le (hT i)) _
-  rw [Real.norm_of_nonneg (sq_nonneg _),
-    Real.norm_of_nonneg (Real.rpow_nonneg (zero_le_one.trans (hT i)) _), ← hpow] at hi
-  rw [Real.norm_of_nonneg hp.le]
-  have hCineq : C ≤ (C + 1) ^ 2 := by nlinarith [sq_nonneg C]
-  have hsquare : ‖X i‖ ^ 2 ≤ ((C + 1) * T i ^ (β + ε)) ^ 2 := by
-    rw [mul_pow]
-    exact hi.trans (mul_le_mul_of_nonneg_right hCineq (sq_nonneg _))
-  exact (sq_le_sq₀ (norm_nonneg _) (by positivity)).1 hsquare
-
+  have hsq : ((fun i ↦ ‖X i‖) ^ 2) =O[atTop] ((fun i ↦ T i ^ (β + ε)) ^ 2) := by
+    change (fun i ↦ ‖X i‖ ^ 2) =O[atTop] (fun i ↦ (T i ^ (β + ε)) ^ 2)
+    simpa only [hpow] using hO
+  exact Asymptotics.isBigO_norm_left.mp (hsq.of_pow (by decide : (2 : ℕ) ≠ 0))
 
 /-- To prove a power bound, it suffices to find it on a further subsequence of every
 subsequence. Failure of a bound would give a subsequence with a larger power lower bound. -/

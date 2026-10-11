@@ -336,12 +336,9 @@ private theorem exponentialSum_A_bound
     simpa [max_eq_right hγ] using hNT.isPowerBounded.add hKW hT
   have hratio : IsPowerAsymptotic (N / fun i ↦ (H i : ℝ)) T (α - h) := hNT.div hHT hT
   have hout := hratio.isPowerBounded.mul hsum hT
-  have hconst : IsPowerBounded (fun _ : ℕ ↦ (6 : ℝ)) T 0 :=
-    (isPowerAsymptotic_zero_of_tendsto_pos (by norm_num : (0 : ℝ) < 6)
-      tendsto_const_nhds hT hTunbounded).isPowerBounded
   let Y : VariableObject ℝ := fun i ↦ 6 * N i / H i * (N i + K i * W i)
   have hY : IsPowerBounded Y T (2 * B) := by
-    convert hconst.mul hout hT using 1
+    convert hout.const_mul 6 using 1
     · ext i
       dsimp [Y]
       ring
