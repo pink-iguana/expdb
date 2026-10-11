@@ -1,5 +1,6 @@
 module
 
+public import Expdb.Basic.Asymptotics
 import Mathlib.Analysis.Asymptotics.Lemmas
 public import Mathlib.Analysis.Calculus.ContDiff.Basic
 public import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
@@ -10,9 +11,9 @@ public import Mathlib.Topology.Algebra.Order.Field
 /-!
 # Derivative bounds and convergence along sequences
 
-`SeqClose` records convergence of the difference of two real sequences and eventual boundedness
-of the comparison sequence. `DerivativesClose` applies this relation to derivatives through a
-specified order at varying points; `PositiveDerivativesClose` omits the function values.
+`DerivativesClose` records equality up to an infinitesimal and boundedness of the comparison
+derivatives through a specified order at varying points. It uses the existing `=o` relation
+and `VariableObject.IsBounded`; `PositiveDerivativesClose` omits the function values.
 
 The product, composition, square-root and inverse rules propagate these bounds and convergence.
 They are used by the dual phase construction and the stationary-phase amplitude estimates.
@@ -23,163 +24,56 @@ They are used by the dual phase construction and the stationary-phase amplitude 
 namespace Expdb
 
 open Filter Topology
-open scoped ContDiff
+open scoped Expdb ContDiff
 
 noncomputable section
 
-/-! ## Close sequences -/
+/-! ## Auxiliary bounds -/
 
-/-- The real sequence `u` is asymptotically equal to the eventually bounded sequence `v`. -/
-def SeqClose (u v : ℕ → ℝ) : Prop :=
-  Tendsto (fun i ↦ u i - v i) atTop (𝓝 0) ∧
-    IsBoundedUnder (· ≤ ·) atTop (fun i ↦ ‖v i‖)
+private theorem const_eq_and_bounded (c : ℝ) :
+    VariableObject.fixed c =o VariableObject.fixed c ∧
+      VariableObject.IsBounded (VariableObject.fixed c) :=
+  ⟨IsEqUpToInfinitesimal.refl _, VariableObject.IsBounded.const c⟩
 
-namespace SeqClose
+private theorem mul_eq_and_bounded {u₁ v₁ u₂ v₂ : VariableObject ℝ}
+    (h₁ : u₁ =o v₁ ∧ v₁.IsBounded) (h₂ : u₂ =o v₂ ∧ v₂.IsBounded) :
+    (fun i ↦ u₁ i * u₂ i) =o (fun i ↦ v₁ i * v₂ i) ∧
+      VariableObject.IsBounded (fun i ↦ v₁ i * v₂ i) := by
+  exact ⟨by simpa only [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal, Pi.sub_apply,
+      Pi.mul_apply] using h₁.1.mul h₂.1 h₁.2 h₂.2,
+    by simpa only [VariableObject.IsBounded, Pi.mul_apply] using h₁.2.mul h₂.2⟩
 
-variable {u v u₁ v₁ u₂ v₂ : ℕ → ℝ}
+private theorem sum_eq_and_bounded {ι : Type*} (s : Finset ι)
+    {U V : ι → VariableObject ℝ} (h : ∀ k ∈ s, U k =o V k ∧ (V k).IsBounded) :
+    (fun i ↦ ∑ k ∈ s, U k i) =o (fun i ↦ ∑ k ∈ s, V k i) ∧
+      VariableObject.IsBounded (fun i ↦ ∑ k ∈ s, V k i) :=
+  ⟨IsEqUpToInfinitesimal.sum s fun k hk ↦ (h k hk).1,
+    VariableObject.IsBounded.sum s fun k hk ↦ (h k hk).2⟩
 
-theorem bdd_left (h : SeqClose u v) : IsBoundedUnder (· ≤ ·) atTop (fun i ↦ ‖u i‖) := by
-  apply (Asymptotics.isBigO_one_iff ℝ).1
-  have hdiff := ((Asymptotics.isLittleO_one_iff ℝ).2 h.1).isBigO
-  exact (hdiff.add ((Asymptotics.isBigO_one_iff ℝ).2 h.2)).congr_left fun i ↦ sub_add_cancel _ _
-
-theorem symm (h : SeqClose u v) : SeqClose v u :=
-  ⟨by simpa using h.1.neg, h.bdd_left⟩
-
-theorem trans (h₁ : SeqClose u v) (h₂ : SeqClose v u₁) : SeqClose u u₁ :=
-  ⟨by simpa using h₁.1.add h₂.1, h₂.2⟩
-
-theorem const (c : ℝ) : SeqClose (fun _ ↦ c) (fun _ ↦ c) :=
-  ⟨by simp,
-    isBoundedUnder_const⟩
-
-theorem of_bound {C : ℝ} (hb : ∀ᶠ i in atTop, ‖u i‖ ≤ C) : SeqClose u u :=
-  ⟨by simp,
-    ⟨C, by simpa using hb⟩⟩
-
-theorem exists_bound (h : SeqClose u v) : ∃ C, ∀ᶠ i in atTop, ‖u i‖ ≤ C := by
-  obtain ⟨C, hC⟩ := h.bdd_left
-  exact ⟨C, by simpa using hC⟩
-
-theorem congr_left {w : ℕ → ℝ} (h : SeqClose u v) (he : ∀ᶠ i in atTop, u i = w i) :
-    SeqClose w v := by
-  refine ⟨h.1.congr' ?_, h.2⟩
-  filter_upwards [he] with i hi
-  rw [hi]
-
-theorem congr_right {w : ℕ → ℝ} (h : SeqClose u v) (he : ∀ᶠ i in atTop, v i = w i) :
-    SeqClose u w := by
-  refine ⟨h.1.congr' ?_, ?_⟩
-  · filter_upwards [he] with i hi
-    rw [hi]
-  · obtain ⟨C, hC⟩ := h.2
-    refine ⟨C, ?_⟩
-    simp only [eventually_map] at hC ⊢
-    filter_upwards [hC, he] with i h1 h2
-    rwa [← h2]
-
-theorem add (h₁ : SeqClose u₁ v₁) (h₂ : SeqClose u₂ v₂) :
-    SeqClose (fun i ↦ u₁ i + u₂ i) (fun i ↦ v₁ i + v₂ i) := by
-  refine ⟨?_, ?_⟩
-  · have := h₁.1.add h₂.1
-    simp only [add_zero] at this
-    refine this.congr fun i ↦ ?_
-    ring
-  · exact (Asymptotics.isBigO_one_iff ℝ).1 (((Asymptotics.isBigO_one_iff ℝ).2 h₁.2).add
-    ((Asymptotics.isBigO_one_iff ℝ).2 h₂.2))
-
-theorem neg (h : SeqClose u v) : SeqClose (fun i ↦ -u i) (fun i ↦ -v i) := by
-  refine ⟨?_, ?_⟩
-  · have := h.1.neg
-    simp only [neg_zero] at this
-    refine this.congr fun i ↦ ?_
-    ring
-  · simpa using h.2
-
-theorem sub (h₁ : SeqClose u₁ v₁) (h₂ : SeqClose u₂ v₂) :
-    SeqClose (fun i ↦ u₁ i - u₂ i) (fun i ↦ v₁ i - v₂ i) := by
-  simpa [sub_eq_add_neg] using h₁.add h₂.neg
-
-theorem mul (h₁ : SeqClose u₁ v₁) (h₂ : SeqClose u₂ v₂) :
-    SeqClose (fun i ↦ u₁ i * u₂ i) (fun i ↦ v₁ i * v₂ i) := by
-  refine ⟨?_, ?_⟩
-  · have ha := h₁.1.zero_mul_isBoundedUnder_le h₂.bdd_left
-    have hb := h₂.1.zero_mul_isBoundedUnder_le h₁.2
-    have := ha.add hb
-    simp only [add_zero] at this
-    refine this.congr fun i ↦ ?_
-    ring
-  · apply (Asymptotics.isBigO_one_iff ℝ).1
-    simpa only [one_mul] using ((Asymptotics.isBigO_one_iff ℝ).2 h₁.2).mul
-      ((Asymptotics.isBigO_one_iff ℝ).2 h₂.2)
-
-theorem const_mul (c : ℝ) (h : SeqClose u v) :
-    SeqClose (fun i ↦ c * u i) (fun i ↦ c * v i) :=
-  (const c).mul h
-
-theorem sum {ι : Type*} (s : Finset ι) {U V : ι → ℕ → ℝ}
-    (h : ∀ k ∈ s, SeqClose (U k) (V k)) :
-    SeqClose (fun i ↦ ∑ k ∈ s, U k i) (fun i ↦ ∑ k ∈ s, V k i) := by
-  classical
-  induction s using Finset.induction_on with
-  | empty => simpa using const 0
-  | insert a s ha ih =>
-    simp only [Finset.sum_insert ha]
-    exact (h a (Finset.mem_insert_self a s)).add
-      (ih fun k hk ↦ h k (Finset.mem_insert_of_mem hk))
-
-/-- Reciprocals of sequences bounded away from zero are close. -/
-theorem inv (h : SeqClose u v) {c : ℝ} (hc : 0 < c) (hv : ∀ᶠ i in atTop, c ≤ ‖v i‖) :
-    SeqClose (fun i ↦ (u i)⁻¹) (fun i ↦ (v i)⁻¹) := by
-  have hu : ∀ᶠ i in atTop, c / 2 ≤ ‖u i‖ := by
-    have hsmall : ∀ᶠ i in atTop, ‖u i - v i‖ ≤ c / 2 :=
-      h.1.norm.eventually (Iic_mem_nhds (by simpa using half_pos hc))
-    filter_upwards [hsmall, hv] with i h1 h2
-    have : ‖v i‖ ≤ ‖u i‖ + ‖u i - v i‖ := by
-      calc ‖v i‖ = ‖u i - (u i - v i)‖ := by ring_nf
-        _ ≤ ‖u i‖ + ‖u i - v i‖ := norm_sub_le _ _
-    linarith
-  have hvinv : IsBoundedUnder (· ≤ ·) atTop (fun i ↦ ‖(v i)⁻¹‖) := by
-    refine ⟨c⁻¹, ?_⟩
-    simp only [eventually_map]
-    filter_upwards [hv] with i hi
-    rw [norm_inv]
-    exact inv_anti₀ hc hi
-  have huinv : IsBoundedUnder (· ≤ ·) atTop (fun i ↦ ‖(u i)⁻¹‖) := by
-    refine ⟨(c / 2)⁻¹, ?_⟩
-    simp only [eventually_map]
-    filter_upwards [hu] with i hi
-    rw [norm_inv]
-    exact inv_anti₀ (half_pos hc) hi
-  refine ⟨?_, hvinv⟩
-  have hprod : IsBoundedUnder (· ≤ ·) atTop (fun i ↦ ‖(u i)⁻¹ * (v i)⁻¹‖) := by
-    apply (Asymptotics.isBigO_one_iff ℝ).1
-    simpa only [one_mul] using ((Asymptotics.isBigO_one_iff ℝ).2 huinv).mul
-      ((Asymptotics.isBigO_one_iff ℝ).2 hvinv)
-  have hneg : Tendsto (fun i ↦ -(u i - v i)) atTop (𝓝 0) := by simpa using h.1.neg
-  have := hneg.zero_mul_isBoundedUnder_le hprod
-  refine this.congr' ?_
-  filter_upwards [hu, hv] with i h1 h2
-  have hu0 : u i ≠ 0 := norm_pos_iff.1 (lt_of_lt_of_le (half_pos hc) h1)
-  have hv0 : v i ≠ 0 := norm_pos_iff.1 (lt_of_lt_of_le hc h2)
-  field_simp
-  ring
-
-end SeqClose
+private theorem congr_eq_and_bounded {u v u' v' : VariableObject ℝ}
+    (h : u =o v ∧ v.IsBounded) (hu : u =ᶠ[atTop] u') (hv : v =ᶠ[atTop] v') :
+    u' =o v' ∧ v'.IsBounded := by
+  refine ⟨h.1.congr hu hv, ?_⟩
+  obtain ⟨C, hC⟩ := h.2
+  refine ⟨C, ?_⟩
+  filter_upwards [hC, hv] with i hi hvi
+  rwa [← hvi]
 
 /-! ## Derivative bounds and convergence -/
 
 /-- Derivative differences tend to zero through order `n` at two sequences of points,
 and the comparison derivatives are eventually bounded. -/
 def DerivativesClose (f g : ℕ → ℝ → ℝ) (x y : ℕ → ℝ) (n : ℕ) : Prop :=
-  ∀ k ≤ n, SeqClose (fun i ↦ iteratedDeriv k (f i) (x i))
-    (fun i ↦ iteratedDeriv k (g i) (y i))
+  ∀ k ≤ n,
+    (fun i ↦ iteratedDeriv k (f i) (x i)) =o (fun i ↦ iteratedDeriv k (g i) (y i)) ∧
+      VariableObject.IsBounded (fun i ↦ iteratedDeriv k (g i) (y i))
 
 /-- Derivative differences of orders `1` through `n` tend to zero at two sequences of points,
 and the comparison derivatives are eventually bounded. -/
 def PositiveDerivativesClose (f g : ℕ → ℝ → ℝ) (x y : ℕ → ℝ) (n : ℕ) : Prop :=
-  ∀ k, 1 ≤ k → k ≤ n → SeqClose (fun i ↦ iteratedDeriv k (f i) (x i))
-    (fun i ↦ iteratedDeriv k (g i) (y i))
+  ∀ k, 1 ≤ k → k ≤ n →
+    (fun i ↦ iteratedDeriv k (f i) (x i)) =o (fun i ↦ iteratedDeriv k (g i) (y i)) ∧
+      VariableObject.IsBounded (fun i ↦ iteratedDeriv k (g i) (y i))
 
 theorem DerivativesClose.mono {f g : ℕ → ℝ → ℝ} {x y : ℕ → ℝ} {m n : ℕ}
     (h : DerivativesClose f g x y n) (hmn : m ≤ n) : DerivativesClose f g x y m :=
@@ -200,21 +94,15 @@ theorem DerivativesClose.shift {f g : ℕ → ℝ → ℝ} {x y : ℕ → ℝ} {
   intro k hk
   simpa only [← iteratedDeriv_succ'] using h (k + 1) (by omega)
 
-/-- Differentiation converts positive-order bounds and convergence to `DerivativesClose`. -/
-theorem PositiveDerivativesClose.shift {f g : ℕ → ℝ → ℝ} {x y : ℕ → ℝ} {n : ℕ}
-    (h : PositiveDerivativesClose f g x y (n + 1)) :
-    DerivativesClose (fun i ↦ deriv (f i)) (fun i ↦ deriv (g i)) x y n := by
-  intro k hk
-  simpa only [← iteratedDeriv_succ'] using h (k + 1) (by omega) (by omega)
-
 /-- Combine convergence and boundedness of the values with those of the derivatives. -/
 theorem DerivativesClose.unshift {f g : ℕ → ℝ → ℝ} {x y : ℕ → ℝ} {n : ℕ}
-    (h0 : SeqClose (fun i ↦ f i (x i)) (fun i ↦ g i (y i)))
+    (h0 : (fun i ↦ f i (x i)) =o (fun i ↦ g i (y i)))
+    (hb0 : VariableObject.IsBounded (fun i ↦ g i (y i)))
     (h : DerivativesClose (fun i ↦ deriv (f i)) (fun i ↦ deriv (g i)) x y n) :
     DerivativesClose f g x y (n + 1) := by
   intro k hk
   rcases k with _ | k
-  · simpa using h0
+  · exact ⟨h0, hb0⟩
   · simpa only [iteratedDeriv_succ'] using h k (by omega)
 
 /-- Products preserve derivative bounds and convergence. -/
@@ -228,10 +116,11 @@ theorem DerivativesClose.mul {f g f' g' : ℕ → ℝ → ℝ} {x y : ℕ → �
     ((hg _).contDiffAt.of_le (by exact_mod_cast le_top)), iteratedDeriv_fun_mul
     ((hf' _).contDiffAt.of_le (by exact_mod_cast le_top))
     ((hg' _).contDiffAt.of_le (by exact_mod_cast le_top))]
-  apply SeqClose.sum
+  apply sum_eq_and_bounded
   intro m hm
   have hm' := Finset.mem_range.1 hm
-  exact ((SeqClose.const _).mul (h₁ m (by omega))).mul (h₂ (k - m) (by omega))
+  exact mul_eq_and_bounded (mul_eq_and_bounded (const_eq_and_bounded _)
+    (h₁ m (by omega))) (h₂ (k - m) (by omega))
 
 /-- The derivative of a composition, differentiated `j` more times. -/
 private theorem iteratedDeriv_succ_comp {g f : ℝ → ℝ} (hg : ContDiff ℝ ∞ g) (hf : ContDiff ℝ ∞ f)
@@ -271,11 +160,11 @@ theorem DerivativesClose.comp {n : ℕ} :
         hfs hf's hg.shift (hf.mono (by omega))
       simp only [iteratedDeriv_succ_comp (hgs _) (hfs _),
         iteratedDeriv_succ_comp (hg's _) (hf's _)]
-      apply SeqClose.sum
+      apply sum_eq_and_bounded
       intro m hm
       have hm' := Finset.mem_range.1 hm
-      exact ((SeqClose.const _).mul (hIH m (by omega))).mul
-        (hf (j - m + 1) (by omega) (by omega))
+      exact mul_eq_and_bounded (mul_eq_and_bounded (const_eq_and_bounded _)
+        (hIH m (by omega))) (hf (j - m + 1) (by omega) (by omega))
 
 /-- If `u * a = b`, derivative bounds and convergence for `a` and `b` imply them for `u`,
 provided `a` stays away from zero. -/
@@ -286,13 +175,16 @@ theorem DerivativesClose.of_mul_eq {u u' a a' b b' : ℕ → ℝ → ℝ} {x x' 
     (haj : DerivativesClose a a' x x' n) (hbj : DerivativesClose b b' x x' n)
     {c : ℝ} (hc : 0 < c) (hlow : ∀ᶠ i in atTop, c ≤ ‖a' i (x' i)‖) :
     DerivativesClose u u' x x' n := by
-  have hclose : SeqClose (fun i ↦ a i (x i)) (fun i ↦ a' i (x' i)) := by
+  have hclose : ((fun i ↦ a i (x i)) =o (fun i ↦ a' i (x' i)) ∧
+      VariableObject.IsBounded (fun i ↦ a' i (x' i))) := by
     simpa using haj 0 (Nat.zero_le _)
-  have hainv : SeqClose (fun i ↦ (a i (x i))⁻¹) (fun i ↦ (a' i (x' i))⁻¹) :=
-    hclose.inv hc hlow
+  have hainv : ((fun i ↦ (a i (x i))⁻¹) =o (fun i ↦ (a' i (x' i))⁻¹) ∧
+      VariableObject.IsBounded (fun i ↦ (a' i (x' i))⁻¹)) :=
+    ⟨hclose.1.inv hc hlow, VariableObject.isBounded_inv_of_norm_ge hc hlow⟩
   have ha0 : ∀ᶠ i in atTop, a i (x i) ≠ 0 ∧ a' i (x' i) ≠ 0 := by
     have hsmall : ∀ᶠ i in atTop, ‖a i (x i) - a' i (x' i)‖ ≤ c / 2 :=
-      hclose.1.norm.eventually (Iic_mem_nhds (by simpa using half_pos hc))
+      ((isEqUpToInfinitesimal_iff_tendsto_sub _ _).1 hclose.1).norm.eventually
+        (Iic_mem_nhds (by simpa using half_pos hc))
     filter_upwards [hsmall, hlow] with i h1 h2
     constructor
     · intro h0
@@ -314,23 +206,18 @@ theorem DerivativesClose.of_mul_eq {u u' a a' b b' : ℕ → ℝ → ℝ} {x x' 
     simp only [Nat.choose_self, Nat.cast_one, one_mul, Nat.sub_self, iteratedDeriv_zero]
     field_simp
     ring
-  have key : ∀ k ≤ n, SeqClose (fun i ↦ iteratedDeriv k (u i) (x i))
-      (fun i ↦ iteratedDeriv k (u' i) (x' i)) := by
+  have key : DerivativesClose u u' x x' n := by
     intro k
     induction k using Nat.strong_induction_on with
     | _ k ih =>
       intro hk
-      have hsum : SeqClose
-          (fun i ↦ ∑ m ∈ Finset.range k, (k.choose m : ℝ) * iteratedDeriv m (u i) (x i) *
-            iteratedDeriv (k - m) (a i) (x i))
-          (fun i ↦ ∑ m ∈ Finset.range k, (k.choose m : ℝ) *
-            iteratedDeriv m (u' i) (x' i) * iteratedDeriv (k - m) (a' i) (x' i)) := by
-        apply SeqClose.sum
-        intro m hm
+      have hsum := sum_eq_and_bounded (Finset.range k) (fun m hm ↦ by
         have hm' := Finset.mem_range.1 hm
-        exact ((SeqClose.const _).mul (ih m hm' (by omega))).mul (haj (k - m) (by omega))
-      have hexpr := ((hbj k hk).sub hsum).mul hainv
-      refine (hexpr.congr_left ?_).congr_right ?_
+        exact mul_eq_and_bounded (mul_eq_and_bounded (const_eq_and_bounded (k.choose m : ℝ))
+          (ih m hm' (by omega))) (haj (k - m) (by omega)))
+      have hexpr := mul_eq_and_bounded
+        ⟨(hbj k hk).1.sub hsum.1, (hbj k hk).2.sub hsum.2⟩ hainv
+      refine congr_eq_and_bounded hexpr ?_ ?_
       · filter_upwards [ha0] with i hi
         exact (hformula (u i) (a i) (b i) (hu i) (ha i) (heq i) k (x i) hi.1).symm
       · filter_upwards [ha0] with i hi
@@ -346,19 +233,21 @@ theorem DerivativesClose.of_mul_self_eq {s s' h h' : ℕ → ℝ → ℝ} {x x' 
     (hhj : DerivativesClose h h' x x' n)
     {c : ℝ} (hc : 0 < c) (hlow : ∀ᶠ i in atTop, c ≤ s' i (x' i)) :
     DerivativesClose s s' x x' n := by
-  have hh0 : SeqClose (fun i ↦ h i (x i)) (fun i ↦ h' i (x' i)) := by
+  have hh0 : ((fun i ↦ h i (x i)) =o (fun i ↦ h' i (x' i)) ∧
+      VariableObject.IsBounded (fun i ↦ h' i (x' i))) := by
     simpa using hhj 0 (Nat.zero_le _)
-  have h0 : SeqClose (fun i ↦ s i (x i)) (fun i ↦ s' i (x' i)) := by
-    have hbd : IsBoundedUnder (· ≤ ·) atTop (fun i ↦ ‖s' i (x' i)‖) := by
+  have h0 : ((fun i ↦ s i (x i)) =o (fun i ↦ s' i (x' i)) ∧
+      VariableObject.IsBounded (fun i ↦ s' i (x' i))) := by
+    have hbd : VariableObject.IsBounded (fun i ↦ s' i (x' i)) := by
       obtain ⟨C, hC⟩ := hh0.2
       refine ⟨C + 1, ?_⟩
-      simp only [eventually_map] at hC ⊢
       filter_upwards [hC] with i hi
       rw [← heq'] at hi
       rw [Real.norm_of_nonneg (hpos' _ _)]
       rw [Real.norm_of_nonneg (mul_self_nonneg _)] at hi
       nlinarith [hpos' i (x' i)]
     refine ⟨?_, hbd⟩
+    rw [isEqUpToInfinitesimal_iff_tendsto_sub]
     have hq : IsBoundedUnder (· ≤ ·) atTop
         (fun i ↦ ‖(s i (x i) + s' i (x' i))⁻¹‖) := by
       refine ⟨c⁻¹, ?_⟩
@@ -366,21 +255,28 @@ theorem DerivativesClose.of_mul_self_eq {s s' h h' : ℕ → ℝ → ℝ} {x x' 
       filter_upwards [hlow] with i hi
       rw [norm_inv, Real.norm_of_nonneg (add_nonneg (hpos _ _) (hpos' _ _))]
       exact inv_anti₀ hc (by linarith [hpos i (x i)])
-    have := hh0.1.zero_mul_isBoundedUnder_le hq
+    have := ((isEqUpToInfinitesimal_iff_tendsto_sub _ _).1 hh0.1).zero_mul_isBoundedUnder_le hq
     refine this.congr' ?_
     filter_upwards [hlow] with i hi
     have hne : s i (x i) + s' i (x' i) ≠ 0 := by linarith [hpos i (x i)]
     rw [← heq, ← heq']
     field_simp
     ring
-  have hs0 : SeqClose (fun i ↦ (2 * s i (x i))⁻¹) (fun i ↦ (2 * s' i (x' i))⁻¹) := by
-    refine (h0.const_mul 2).inv (by positivity : (0 : ℝ) < 2 * c) ?_
-    filter_upwards [hlow] with i hi
-    rw [Real.norm_of_nonneg (by linarith [hpos' i (x' i)])]
-    linarith
+  have hs0 : ((fun i ↦ (2 * s i (x i))⁻¹) =o (fun i ↦ (2 * s' i (x' i))⁻¹) ∧
+      VariableObject.IsBounded (fun i ↦ (2 * s' i (x' i))⁻¹)) := by
+    have heq : (fun i ↦ 2 * s i (x i)) =o (fun i ↦ 2 * s' i (x' i)) := by
+      simpa only [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal, Pi.sub_apply,
+        Pi.smul_apply, smul_eq_mul] using h0.1.const_smul (2 : ℝ)
+    have hlow2 : ∀ᶠ i in atTop, 2 * c ≤ ‖2 * s' i (x' i)‖ := by
+      filter_upwards [hlow] with i hi
+      rw [Real.norm_of_nonneg (by linarith [hpos' i (x' i)])]
+      linarith
+    exact ⟨heq.inv (by positivity) hlow2,
+      VariableObject.isBounded_inv_of_norm_ge (by positivity) hlow2⟩
   have hlowl : ∀ᶠ i in atTop, s i (x i) ≠ 0 := by
     have hsmall : ∀ᶠ i in atTop, ‖s i (x i) - s' i (x' i)‖ ≤ c / 2 :=
-      h0.1.norm.eventually (Iic_mem_nhds (by simpa using half_pos hc))
+      ((isEqUpToInfinitesimal_iff_tendsto_sub _ _).1 h0.1).norm.eventually
+        (Iic_mem_nhds (by simpa using half_pos hc))
     filter_upwards [hsmall, hlow] with i h1 h2 h3
     rw [h3, zero_sub, norm_neg, Real.norm_of_nonneg (hpos' _ _)] at h1
     linarith
@@ -402,27 +298,22 @@ theorem DerivativesClose.of_mul_self_eq {s s' h h' : ℕ → ℝ → ℝ} {x x' 
       Nat.choose_zero_right, Nat.sub_zero]
     field_simp
     ring
-  have key : ∀ k ≤ n, SeqClose (fun i ↦ iteratedDeriv k (s i) (x i))
-      (fun i ↦ iteratedDeriv k (s' i) (x' i)) := by
+  have key : DerivativesClose s s' x x' n := by
     intro k
     induction k using Nat.strong_induction_on with
     | _ k ih =>
       intro hk
       rcases k with _ | k
       · simpa using h0
-      · have hsum : SeqClose
-            (fun i ↦ ∑ m ∈ Finset.range k, ((k + 1).choose (m + 1) : ℝ) *
-              iteratedDeriv (m + 1) (s i) (x i) * iteratedDeriv (k + 1 - (m + 1)) (s i) (x i))
-            (fun i ↦ ∑ m ∈ Finset.range k, ((k + 1).choose (m + 1) : ℝ) *
-              iteratedDeriv (m + 1) (s' i) (x' i) *
-                iteratedDeriv (k + 1 - (m + 1)) (s' i) (x' i)) := by
-          apply SeqClose.sum
-          intro m hm
+      · have hsum := sum_eq_and_bounded (Finset.range k) (fun m hm ↦ by
           have hm' := Finset.mem_range.1 hm
-          exact ((SeqClose.const _).mul (ih (m + 1) (by omega) (by omega))).mul
-            (ih (k + 1 - (m + 1)) (by omega) (by omega))
-        have hexpr := ((hhj (k + 1) hk).sub hsum).mul hs0
-        refine (hexpr.congr_left ?_).congr_right ?_
+          exact mul_eq_and_bounded (mul_eq_and_bounded
+            (const_eq_and_bounded ((k + 1).choose (m + 1) : ℝ))
+            (ih (m + 1) (by omega) (by omega)))
+            (ih (k + 1 - (m + 1)) (by omega) (by omega)))
+        have hexpr := mul_eq_and_bounded
+          ⟨(hhj (k + 1) hk).1.sub hsum.1, (hhj (k + 1) hk).2.sub hsum.2⟩ hs0
+        refine congr_eq_and_bounded hexpr ?_ ?_
         · filter_upwards [hlowl] with i hi
           exact (hformula (s i) (h i) (hs i) (heq i) k (x i) hi).symm
         · filter_upwards [hlowr] with i hi
@@ -437,7 +328,8 @@ theorem DerivativesClose.inverse {X X' Y Y' : ℕ → ℝ → ℝ} {x x' : ℕ �
     (hinv : ∀ i y, Y i (X i y) = y) (hinv' : ∀ i y, Y' i (X' i y) = y)
     (hYj : DerivativesClose (fun i ↦ deriv (Y i)) (fun i ↦ deriv (Y' i))
       (fun i ↦ X i (x i)) (fun i ↦ X' i (x' i)) n)
-    (h0 : SeqClose (fun i ↦ X i (x i)) (fun i ↦ X' i (x' i)))
+    (h0 : (fun i ↦ X i (x i)) =o (fun i ↦ X' i (x' i)))
+    (hb0 : VariableObject.IsBounded (fun i ↦ X' i (x' i)))
     {c : ℝ} (hc : 0 < c) (hlow : ∀ᶠ i in atTop, c ≤ ‖deriv (Y' i) (X' i (x' i))‖) :
     DerivativesClose X X' x x' (n + 1) := by
   have hprod : ∀ (X₀ Y₀ : ℝ → ℝ), ContDiff ℝ ∞ X₀ → ContDiff ℝ ∞ Y₀ →
@@ -464,16 +356,16 @@ theorem DerivativesClose.inverse {X X' Y Y' : ℕ → ℝ → ℝ} {x x' : ℕ �
       hcomp (by
         intro k _
         rcases k with _ | k
-        · exact SeqClose.const 1
-        · simpa [iteratedDeriv_succ'] using SeqClose.const 0) hc hlow
-    exact DerivativesClose.unshift h0 hu
+        · exact const_eq_and_bounded 1
+        · simpa [iteratedDeriv_succ'] using const_eq_and_bounded 0) hc hlow
+    exact DerivativesClose.unshift h0 hb0 hu
   have : ∀ m ≤ n + 1, DerivativesClose X X' x x' m := by
     intro m
     induction m with
     | zero =>
       intro _ k hk
       obtain rfl : k = 0 := by omega
-      simpa using h0
+      exact ⟨h0, hb0⟩
     | succ m ih => intro hm; exact step m (by omega) (ih (by omega))
   exact this (n + 1) le_rfl
 

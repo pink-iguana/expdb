@@ -713,7 +713,8 @@ private theorem derivativesClose_of_uniform {f : ℕ → ℝ → ℝ} {f₀ : �
   obtain ⟨K, hK⟩ := hbdd k
   obtain ⟨K', hK'⟩ := hbdd (k + 1)
   refine ⟨?_, ⟨K, ?_⟩⟩
-  · have h1 : Tendsto (fun i ↦ iteratedDeriv k (f i) (p i) - iteratedDeriv k f₀ (p i))
+  · rw [isEqUpToInfinitesimal_iff_tendsto_sub]
+    have h1 : Tendsto (fun i ↦ iteratedDeriv k (f i) (p i) - iteratedDeriv k f₀ (p i))
         atTop (𝓝 0) := by
       rw [Metric.tendsto_nhds]
       intro ε hε
@@ -731,8 +732,7 @@ private theorem derivativesClose_of_uniform {f : ℕ → ℝ → ℝ} {f₀ : �
       apply squeeze_zero_norm (fun i ↦ hlip _ _)
       simpa using hpp.norm.const_mul K'
     simpa using h1.add h2
-  · simp only [eventually_map]
-    exact Eventually.of_forall fun i ↦ hK _
+  · exact Eventually.of_forall fun i ↦ hK _
 
 /-! ## Stationary points and the Legendre transform -/
 
@@ -869,11 +869,11 @@ private theorem derivativesClose_phaseInverse (hR : RegularizedPhases σ a b G H
   have hd₀ : ∀ x, deriv (deriv H₀) x ≤ -c := fun x ↦ by
     simpa [iteratedDeriv_succ, iteratedDeriv_one] using (hcurv₀ x).2
   -- Values.
-  have h0 : SeqClose (fun i ↦ phaseInverse (H i) (ν i)) (fun i ↦ phaseInverse H₀ (ν i)) := by
-    refine ⟨hR.tendsto_phaseInverse_sub ν, ?_⟩
+  have h0 : ((fun i ↦ phaseInverse (H i) (ν i)) =o (fun i ↦ phaseInverse H₀ (ν i)) ∧
+      VariableObject.IsBounded (fun i ↦ phaseInverse H₀ (ν i))) := by
+    refine ⟨(isEqUpToInfinitesimal_iff_tendsto_sub _ _).2 (hR.tendsto_phaseInverse_sub ν), ?_⟩
     obtain ⟨B, hB⟩ := hν
     refine ⟨|phaseInverse H₀ 0| + B / c, ?_⟩
-    simp only [eventually_map] at hB ⊢
     filter_upwards [hB] with i hi
     have hlip := abs_inverse_sub_le_of_neg
       ((hR.smooth_lim.deriv' (n := ∞)).differentiable (by simp)) hc hd₀ hspec₀.2.2
@@ -923,7 +923,7 @@ private theorem derivativesClose_phaseInverse (hR : RegularizedPhases σ a b G H
     (fun i ↦ (hspec i).1) (fun _ ↦ hspec₀.1)
     (fun i ↦ (hR.smooth i).deriv' (n := ∞))
     (fun _ ↦ hR.smooth_lim.deriv' (n := ∞))
-    (fun i y ↦ (hspec i).2.2 y) (fun _ y ↦ hspec₀.2.2 y) hcurvjet h0 hc
+    (fun i y ↦ (hspec i).2.2 y) (fun _ y ↦ hspec₀.2.2 y) hcurvjet h0.1 h0.2 hc
     (Eventually.of_forall fun i ↦ by
       rw [Real.norm_eq_abs]
       have := hd₀ (phaseInverse H₀ (ν i))
@@ -999,7 +999,8 @@ theorem isModelPhaseFunctionWith_dualPhase (hR : RegularizedPhases σ a b G H H�
       simp only [hx_def]
       nlinarith [(u i).2.2]
   have hjet := (hR.derivativesClose_phaseInverse hxb p) p le_rfl
-  have hlim := hjet.1.const_mul (κ / S * κ ^ p)
+  have hlim := ((isEqUpToInfinitesimal_iff_tendsto_sub _ _).1 hjet.1).const_mul
+    (κ / S * κ ^ p)
   rw [mul_zero] at hlim
   have hlim' := hlim.norm
   rw [norm_zero] at hlim'

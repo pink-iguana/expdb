@@ -293,14 +293,14 @@ private theorem iteratedDeriv_sub_const_eq (a : ℝ) (k : ℕ) (x : ℝ) :
     simpa [sub_eq_add_neg, add_comm, iteratedDeriv_id, hk] using h
 
 private theorem derivativesClose_sub_const {v z : ℕ → ℝ}
-    (hb : SeqClose (fun i ↦ z i - v i) (fun i ↦ z i - v i)) (n : ℕ) :
+    (hb : VariableObject.IsBounded (fun i ↦ z i - v i)) (n : ℕ) :
     DerivativesClose (fun i y ↦ y - v i) (fun i y ↦ y - v i) z z n := by
   intro k _
   simp only [iteratedDeriv_sub_const_eq]
   rcases k with _ | _ | k
-  · simpa using hb
-  · simpa using SeqClose.const 1
-  · simpa using SeqClose.const 0
+  · exact ⟨IsEqUpToInfinitesimal.refl _, hb⟩
+  · exact ⟨IsEqUpToInfinitesimal.refl _, VariableObject.IsBounded.const 1⟩
+  · exact ⟨IsEqUpToInfinitesimal.refl _, VariableObject.IsBounded.const 0⟩
 
 /-- Uniform derivative bounds give `DerivativesClose` for a family compared with itself. -/
 private theorem derivativesClose_of_uniform_bound {f : ℕ → ℝ → ℝ} {z : ℕ → ℝ} {n : ℕ}
@@ -308,7 +308,7 @@ private theorem derivativesClose_of_uniform_bound {f : ℕ → ℝ → ℝ} {z :
     DerivativesClose f f z z n := by
   intro k hk
   obtain ⟨K, hK⟩ := h k hk
-  exact SeqClose.of_bound (hK.mono fun i hi ↦ hi (z i))
+  exact ⟨IsEqUpToInfinitesimal.refl _, K, hK.mono fun i hi ↦ hi (z i)⟩
 
 section Sequences
 
@@ -353,17 +353,18 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
     (hQs i).sqrt fun x ↦ (lt_of_lt_of_le hc (hQlow i x)).ne'
   have hYeq : ∀ i, Y i = fun x ↦ (x - v i) * S i x := fun i ↦ rfl
   -- boundedness of the preimage points
-  have hzb : SeqClose z z := SeqClose.of_bound (C := M)
-    (Eventually.of_forall fun i ↦ by simpa [Real.norm_eq_abs] using hz i)
-  have hzv : SeqClose (fun i ↦ z i - v i) (fun i ↦ z i - v i) := SeqClose.of_bound (C := 2 * M)
-    (Eventually.of_forall fun i ↦ by
+  have hzb : VariableObject.IsBounded z :=
+    ⟨M,
+      Eventually.of_forall fun i ↦ by simpa [Real.norm_eq_abs] using hz i⟩
+  have hzv : VariableObject.IsBounded (fun i ↦ z i - v i) :=
+    ⟨2 * M, Eventually.of_forall fun i ↦ by
       rw [Real.norm_eq_abs]
       have := hz i
       have := hv i
       simp only [z, X] at *
       calc |quadInverse (H i) (v i) (y i) - v i|
           ≤ |quadInverse (H i) (v i) (y i)| + |v i| := abs_sub _ _
-        _ ≤ 2 * M := by linarith)
+        _ ≤ 2 * M := by linarith⟩
   have hYj : ∀ n, DerivativesClose Y Y z z n := by
     intro n
     have hSj : DerivativesClose S S z z n := by
@@ -381,7 +382,8 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
   -- derivative bounds and convergence of the inverse
   have hXj : ∀ n, DerivativesClose X X y y (n + 1) := by
     intro n
-    refine DerivativesClose.inverse hX hX hY hY hYX hYX (hYj (n + 1)).shift hzb
+    refine DerivativesClose.inverse hX hX hY hY hYX hYX (hYj (n + 1)).shift
+      (IsEqUpToInfinitesimal.refl _) hzb
       (div_pos hc (Real.sqrt_pos.2 hC)) (Eventually.of_forall fun i ↦ ?_)
     have := le_deriv_phaseQuadraticCoordinate (hH i) hc (hcurv i) (v i) (z i)
     rw [Real.norm_of_nonneg ((div_pos hc (Real.sqrt_pos.2 hC)).le.trans this)]
@@ -398,7 +400,7 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
     (f' := fun i ↦ w ∘ X i) (g' := fun i ↦ deriv (X i))
     (fun i ↦ hw.comp (hX i)) (fun i ↦ (hX i).deriv' (n := ∞))
     (fun i ↦ hw.comp (hX i)) (fun i ↦ (hX i).deriv' (n := ∞)) hcomp (hXj k).shift
-  exact (hamp k le_rfl).exists_bound
+  exact (hamp k le_rfl).1.isBounded_left (hamp k le_rfl).2
 
 /-- Uniform bounds on the derivatives of the stationary-phase amplitude. -/
 theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
