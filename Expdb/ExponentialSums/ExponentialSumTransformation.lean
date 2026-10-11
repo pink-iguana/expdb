@@ -1,0 +1,994 @@
+module
+
+import Expdb.Basic.AutomaticUniformity
+public import Expdb.Basic.DerivativeAsymptotics
+public import Expdb.ExponentialSums.DualPhase
+public import Expdb.ExponentialSums.QuadraticNormalization
+public import Expdb.ExponentialSums.SmoothCompletion
+public import Expdb.Fourier.Poisson
+public import Expdb.Mathlib.NonstationaryPhase
+public import Expdb.Mathlib.StationaryPhase
+import Mathlib.Analysis.Calculus.Deriv.Inv
+import Mathlib.Analysis.Calculus.Deriv.Pow
+import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
+public import Mathlib.Analysis.Fourier.AddCircle
+import Mathlib.Analysis.Fourier.FourierTransformDeriv
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
+import Mathlib.MeasureTheory.Function.Jacobian
+
+/-!
+# The quantitative van der Corput transformation
+
+The stationary-phase estimate uses `Expdb.Mathlib.StationaryPhase` with a uniform amplitude
+bound to obtain an error of order `T⁻³ᐟ²`. Integration by parts controls the nonstationary
+frequencies by a summable bound.
+
+Specializing `Expdb.Fourier.poisson_scaled` to a smoothly weighted exponential sum combines
+these estimates in `norm_smooth_sum_sub_main_le`.
+
+The cutoff is supported in `(3/4, 9/4)`. The larger interval `[5/8, 19/8]` provides room for
+integration by parts without boundary terms.
+-/
+
+@[expose] public section
+
+namespace Expdb.BProcess
+
+open Filter Topology Set MeasureTheory Complex
+open scoped ContDiff FourierTransform SchwartzMap
+
+noncomputable section
+
+section FixedPhase
+
+private theorem iteratedDeriv_ofReal_comp {g : ℝ → ℝ} (hg : ContDiff ℝ ∞ g) (k : ℕ) (x : ℝ) :
+    iteratedDeriv k (fun y ↦ (g y : ℂ)) x = ((iteratedDeriv k g x : ℝ) : ℂ) := by
+  change iteratedFDeriv ℝ k (Complex.ofRealCLM ∘ g) x (fun _ ↦ 1) = _
+  rw [Complex.ofRealCLM.iteratedFDeriv_comp_left hg.contDiffAt (by exact_mod_cast le_top)]
+  rfl
+
+/-- Global curvature bounds bound the quadratic factor. -/
+private theorem phaseQuadraticFactor_mem {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v x : ℝ) :
+    -C ≤ phaseQuadraticFactor H v x ∧ phaseQuadraticFactor H v x ≤ -c :=
+  phaseQuadraticFactor_bounds H v x
+    ((hH.continuous_iteratedDeriv 2 (ENat.natCast_le_of_coe_top_le_withTop le_rfl 2)).comp
+      (by fun_prop)).continuousOn
+    (fun _ _ ↦ (hcurv _).1) (fun _ _ ↦ (hcurv _).2)
+
+/-- The quadratic coordinate of a globally concave phase is smooth. -/
+private theorem contDiff_phaseQuadraticCoordinate {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hc : 0 < c) (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    (v : ℝ) : ContDiff ℝ ∞ (phaseQuadraticCoordinate H v) :=
+  contDiffOn_univ.1 (contDiffOn_phaseQuadraticCoordinate H v hH
+    (fun x _ ↦ (phaseQuadraticFactor_mem hH hcurv v x).2.trans_lt (by linarith)))
+
+/-- The quadratic coordinate of a globally concave phase has derivative bounded below. -/
+private theorem le_deriv_phaseQuadraticCoordinate {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hc : 0 < c) (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    (v x : ℝ) : c / Real.sqrt C ≤ deriv (phaseQuadraticCoordinate H v) x :=
+  phaseQuadraticCoordinate_deriv_lower H v convex_univ (mem_univ v) hc
+    (hH.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl 3)) (fun x _ ↦ (hcurv x).1) (fun x
+      _ ↦ (hcurv x).2)
+    x (mem_univ x)
+
+/-- An integral of a function supported in `[-R, R]` and bounded by `B` is at most
+`2 R B`. -/
+private theorem integral_norm_le_of_support {g : ℝ → ℝ} {R B : ℝ} (hR : 0 ≤ R)
+    (hzero : ∀ y, R < |y| → g y = 0) (hB : ∀ y, ‖g y‖ ≤ B) :
+    ∫ y, ‖g y‖ ≤ 2 * R * B := by
+  rw [← setIntegral_eq_integral_of_forall_compl_eq_zero (s := Icc (-R) R)]
+  · have h := norm_setIntegral_le_of_norm_le_const (μ := volume) (s := Icc (-R) R)
+      (f := fun y ↦ ‖g y‖) (C := B) (by simp) (fun y _ ↦ by simpa using hB y)
+    rw [Real.norm_of_nonneg (integral_nonneg fun _ ↦ norm_nonneg _)] at h
+    simp only [Measure.real, Real.volume_Icc, sub_neg_eq_add] at h
+    rw [ENNReal.toReal_ofReal (by linarith)] at h
+    linarith
+  · intro y hy
+    have : R < |y| := by
+      rw [mem_Icc, not_and_or, not_le, not_le] at hy
+      rcases hy with h | h
+      · rw [abs_of_neg (by linarith)]; linarith
+      · rw [abs_of_pos (by linarith)]; linarith
+    simp [hzero y this]
+
+/-- Stationary phase for a fixed globally concave phase. -/
+private theorem norm_integral_stationary_sub_le {H w X : ℝ → ℝ} {c C lam R B v : ℝ}
+    (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    (hw : ContDiff ℝ ∞ w) (hX : ContDiff ℝ ∞ X)
+    (hYX : ∀ y, phaseQuadraticCoordinate H v (X y) = y)
+    (hlam : 0 < lam) (hR : 0 ≤ R)
+    (hsupp : ∀ y, R < |y| → w (X y) = 0)
+    (hB2 : ∀ y, ‖iteratedDeriv 2 (fun y ↦ w (X y) * deriv X y) y‖ ≤ B)
+    (hB4 : ∀ y, ‖iteratedDeriv 4 (fun y ↦ w (X y) * deriv X y) y‖ ≤ B) :
+    ‖(∫ x : ℝ, (w x : ℂ) * 𝐞 (lam * (H x - deriv H v * x))) -
+        𝐞 (lam * (H v - deriv H v * v)) *
+          (Complex.exp (-(Real.pi : ℂ) / 4 * I) *
+            ((w v / Real.sqrt (-iteratedDeriv 2 H v) : ℝ) : ℂ) / (Real.sqrt lam : ℂ))‖ ≤
+      4 * Real.pi ^ 2 * R * B / (lam * Real.sqrt lam) := by
+  set Y := phaseQuadraticCoordinate H v with hYdef
+  have hC : 0 < C := by linarith [(hcurv 0).1, (hcurv 0).2]
+  have hY : ContDiff ℝ ∞ Y := contDiff_phaseQuadraticCoordinate hH hc hcurv v
+  have hYd : Differentiable ℝ Y := hY.differentiable (by simp)
+  have hXd : Differentiable ℝ X := hX.differentiable (by simp)
+  have hYpos : ∀ x, 0 < deriv Y x := fun x ↦
+    lt_of_lt_of_le (div_pos hc (Real.sqrt_pos.2 hC)) (le_deriv_phaseQuadraticCoordinate hH hc
+      hcurv v x)
+  -- derivative of the inverse
+  have hchain : ∀ y, deriv Y (X y) * deriv X y = 1 := by
+    intro y
+    have h1 : deriv (Y ∘ X) y = 1 := by
+      have : Y ∘ X = id := funext hYX
+      rw [this, deriv_id]
+    rwa [deriv_comp y (hYd _) (hXd _)] at h1
+  have hXpos : ∀ y, 0 < deriv X y := by
+    intro y
+    have := hchain y
+    have := hYpos (X y)
+    by_contra h
+    push Not at h
+    nlinarith
+  -- the amplitude
+  set amp : ℝ → ℝ := fun y ↦ w (X y) * deriv X y with hamp
+  have hampS : ContDiff ℝ ∞ amp := (hw.comp hX).mul (hX.deriv' (n := ∞))
+  have hampz : ∀ y, R < |y| → amp y = 0 := fun y hy ↦ by simp [amp, hsupp y hy]
+  have hampzd : ∀ k y, R < |y| → iteratedDeriv k amp y = 0 := by
+    intro k y hy
+    have hev : amp =ᶠ[𝓝 y] fun _ ↦ 0 := by
+      have hopen : IsOpen {z : ℝ | R < |z|} := isOpen_lt continuous_const continuous_abs
+      filter_upwards [hopen.mem_nhds hy] with z hz
+      exact hampz z hz
+    rw [hev.iteratedDeriv_eq]
+    simp
+  set ampC : ℝ → ℂ := fun y ↦ (amp y : ℂ) with hampC
+  have hampCS : ContDiff ℝ ∞ ampC := Complex.ofRealCLM.contDiff.comp hampS
+  have hampCc : HasCompactSupport ampC := by
+    apply HasCompactSupport.intro (isCompact_closedBall (0 : ℝ) R)
+    intro y hy
+    rw [Metric.mem_closedBall, Real.dist_eq, sub_zero, not_le] at hy
+    simp [ampC, hampz y hy]
+  let f : 𝓢(ℝ, ℂ) := hampCc.toSchwartzMap hampCS
+  have hf : ∀ y, f y = ampC y := fun y ↦ by simp [f]
+  have hfcoe : (f : ℝ → ℂ) = ampC := funext hf
+  -- derivative bounds
+  have hL1 : ∀ k, (∀ y, ‖iteratedDeriv k amp y‖ ≤ B) →
+      StationaryPhase.fourierDerivativeL1 f k ≤ 2 * R * B := by
+    intro k hk
+    unfold StationaryPhase.fourierDerivativeL1
+    rw [hfcoe]
+    have hint : ∫ y, ‖iteratedDeriv k ampC y‖ ≤ 2 * R * B := by
+      have : (fun y ↦ ‖iteratedDeriv k ampC y‖) = fun y ↦ ‖iteratedDeriv k amp y‖ := by
+        funext y
+        rw [hampC, iteratedDeriv_ofReal_comp hampS, Complex.norm_real]
+      rw [this]
+      exact integral_norm_le_of_support hR (fun y hy ↦ hampzd k y hy) hk
+    have hpow : 1 ≤ (2 * Real.pi) ^ k :=
+      one_le_pow₀ (by nlinarith [Real.two_le_pi])
+    have hnn : 0 ≤ ∫ y, ‖iteratedDeriv k ampC y‖ := integral_nonneg fun _ ↦ norm_nonneg _
+    calc (∫ y, ‖iteratedDeriv k ampC y‖) / (2 * Real.pi) ^ k
+        ≤ ∫ y, ‖iteratedDeriv k ampC y‖ := div_le_self hnn hpow
+      _ ≤ 2 * R * B := hint
+  have herr := StationaryPhase.quadratic_stationary_error_negative_of_derivative_bounds f hlam
+    (hL1 2 hB2) (hL1 4 hB4)
+  rw [integral_univ_inv_one_add_sq] at herr
+  -- value at zero
+  have hX0 : X 0 = v := by
+    have hYv : Y v = 0 := phaseQuadraticCoordinate_self H v
+    have hinj : Function.Injective Y := (strictMono_of_deriv_pos hYpos).injective
+    apply hinj
+    rw [hYX, hYv]
+  have hcurvv : iteratedDeriv 2 H v < 0 := by linarith [(hcurv v).2]
+  have hYv' : deriv Y v = Real.sqrt (-iteratedDeriv 2 H v) :=
+    (hasDerivAt_phaseQuadraticCoordinate_self H v
+      (hH.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl 3))
+      hcurvv).deriv
+  have hf0 : f 0 = ((w v / Real.sqrt (-iteratedDeriv 2 H v) : ℝ) : ℂ) := by
+    rw [hf]
+    simp only [ampC, amp, hX0]
+    have h := hchain 0
+    rw [hX0, hYv'] at h
+    have hs : 0 < Real.sqrt (-iteratedDeriv 2 H v) := Real.sqrt_pos.2 (by linarith)
+    congr 1
+    field_simp
+    rw [mul_assoc, mul_comm (deriv X 0), h, mul_one]
+  -- change of variables
+  set ν := deriv H v
+  set A := H v - ν * v
+  have hcov : (∫ x : ℝ, (w x : ℂ) * 𝐞 (lam * (H x - ν * x))) =
+      𝐞 (lam * A) * ∫ y : ℝ, f y * Complex.exp (-I * (Real.pi * lam * y ^ 2 : ℝ)) := by
+    have hsurj : X '' univ = univ := by
+      rw [image_univ, range_eq_univ]
+      intro x
+      exact ⟨Y x, by
+        have hinj : Function.Injective Y := (strictMono_of_deriv_pos hYpos).injective
+        apply hinj
+        rw [hYX]⟩
+    have hinjX : InjOn X univ := fun a _ b _ hab ↦ by
+      have := congrArg Y hab
+      rwa [hYX, hYX] at this
+    have hcv := integral_image_eq_integral_abs_deriv_smul (s := univ) (f := X) (f' := deriv X)
+      MeasurableSet.univ (fun y _ ↦ (hXd y).hasDerivAt.hasDerivWithinAt) hinjX
+      (fun x ↦ (w x : ℂ) * 𝐞 (lam * (H x - ν * x)))
+    rw [hsurj, setIntegral_univ, setIntegral_univ] at hcv
+    rw [hcv, ← integral_const_mul]
+    congr 1
+    funext y
+    have hq := phaseQuadraticFactor_mem hH hcurv v (X y)
+    have hphase := phase_sub_tangent_eq_neg_coordinate_sq H v (X y)
+      (fun _ _ ↦ (hH.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl 2)).contDiffAt) (by
+        linarith [hq.2])
+    rw [← hYdef, hYX] at hphase
+    rw [abs_of_pos (hXpos y), hf]
+    simp only [ampC, amp, Real.fourierChar_apply, real_smul]
+    have : (2 * Real.pi * (lam * (H (X y) - ν * X y)) : ℝ) =
+        2 * Real.pi * (lam * A) + (-(Real.pi * lam * y ^ 2)) := by
+      simp only [A]
+      linear_combination (2 * Real.pi * lam) * hphase
+    rw [this]
+    push_cast
+    rw [show ((2 : ℂ) * Real.pi * (lam * A) + -(Real.pi * lam * y ^ 2)) * I =
+      (2 * Real.pi * (lam * A)) * I + -I * (Real.pi * lam * y ^ 2) by ring, Complex.exp_add]
+    ring
+  rw [hcov, ← mul_sub, norm_mul, Circle.norm_coe, one_mul]
+  rw [hf0] at herr
+  calc _ ≤ Real.pi * ((2 * R * B + 2 * R * B) * Real.pi) / (lam * Real.sqrt lam) := herr
+    _ = _ := by ring
+
+end FixedPhase
+
+section AmplitudeBounds
+
+/-- Apply automatic uniformity to a fixed parameter type. -/
+private lemma exists_eventually_uniform_bound {P : Type*} [Nonempty P] (g : ℕ → P → ℝ)
+    (h : ∀ p : ℕ → P, ∃ C, ∀ᶠ i in atTop, ‖g i (p i)‖ ≤ C) :
+    ∃ C, ∀ᶠ i in atTop, ∀ q, ‖g i q‖ ≤ C := by
+  let E : VariableObject (Set P) := fun _ ↦ Set.univ
+  let f : VariableFunction (fun i ↦ E i) ℝ := fun i q ↦ g i q
+  have hf : f.IsChoicewiseBounded := fun p ↦ h (fun i ↦ (p i).val)
+  obtain ⟨C, hC⟩ :=
+    (f.isChoicewiseBounded_iff_eventually_uniform E (fun _ ↦ Set.univ_nonempty)).1 hf
+  exact ⟨C, hC.mono fun i hi q ↦ hi ⟨q, Set.mem_univ q⟩⟩
+
+/-! ## The inverse quadratic coordinate -/
+
+/-- The inverse of the quadratic normal-form coordinate centred at `v`. -/
+def quadInverse (H : ℝ → ℝ) (v : ℝ) : ℝ → ℝ :=
+  Function.invFun (phaseQuadraticCoordinate H v)
+
+private theorem quadInverse_spec {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ} (hc : 0 < c)
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v : ℝ) :
+    ContDiff ℝ ∞ (quadInverse H v) ∧
+      (∀ y, phaseQuadraticCoordinate H v (quadInverse H v y) = y) ∧
+      (∀ x, quadInverse H v (phaseQuadraticCoordinate H v x) = x) := by
+  have hC : 0 < C := by linarith [(hcurv 0).1, (hcurv 0).2]
+  obtain ⟨g, hg, hgY, hYg⟩ := exists_smooth_inverse_of_le_deriv
+    (contDiff_phaseQuadraticCoordinate hH hc hcurv v) (div_pos hc (Real.sqrt_pos.2 hC))
+    (le_deriv_phaseQuadraticCoordinate hH hc hcurv v)
+  have heq : quadInverse H v = g := by
+    funext y
+    have h1 : phaseQuadraticCoordinate H v (quadInverse H v y) = y :=
+      Function.invFun_eq ⟨g y, hYg y⟩
+    rw [← h1, hgY, h1]
+  rw [heq]
+  exact ⟨hg, hYg, hgY⟩
+
+/-- The quadratic coordinate grows at most linearly. -/
+private theorem abs_phaseQuadraticCoordinate_le {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v x : ℝ) :
+    |phaseQuadraticCoordinate H v x| ≤ |x - v| * Real.sqrt C := by
+  have hq := phaseQuadraticFactor_mem hH hcurv v x
+  rw [phaseQuadraticCoordinate, abs_mul, abs_of_nonneg (Real.sqrt_nonneg _)]
+  exact mul_le_mul_of_nonneg_left (Real.sqrt_le_sqrt (by linarith)) (abs_nonneg _)
+
+/-! ## Derivative bounds and convergence along sequences -/
+
+private theorem iteratedDeriv_sub_const_eq (a : ℝ) (k : ℕ) (x : ℝ) :
+    iteratedDeriv k (fun y ↦ y - a) x =
+      if k = 0 then x - a else if k = 1 then 1 else 0 := by
+  by_cases hk : k = 0
+  · simp [hk]
+  · have h := iteratedDeriv_const_add (f := id) (x := x) (Nat.pos_of_ne_zero hk) (-a)
+    simpa [sub_eq_add_neg, add_comm, iteratedDeriv_id, hk] using h
+
+private theorem derivativesClose_sub_const {v z : ℕ → ℝ}
+    (hb : SeqClose (fun i ↦ z i - v i) (fun i ↦ z i - v i)) (n : ℕ) :
+    DerivativesClose (fun i y ↦ y - v i) (fun i y ↦ y - v i) z z n := by
+  intro k _
+  simp only [iteratedDeriv_sub_const_eq]
+  rcases k with _ | _ | k
+  · simpa using hb
+  · simpa using SeqClose.const 1
+  · simpa using SeqClose.const 0
+
+/-- Uniform derivative bounds give `DerivativesClose` for a family compared with itself. -/
+private theorem derivativesClose_of_uniform_bound {f : ℕ → ℝ → ℝ} {z : ℕ → ℝ} {n : ℕ}
+    (h : ∀ k ≤ n, ∃ K, ∀ᶠ i in atTop, ∀ x, ‖iteratedDeriv k (f i) x‖ ≤ K) :
+    DerivativesClose f f z z n := by
+  intro k hk
+  obtain ⟨K, hK⟩ := h k hk
+  exact SeqClose.of_bound (hK.mono fun i hi ↦ hi (z i))
+
+section Sequences
+
+variable {H : ℕ → ℝ → ℝ} {c C : ℝ}
+
+/-- Sequence-level bound on the derivatives of the amplitude at points whose preimages stay
+bounded. -/
+private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
+    (hcurv : ∀ i x, -C ≤ iteratedDeriv 2 (H i) x ∧ iteratedDeriv 2 (H i) x ≤ -c)
+    (hbdd : ∀ k, 2 ≤ k → ∃ K, ∀ᶠ i in atTop, ∀ x, ‖iteratedDeriv k (H i) x‖ ≤ K)
+    {w : ℝ → ℝ} (hw : ContDiff ℝ ∞ w) (hwb : ∀ k, ∃ K, ∀ x, ‖iteratedDeriv k w x‖ ≤ K)
+    {v y : ℕ → ℝ} {M : ℝ} (hv : ∀ i, |v i| ≤ M)
+    (hz : ∀ i, |quadInverse (H i) (v i) (y i)| ≤ M) (k : ℕ) :
+    ∃ B, ∀ᶠ i in atTop, ‖iteratedDeriv k
+      (fun t ↦ w (quadInverse (H i) (v i) t) * deriv (quadInverse (H i) (v i)) t) (y i)‖ ≤ B := by
+  have hC : 0 < C := by linarith [(hcurv 0 0).1, (hcurv 0 0).2]
+  set X : ℕ → ℝ → ℝ := fun i ↦ quadInverse (H i) (v i) with hXdef
+  set Y : ℕ → ℝ → ℝ := fun i ↦ phaseQuadraticCoordinate (H i) (v i) with hYdef
+  have hspec := fun i ↦ quadInverse_spec (hH i) hc (hcurv i) (v i)
+  have hX : ∀ i, ContDiff ℝ ∞ (X i) := fun i ↦ (hspec i).1
+  have hYX : ∀ i t, Y i (X i t) = t := fun i ↦ (hspec i).2.1
+  have hY : ∀ i, ContDiff ℝ ∞ (Y i) := fun i ↦
+    contDiff_phaseQuadraticCoordinate (hH i) hc (hcurv i) (v i)
+  set z : ℕ → ℝ := fun i ↦ X i (y i) with hzdef
+  -- derivative bounds and convergence of the quadratic factor
+  set Q : ℕ → ℝ → ℝ := fun i x ↦ -phaseQuadraticFactor (H i) (v i) x with hQdef
+  have hQs : ∀ i, ContDiff ℝ ∞ (Q i) := fun i ↦
+    (contDiff_phaseQuadraticFactor (H i) (v i) (hH i)).neg
+  have hQb : ∀ j, ∃ K, ∀ᶠ i in atTop, ∀ x, ‖iteratedDeriv j (Q i) x‖ ≤ K := by
+    intro j
+    obtain ⟨K, hK⟩ := hbdd (j + 2) (by omega)
+    refine ⟨K, hK.mono fun i hi x ↦ ?_⟩
+    simp only [Q, iteratedDeriv_fun_neg, norm_neg]
+    exact norm_iteratedDeriv_phaseQuadraticFactor_le (H i) (v i) x j (hH i)
+      (fun t _ ↦ hi _)
+  have hQlow : ∀ i x, c ≤ Q i x := fun i x ↦ by
+    have := (phaseQuadraticFactor_mem (hH i) (hcurv i) (v i) x).2
+    simp only [Q]
+    linarith
+  set S : ℕ → ℝ → ℝ := fun i x ↦ Real.sqrt (Q i x) with hSdef
+  have hSs : ∀ i, ContDiff ℝ ∞ (S i) := fun i ↦
+    (hQs i).sqrt fun x ↦ (lt_of_lt_of_le hc (hQlow i x)).ne'
+  have hYeq : ∀ i, Y i = fun x ↦ (x - v i) * S i x := fun i ↦ rfl
+  -- boundedness of the preimage points
+  have hzb : SeqClose z z := SeqClose.of_bound (C := M)
+    (Eventually.of_forall fun i ↦ by simpa [Real.norm_eq_abs] using hz i)
+  have hzv : SeqClose (fun i ↦ z i - v i) (fun i ↦ z i - v i) := SeqClose.of_bound (C := 2 * M)
+    (Eventually.of_forall fun i ↦ by
+      rw [Real.norm_eq_abs]
+      have := hz i
+      have := hv i
+      simp only [z, X] at *
+      calc |quadInverse (H i) (v i) (y i) - v i|
+          ≤ |quadInverse (H i) (v i) (y i)| + |v i| := abs_sub _ _
+        _ ≤ 2 * M := by linarith)
+  have hYj : ∀ n, DerivativesClose Y Y z z n := by
+    intro n
+    have hSj : DerivativesClose S S z z n := by
+      refine DerivativesClose.of_mul_self_eq hSs hSs (fun _ _ ↦ Real.sqrt_nonneg _)
+        (fun _ _ ↦ Real.sqrt_nonneg _)
+        (fun i x ↦ Real.mul_self_sqrt (hc.le.trans (hQlow i x)))
+        (fun i x ↦ Real.mul_self_sqrt (hc.le.trans (hQlow i x)))
+        (derivativesClose_of_uniform_bound fun j _ ↦ hQb j) (Real.sqrt_pos.2 hc)
+        (Eventually.of_forall fun i ↦ Real.sqrt_le_sqrt (hQlow i (z i)))
+    have := DerivativesClose.mul (f := fun i y ↦ y - v i) (g := S)
+      (f' := fun i y ↦ y - v i) (g' := S)
+      (fun _ ↦ contDiff_id.sub contDiff_const) hSs (fun _ ↦ contDiff_id.sub contDiff_const)
+      hSs (derivativesClose_sub_const hzv n) hSj
+    exact this
+  -- derivative bounds and convergence of the inverse
+  have hXj : ∀ n, DerivativesClose X X y y (n + 1) := by
+    intro n
+    refine DerivativesClose.inverse hX hX hY hY hYX hYX (hYj (n + 1)).shift hzb
+      (div_pos hc (Real.sqrt_pos.2 hC)) (Eventually.of_forall fun i ↦ ?_)
+    have := le_deriv_phaseQuadraticCoordinate (hH i) hc (hcurv i) (v i) (z i)
+    rw [Real.norm_of_nonneg ((div_pos hc (Real.sqrt_pos.2 hC)).le.trans this)]
+    exact this
+  -- derivative bounds and convergence of the amplitude
+  have hwj : DerivativesClose (fun _ ↦ w) (fun _ ↦ w) z z k := derivativesClose_of_uniform_bound
+    fun j _ ↦ by
+      obtain ⟨K, hK⟩ := hwb j
+      exact ⟨K, Eventually.of_forall fun _ ↦ hK⟩
+  have hcomp := DerivativesClose.comp (g := fun _ ↦ w) (g' := fun _ ↦ w) (f := X) (f' := X)
+    (x := y) (x' := y) (fun _ ↦ hw) (fun _ ↦ hw) hX hX hwj
+    ((hXj k).mono (by omega)).positiveDerivativesClose
+  have hamp := DerivativesClose.mul (f := fun i ↦ w ∘ X i) (g := fun i ↦ deriv (X i))
+    (f' := fun i ↦ w ∘ X i) (g' := fun i ↦ deriv (X i))
+    (fun i ↦ hw.comp (hX i)) (fun i ↦ (hX i).deriv' (n := ∞))
+    (fun i ↦ hw.comp (hX i)) (fun i ↦ (hX i).deriv' (n := ∞)) hcomp (hXj k).shift
+  exact (hamp k le_rfl).exists_bound
+
+/-- Uniform bounds on the derivatives of the stationary-phase amplitude. -/
+theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
+    (hcurv : ∀ i x, -C ≤ iteratedDeriv 2 (H i) x ∧ iteratedDeriv 2 (H i) x ≤ -c)
+    (hbdd : ∀ k, 2 ≤ k → ∃ K, ∀ᶠ i in atTop, ∀ x, ‖iteratedDeriv k (H i) x‖ ≤ K)
+    {w : ℝ → ℝ} (hw : ContDiff ℝ ∞ w) {p q : ℝ} (hpq : p ≤ q)
+    (hw0 : ∀ x, x ∉ Icc p q → w x = 0) {M : ℝ} (k : ℕ) :
+    ∃ B, ∀ᶠ i in atTop, ∀ v, |v| ≤ M → ∀ t, ‖iteratedDeriv k
+      (fun t ↦ w (quadInverse (H i) v t) * deriv (quadInverse (H i) v) t) t‖ ≤ B := by
+  classical
+  have hwc : HasCompactSupport w := by
+    apply HasCompactSupport.intro (isCompact_Icc (a := p) (b := q))
+    exact hw0
+  have hwb : ∀ k, ∃ K, ∀ x, ‖iteratedDeriv k w x‖ ≤ K := fun k ↦
+    exists_bound_iteratedDeriv_of_hasCompactSupport hw hwc k
+  by_cases hM : 0 ≤ M
+  swap
+  · exact ⟨0, Eventually.of_forall fun i v hv ↦ absurd ((abs_nonneg v).trans hv) hM⟩
+  set M' : ℝ := max M (max |p - 1| |q + 1|) with hM'
+  let P := {v : ℝ // |v| ≤ M} × ℝ
+  haveI : Nonempty P := ⟨(⟨0, by simpa using hM⟩, 0)⟩
+  let g : ℕ → P → ℝ := fun i r ↦ iteratedDeriv k
+    (fun t ↦ w (quadInverse (H i) r.1 t) * deriv (quadInverse (H i) r.1) t) r.2
+  suffices hsuff : ∃ B, ∀ᶠ i in atTop, ∀ r, ‖g i r‖ ≤ B by
+    obtain ⟨B, hB⟩ := hsuff
+    exact ⟨B, hB.mono fun i hi v hv t ↦ hi (⟨v, hv⟩, t)⟩
+  apply exists_eventually_uniform_bound
+  intro r
+  set v : ℕ → ℝ := fun i ↦ (r i).1.1
+  set y : ℕ → ℝ := fun i ↦ (r i).2
+  -- replace bad points
+  set good : ℕ → Prop := fun i ↦ quadInverse (H i) (v i) (y i) ∈ Icc (p - 1) (q + 1)
+  set y' : ℕ → ℝ := fun i ↦ if good i then y i else phaseQuadraticCoordinate (H i) (v i) p
+  have hspec := fun i ↦ quadInverse_spec (hH i) hc (hcurv i) (v i)
+  have hz' : ∀ i, |quadInverse (H i) (v i) (y' i)| ≤ M' := by
+    intro i
+    by_cases hg : good i
+    · simp only [y', if_pos hg]
+      have := hg
+      simp only [good, mem_Icc] at this
+      rw [abs_le]
+      constructor
+      · have : -|p - 1| ≤ p - 1 := neg_abs_le _
+        have : |p - 1| ≤ M' := le_max_of_le_right (le_max_left _ _)
+        linarith
+      · have : q + 1 ≤ |q + 1| := le_abs_self _
+        have : |q + 1| ≤ M' := le_max_of_le_right (le_max_right _ _)
+        linarith
+    · simp only [y', if_neg hg, (hspec i).2.2]
+      rw [abs_le]
+      constructor
+      · have : -|p - 1| ≤ p - 1 := neg_abs_le _
+        have : |p - 1| ≤ M' := le_max_of_le_right (le_max_left _ _)
+        linarith
+      · have : q + 1 ≤ |q + 1| := le_abs_self _
+        have : |q + 1| ≤ M' := le_max_of_le_right (le_max_right _ _)
+        linarith
+  have hv' : ∀ i, |v i| ≤ M' := fun i ↦ (r i).1.2.trans (le_max_left _ _)
+  obtain ⟨B, hB⟩ := amplitude_seq_bound hH hc hcurv hbdd hw hwb hv' hz' k
+  refine ⟨B, hB.mono fun i hi ↦ ?_⟩
+  by_cases hg : good i
+  · simpa [g, y', if_pos hg] using hi
+  · have hzero : iteratedDeriv k
+        (fun t ↦ w (quadInverse (H i) (v i) t) * deriv (quadInverse (H i) (v i)) t) (y i) = 0 := by
+      have hcont : Continuous (quadInverse (H i) (v i)) := (hspec i).1.continuous
+      have hopen : IsOpen {t | quadInverse (H i) (v i) t ∉ Icc p q} :=
+        (isClosed_Icc.preimage hcont).isOpen_compl
+      have hmem : y i ∈ {t | quadInverse (H i) (v i) t ∉ Icc p q} := by
+        intro hmem
+        apply hg
+        exact ⟨by linarith [hmem.1], by linarith [hmem.2]⟩
+      have hev : (fun t ↦ w (quadInverse (H i) (v i) t) * deriv (quadInverse (H i) (v i)) t)
+          =ᶠ[𝓝 (y i)] fun _ ↦ 0 := by
+        filter_upwards [hopen.mem_nhds hmem] with t ht
+        simp [hw0 _ ht]
+      rw [hev.iteratedDeriv_eq]
+      simp
+    have : g i (r i) = 0 := hzero
+    rw [this, norm_zero]
+    exact (norm_nonneg _).trans hi
+
+end Sequences
+
+end AmplitudeBounds
+
+section SmoothPoisson
+
+/-- Poisson summation for a smoothly weighted exponential sum. -/
+private theorem smooth_sum_eq_poisson {φ : ℝ → ℝ} (hφ : ContDiff ℝ ∞ φ) {T N : ℝ} (hT : 0 < T)
+    (hN : 0 < N) {B : ℕ} (hB : 9 / 4 * N ≤ B) :
+    ∑ n ∈ Finset.Icc 0 B, (phaseCutoff ((n : ℝ) / N) : ℂ) * 𝐞 (T * φ ((n : ℝ) / N)) =
+      N * ∑' m : ℤ, ∫ u : ℝ, (phaseCutoff u : ℂ) * 𝐞 (T * (φ u - N * m / T * u)) := by
+  set g : ℝ → ℂ := fun u ↦ (phaseCutoff u : ℂ) * 𝐞 (T * φ u) with hg
+  have hchar : ContDiff ℝ ∞ (fun u ↦ (𝐞 (T * φ u) : ℂ)) := by
+    simp only [Real.fourierChar_apply]
+    exact Complex.contDiff_exp.comp
+      ((Complex.ofRealCLM.contDiff.comp (contDiff_const.mul
+        (contDiff_const.mul hφ))).mul contDiff_const)
+  have hgs : ContDiff ℝ ∞ g :=
+    (Complex.ofRealCLM.contDiff.comp phaseCutoff.contDiff).mul hchar
+  have hgc : HasCompactSupport g := by
+    apply HasCompactSupport.mul_right
+    exact phaseCutoff.hasCompactSupport.comp_left Complex.ofReal_zero
+  let f : 𝓢(ℝ, ℂ) := hgc.toSchwartzMap hgs
+  have hf : ∀ u, f u = g u := fun u ↦ by simp [f]
+  have hP := poisson_scaled f hN
+  simp only [hf] at hP
+  -- the left side
+  have hleft : (∑' n : ℤ, g ((n : ℝ) / N)) =
+      ∑ n ∈ Finset.Icc 0 B, (phaseCutoff ((n : ℝ) / N) : ℂ) * 𝐞 (T * φ ((n : ℝ) / N)) := by
+    rw [tsum_eq_sum (s := (Finset.Icc 0 B).image (fun n : ℕ ↦ (n : ℤ)))]
+    · rw [Finset.sum_image (fun a _ b _ h ↦ by exact_mod_cast h)]
+      rfl
+    · intro n hn
+      have hz : phaseCutoff ((n : ℝ) / N) = 0 := by
+        apply phaseCutoff_eq_zero
+        rintro ⟨h1, h2⟩
+        apply hn
+        rw [Finset.mem_image]
+        have hn0 : 0 ≤ n := by
+          by_contra h
+          push Not at h
+          have : (n : ℝ) / N < 0 := div_neg_of_neg_of_pos (by exact_mod_cast h) hN
+          linarith
+        refine ⟨n.toNat, Finset.mem_Icc.2 ⟨Nat.zero_le _, ?_⟩, Int.toNat_of_nonneg hn0⟩
+        have : (n : ℝ) < 9 / 4 * N := by rwa [div_lt_iff₀ hN] at h2
+        have : (n : ℝ) < B := lt_of_lt_of_le this hB
+        have : n < (B : ℤ) := by exact_mod_cast this
+        omega
+      simp [g, hz]
+  rw [← hleft, hP, Complex.real_smul]
+  congr 1
+  apply tsum_congr
+  intro m
+  apply integral_congr_ae
+  filter_upwards with u
+  simp only [g, Circle.smul_def, smul_eq_mul]
+  rw [mul_left_comm, ← Circle.coe_mul, ← AddChar.map_add_eq_mul]
+  congr 3
+  field_simp
+  ring
+
+end SmoothPoisson
+
+section Nonstationary
+
+private theorem eventually_zero_of_notMem {w : ℝ → ℝ} {a' b' x : ℝ}
+    (hw0 : ∀ y, y ∉ Icc a' b' → w y = 0) (hx' : x < a' ∨ b' < x) :
+    w =ᶠ[𝓝 x] fun _ ↦ 0 := by
+  rcases hx' with h | h
+  · filter_upwards [Iio_mem_nhds h] with y hy
+    exact hw0 y fun hm ↦ by linarith [hm.1, (show y < a' from hy)]
+  · filter_upwards [Ioi_mem_nhds h] with y hy
+    exact hw0 y fun hm ↦ by linarith [hm.2, (show b' < y from hy)]
+
+/-- Two integrations by parts for a weight supported strictly inside an interval on which the
+phase is nonstationary. -/
+private theorem norm_integral_nonstationary_le {H w : ℝ → ℝ} {lam ν d C2 C3 W a a' b' b : ℝ}
+    (haa' : a < a') (ha'b' : a' ≤ b') (hb'b : b' < b)
+    (hH : ContDiff ℝ ∞ H) (hw : ContDiff ℝ ∞ w)
+    (hw0 : ∀ x, x ∉ Icc a' b' → w x = 0)
+    (hlam : 0 < lam) (hd : 0 < d)
+    (hsep : ∀ x ∈ Icc a b, d ≤ |deriv H x - ν|)
+    (h2 : ∀ x ∈ Icc a b, |iteratedDeriv 2 H x| ≤ C2)
+    (h3 : ∀ x ∈ Icc a b, |iteratedDeriv 3 H x| ≤ C3)
+    (hW : ∀ k ≤ 2, ∀ x, |iteratedDeriv k w x| ≤ W) :
+    ‖∫ x : ℝ, (w x : ℂ) * 𝐞 (lam * (H x - ν * x))‖ ≤
+      (b - a) * W * (1 + 3 * C2 / d + (C3 / d + 3 * C2 ^ 2 / d ^ 2)) / (lam ^ 2 * d ^ 2) := by
+  have hab : a ≤ b := by linarith
+  have haI : a ∈ Icc a b := ⟨le_rfl, hab⟩
+  have hC2 : 0 ≤ C2 := (abs_nonneg _).trans (h2 a haI)
+  have hC3 : 0 ≤ C3 := (abs_nonneg _).trans (h3 a haI)
+  have hW0 : 0 ≤ W := (abs_nonneg _).trans (hW 0 (by norm_num) 0)
+  set D1 := deriv H with hD1
+  set D2 := deriv D1 with hD2
+  set D3 := deriv D2 with hD3
+  have hD1s : ContDiff ℝ ∞ D1 := (contDiff_infty_iff_deriv.1 hH).2
+  have hD2s : ContDiff ℝ ∞ D2 := (contDiff_infty_iff_deriv.1 hD1s).2
+  have hD3s : ContDiff ℝ ∞ D3 := (contDiff_infty_iff_deriv.1 hD2s).2
+  have hHd : ∀ x, HasDerivAt H (D1 x) x := fun x ↦
+    ((hH.differentiable (by simp)) x).hasDerivAt
+  have hD1d : ∀ x, HasDerivAt D1 (D2 x) x := fun x ↦
+    ((hD1s.differentiable (by simp)) x).hasDerivAt
+  have hD2d : ∀ x, HasDerivAt D2 (D3 x) x := fun x ↦
+    ((hD2s.differentiable (by simp)) x).hasDerivAt
+  have hi2 : iteratedDeriv 2 H = D2 := by
+    rw [iteratedDeriv_succ, iteratedDeriv_one]
+  have hi3 : iteratedDeriv 3 H = D3 := by
+    rw [iteratedDeriv_succ, hi2]
+  rw [hi2] at h2
+  rw [hi3] at h3
+  set w1 := deriv w with hw1
+  set w2 := deriv w1 with hw2
+  have hw1s : ContDiff ℝ ∞ w1 := (contDiff_infty_iff_deriv.1 hw).2
+  have hw2s : ContDiff ℝ ∞ w2 := (contDiff_infty_iff_deriv.1 hw1s).2
+  have hwd : ∀ x, HasDerivAt w (w1 x) x := fun x ↦
+    ((hw.differentiable (by simp)) x).hasDerivAt
+  have hw1d : ∀ x, HasDerivAt w1 (w2 x) x := fun x ↦
+    ((hw1s.differentiable (by simp)) x).hasDerivAt
+  have hWw : ∀ x, |w x| ≤ W := fun x ↦ by simpa using hW 0 (by norm_num) x
+  have hWw1 : ∀ x, |w1 x| ≤ W := fun x ↦ by simpa [iteratedDeriv_one] using hW 1 (by norm_num) x
+  have hWw2 : ∀ x, |w2 x| ≤ W := fun x ↦ by
+    have := hW 2 (by norm_num) x
+    rwa [iteratedDeriv_succ, iteratedDeriv_one] at this
+  set L : ℝ := 2 * Real.pi * lam with hL
+  have hLpos : 0 < L := by positivity
+  have hLlam : lam ≤ L := by
+    rw [hL]; nlinarith [Real.two_le_pi]
+  -- phase functions
+  set E : ℝ → ℂ := fun x ↦ (𝐞 (lam * (H x - ν * x)) : ℂ) with hE
+  set g : ℝ → ℂ := fun x ↦ ((L * (D1 x - ν) : ℝ) : ℂ) * I with hg
+  set g1 : ℝ → ℂ := fun x ↦ ((L * D2 x : ℝ) : ℂ) * I with hg1
+  set g2 : ℝ → ℂ := fun x ↦ ((L * D3 x : ℝ) : ℂ) * I with hg2
+  have hnormg : ∀ x, ‖g x‖ = L * |D1 x - ν| := fun x ↦ by
+    simp only [g]
+    rw [norm_mul, Complex.norm_I, mul_one, Complex.norm_real, Real.norm_eq_abs, abs_mul,
+      abs_of_pos hLpos]
+  have hnormg1 : ∀ x, ‖g1 x‖ = L * |D2 x| := fun x ↦ by
+    simp only [g1]
+    rw [norm_mul, Complex.norm_I, mul_one, Complex.norm_real, Real.norm_eq_abs, abs_mul,
+      abs_of_pos hLpos]
+  have hnormg2 : ∀ x, ‖g2 x‖ = L * |D3 x| := fun x ↦ by
+    simp only [g2]
+    rw [norm_mul, Complex.norm_I, mul_one, Complex.norm_real, Real.norm_eq_abs, abs_mul,
+      abs_of_pos hLpos]
+  have hglow : ∀ x ∈ Icc a b, L * d ≤ ‖g x‖ := fun x hx ↦ by
+    rw [hnormg]; exact mul_le_mul_of_nonneg_left (hsep x hx) hLpos.le
+  have hgne : ∀ x ∈ Icc a b, g x ≠ 0 := fun x hx h ↦ by
+    have := hglow x hx
+    rw [h, norm_zero] at this
+    nlinarith
+  have hgd : ∀ x, HasDerivAt g (g1 x) x := fun x ↦ by
+    have := (((hD1d x).sub_const ν).const_mul L).ofReal_comp.mul_const I
+    simpa [g, g1] using this
+  have hg1d : ∀ x, HasDerivAt g1 (g2 x) x := fun x ↦ by
+    have := ((hD2d x).const_mul L).ofReal_comp.mul_const I
+    simpa [g1, g2] using this
+  set Ed : ℝ → ℂ := fun x ↦ g x * E x with hEd
+  have hEder : ∀ x, HasDerivAt E (Ed x) x := fun x ↦ by
+    have hφ : HasDerivAt (fun y ↦ lam * (H y - ν * y)) (lam * (D1 x - ν)) x := by
+      have := ((hHd x).sub ((hasDerivAt_id x).const_mul ν)).const_mul lam
+      simpa using this
+    have hchar := (Real.hasDerivAt_fourierChar (lam * (H x - ν * x))).scomp x hφ
+    have : HasDerivAt (fun y ↦ (𝐞 (lam * (H y - ν * y)) : ℂ))
+        (((2 * Real.pi : ℝ) : ℂ) * I * (𝐞 (lam * (H x - ν * x)) : ℂ) *
+          (lam * (D1 x - ν) : ℝ)) x := by
+      simpa [Function.comp_def, Complex.real_smul, mul_comm] using hchar
+    convert this using 1
+    simp only [Ed, g, E, L]
+    push_cast
+    ring
+  set q : ℝ → ℂ := fun x ↦ (g x)⁻¹ with hq
+  set qd : ℝ → ℂ := fun x ↦ -g1 x / g x ^ 2 with hqd
+  set qdd : ℝ → ℂ := fun x ↦ -g2 x / g x ^ 2 + 2 * g1 x ^ 2 / g x ^ 3 with hqdd
+  have hqder : ∀ x ∈ Icc a b, HasDerivAt q (qd x) x := fun x hx ↦ by
+    have := HasDerivAt.fun_inv (hgd x) (hgne x hx)
+    simpa [q, qd, neg_div] using this
+  have hqdder : ∀ x ∈ Icc a b, HasDerivAt qd (qdd x) x := fun x hx ↦ by
+    have hne := hgne x hx
+    have h1 : HasDerivAt (fun y ↦ -g1 y / g y ^ 2) _ x :=
+      (HasDerivAt.fun_neg (hg1d x)).fun_div ((hgd x).fun_pow 2) (pow_ne_zero 2 hne)
+    refine h1.congr_deriv ?_
+    simp only [qdd, Nat.cast_ofNat]
+    field_simp
+    ring
+  -- continuity
+  have hEc : Continuous E := continuous_iff_continuousAt.2 fun x ↦ (hEder x).continuousAt
+  have hgc : Continuous g := continuous_iff_continuousAt.2 fun x ↦ (hgd x).continuousAt
+  have hg1c : Continuous g1 := continuous_iff_continuousAt.2 fun x ↦ (hg1d x).continuousAt
+  have hg2c : Continuous g2 := by
+    simp only [g2]
+    exact (continuous_ofReal.comp (continuous_const.mul hD3s.continuous)).mul continuous_const
+  have hEdc : ContinuousOn Ed (Icc a b) := (hgc.mul hEc).continuousOn
+  have hqddc : ContinuousOn qdd (Icc a b) := by
+    apply ContinuousOn.add
+    · exact (hg2c.neg.continuousOn).div (hgc.pow 2).continuousOn
+        fun x hx ↦ pow_ne_zero 2 (hgne x hx)
+    · exact (continuous_const.mul (hg1c.pow 2)).continuousOn.div (hgc.pow 3).continuousOn
+        fun x hx ↦ pow_ne_zero 3 (hgne x hx)
+  have hw2c : ContinuousOn (fun x ↦ (w2 x : ℂ)) (Icc a b) :=
+    (continuous_ofReal.comp hw2s.continuous).continuousOn
+  -- endpoint vanishing
+  have haz : w =ᶠ[𝓝 a] fun _ ↦ 0 :=
+    eventually_zero_of_notMem hw0 (Or.inl haa')
+  have hbz : w =ᶠ[𝓝 b] fun _ ↦ 0 :=
+    eventually_zero_of_notMem hw0 (Or.inr hb'b)
+  have hw1a : w1 a = 0 := by simp [w1, haz.deriv_eq]
+  have hw1b : w1 b = 0 := by simp [w1, hbz.deriv_eq]
+  -- budgets
+  have hbud : ∀ (u : ℝ → ℝ), (∀ x, |u x| ≤ W) →
+      (∫ x in a..b, ‖(u x : ℂ)‖) ≤ (b - a) * W := by
+    intro u hu
+    have := intervalIntegral.norm_integral_le_of_norm_le_const (a := a) (b := b)
+      (f := fun x ↦ ‖(u x : ℂ)‖) (C := W) (fun x _ ↦ by simpa using hu x)
+    rw [abs_of_nonneg (sub_nonneg.2 hab)] at this
+    refine le_trans (le_abs_self _) ?_
+    rw [← Real.norm_eq_abs]
+    linarith
+  have hQ0 : ∀ x ∈ Icc a b, ‖q x‖ ≤ 1 / (L * d) := fun x hx ↦ by
+    simp only [q, norm_inv]
+    rw [one_div]
+    exact inv_anti₀ (by positivity) (hglow x hx)
+  have hQ1 : ∀ x ∈ Icc a b, ‖qd x‖ ≤ C2 / (L * d ^ 2) := fun x hx ↦ by
+    simp only [qd, norm_div, norm_neg, norm_pow, hnormg1]
+    have hl := hglow x hx
+    have hgpos : 0 < ‖g x‖ := lt_of_lt_of_le (by positivity) hl
+    rw [div_le_div_iff₀ (pow_pos hgpos 2) (by positivity)]
+    have : (L * d) ^ 2 ≤ ‖g x‖ ^ 2 := pow_le_pow_left₀ (by positivity) hl 2
+    have h2x := h2 x hx
+    calc L * |D2 x| * (L * d ^ 2) = L * (L * d ^ 2) * |D2 x| := by ring
+      _ ≤ L * (L * d ^ 2) * C2 := by gcongr
+      _ = C2 * (L * d) ^ 2 := by ring
+      _ ≤ C2 * ‖g x‖ ^ 2 := by gcongr
+  have hQ2 : ∀ x ∈ Icc a b, ‖qdd x‖ ≤ C3 / (L * d ^ 2) + 2 * C2 ^ 2 / (L * d ^ 3) :=
+    fun x hx ↦ by
+    have hl := hglow x hx
+    have hgpos : 0 < ‖g x‖ := lt_of_lt_of_le (by positivity) hl
+    refine (norm_add_le _ _).trans (add_le_add ?_ ?_)
+    · simp only [norm_div, norm_neg, norm_pow, hnormg2]
+      rw [div_le_div_iff₀ (pow_pos hgpos 2) (by positivity)]
+      have : (L * d) ^ 2 ≤ ‖g x‖ ^ 2 := pow_le_pow_left₀ (by positivity) hl 2
+      have h3x := h3 x hx
+      calc L * |D3 x| * (L * d ^ 2) = L * (L * d ^ 2) * |D3 x| := by ring
+        _ ≤ L * (L * d ^ 2) * C3 := by gcongr
+        _ = C3 * (L * d) ^ 2 := by ring
+        _ ≤ C3 * ‖g x‖ ^ 2 := by gcongr
+    · simp only [norm_div, norm_mul, norm_pow, hnormg1, Complex.norm_ofNat]
+      rw [div_le_div_iff₀ (pow_pos hgpos 3) (by positivity)]
+      have : (L * d) ^ 3 ≤ ‖g x‖ ^ 3 := pow_le_pow_left₀ (by positivity) hl 3
+      have h2x := h2 x hx
+      have : (L * |D2 x|) ^ 2 ≤ (L * C2) ^ 2 :=
+        pow_le_pow_left₀ (by positivity) (mul_le_mul_of_nonneg_left h2x hLpos.le) 2
+      calc 2 * (L * |D2 x|) ^ 2 * (L * d ^ 3) ≤ 2 * (L * C2) ^ 2 * (L * d ^ 3) := by gcongr
+        _ = 2 * C2 ^ 2 * (L * d) ^ 3 := by ring
+        _ ≤ 2 * C2 ^ 2 * ‖g x‖ ^ 3 := by gcongr
+  have hmain := NonstationaryPhase.norm_integral_le_two_ibp_budgets (a := a) (b := b)
+    (amplitude := fun x ↦ (w x : ℂ)) (amplitude' := fun x ↦ (w1 x : ℂ))
+    (amplitude'' := fun x ↦ (w2 x : ℂ)) hab (fun x _ ↦ hEder x) hqder hqdder
+    (fun x _ ↦ (hwd x).ofReal_comp) (fun x _ ↦ (hw1d x).ofReal_comp) hEdc hqddc hw2c
+    (fun x hx ↦ by
+      simp only [q, Ed]
+      rw [← mul_assoc, inv_mul_cancel₀ (hgne x hx), one_mul])
+    (by simp [haz.eq_of_nhds]) (by simp [hbz.eq_of_nhds]) (by simp [hw1a]) (by simp [hw1b])
+    (hbud w hWw) (hbud w1 hWw1) (hbud w2 hWw2) hQ0 hQ1 hQ2
+    (fun x _ ↦ by simp [E]) (by positivity) (by positivity) (by positivity)
+  -- rewrite the integral
+  have hint : (∫ x : ℝ, (w x : ℂ) * 𝐞 (lam * (H x - ν * x))) =
+      ∫ x in a..b, E x * (w x : ℂ) := by
+    rw [intervalIntegral.integral_of_le hab, ← setIntegral_eq_integral_of_forall_compl_eq_zero
+      (s := Ioc a b)]
+    · exact setIntegral_congr_fun measurableSet_Ioc fun x _ ↦ by simp only [E]; ring
+    · intro x hx
+      have : x ∉ Icc a' b' := fun h ↦ hx ⟨by linarith [h.1], by linarith [h.2]⟩
+      simp [hw0 x this]
+  rw [hint]
+  refine hmain.trans ?_
+  have hd2 : 0 < d ^ 2 := by positivity
+  have key : (1 / (L * d)) ^ 2 * ((b - a) * W) +
+      3 * (1 / (L * d)) * (C2 / (L * d ^ 2)) * ((b - a) * W) +
+      (1 / (L * d) * (C3 / (L * d ^ 2) + 2 * C2 ^ 2 / (L * d ^ 3)) +
+        (C2 / (L * d ^ 2)) ^ 2) * ((b - a) * W) =
+      (b - a) * W * (1 + 3 * C2 / d + (C3 / d + 3 * C2 ^ 2 / d ^ 2)) / (L ^ 2 * d ^ 2) := by
+    field_simp
+    ring
+  rw [key]
+  have hnum : 0 ≤ (b - a) * W * (1 + 3 * C2 / d + (C3 / d + 3 * C2 ^ 2 / d ^ 2)) := by
+    have : 0 ≤ b - a := sub_nonneg.2 hab
+    positivity
+  apply div_le_div_of_nonneg_left hnum (by positivity)
+  exact mul_le_mul_of_nonneg_right (pow_le_pow_left₀ hlam.le hLlam 2) hd2.le
+
+end Nonstationary
+
+section Transformation
+
+/-- The amplitude of the stationary main term at frequency `ν`. -/
+def mainAmplitude (H : ℝ → ℝ) (ν : ℝ) : ℝ :=
+  phaseCutoff (phaseInverse H ν) / Real.sqrt (-iteratedDeriv 2 H (phaseInverse H ν))
+
+/-- The stationary main term at frequency `ν`. -/
+def mainTerm (H : ℝ → ℝ) (T ν : ℝ) : ℂ :=
+  𝐞 (T * legendre H ν) * (Complex.exp (-(Real.pi : ℂ) / 4 * I) *
+    (mainAmplitude H ν : ℂ) / (Real.sqrt T : ℂ))
+
+/-- The transformed stationary-phase amplitude centred at `v`. -/
+def stationaryAmplitude (H : ℝ → ℝ) (v : ℝ) (y : ℝ) : ℝ :=
+  phaseCutoff (quadInverse H v y) * deriv (quadInverse H v) y
+
+private theorem summable_inv_one_add_abs_sq : Summable (fun m : ℤ ↦ 1 / (1 + |(m : ℝ)|) ^ 2) := by
+  have h := (Real.summable_one_div_nat_add_rpow 1 2).2 (by norm_num)
+  rw [summable_int_iff_summable_nat_and_neg]
+  constructor <;> simpa [Int.cast_natCast, Int.cast_neg, abs_neg, Real.rpow_two,
+    abs_of_nonneg, add_comm] using h
+
+/-- A common bound for the finitely many cutoff derivatives used in the frequency estimates. -/
+theorem exists_phaseCutoff_bound (n : ℕ) :
+    ∃ W, ∀ k ≤ n, ∀ x, |iteratedDeriv k (phaseCutoff : ℝ → ℝ) x| ≤ W := by
+  classical
+  choose B hB using fun k : ℕ ↦ exists_bound_iteratedDeriv_of_hasCompactSupport
+    phaseCutoff.contDiff phaseCutoff.hasCompactSupport k
+  refine ⟨∑ k ∈ Finset.range (n + 1), |B k|, fun k hk x ↦ ?_⟩
+  calc
+    |iteratedDeriv k (phaseCutoff : ℝ → ℝ) x| ≤ B k := by
+      simpa only [Real.norm_eq_abs] using hB k x
+    _ ≤ |B k| := le_abs_self _
+    _ ≤ ∑ j ∈ Finset.range (n + 1), |B j| :=
+      Finset.single_le_sum (fun j _ ↦ abs_nonneg (B j))
+        (Finset.mem_range.2 (show k < n + 1 by omega))
+
+
+section
+
+variable {H : ℝ → ℝ} {c C : ℝ}
+
+/-- The stationary estimate at a single frequency. -/
+private theorem norm_integral_sub_mainTerm_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    {T ν M0 Bamp : ℝ} (hT : 0 < T) (hv : |phaseInverse H ν| ≤ M0)
+    (hamp : ∀ v, |v| ≤ M0 → ∀ y, ‖iteratedDeriv 2 (stationaryAmplitude H v) y‖ ≤ Bamp ∧
+      ‖iteratedDeriv 4 (stationaryAmplitude H v) y‖ ≤ Bamp) :
+    ‖(∫ u : ℝ, (phaseCutoff u : ℂ) * 𝐞 (T * (H u - ν * u))) - mainTerm H T ν‖ ≤
+      4 * Real.pi ^ 2 * ((9 / 4 + M0) * Real.sqrt C) * Bamp / (T * Real.sqrt T) := by
+  set v := phaseInverse H ν with hvdef
+  obtain ⟨-, -, hfg⟩ := phaseInverse_spec hH hc (fun x ↦ (hcurv x).2)
+  have hνv : deriv H v = ν := hfg ν
+  obtain ⟨hX, hYX, -⟩ := quadInverse_spec hH hc hcurv v
+  have hM0 : 0 ≤ M0 := (abs_nonneg _).trans hv
+  have hC : 0 ≤ C := by linarith [(hcurv 0).1, (hcurv 0).2]
+  have hsupp : ∀ y, (9 / 4 + M0) * Real.sqrt C < |y| → phaseCutoff (quadInverse H v y) = 0 := by
+    intro y hy
+    by_contra hne
+    have hmem : quadInverse H v y ∈ Ioo (3 / 4 : ℝ) (9 / 4) := by
+      by_contra h
+      exact hne (phaseCutoff_eq_zero h)
+    have hb := abs_phaseQuadraticCoordinate_le hH hcurv v (quadInverse H v y)
+    rw [hYX] at hb
+    have h1 : |quadInverse H v y - v| ≤ 9 / 4 + M0 := by
+      calc |quadInverse H v y - v| ≤ |quadInverse H v y| + |v| := abs_sub _ _
+        _ ≤ 9 / 4 + M0 := by
+          rw [abs_of_pos (by linarith [hmem.1])]
+          linarith [hmem.2]
+    have := mul_le_mul_of_nonneg_right h1 (Real.sqrt_nonneg C)
+    linarith
+  have hst := norm_integral_stationary_sub_le (w := phaseCutoff) (X := quadInverse H v)
+    (lam := T) (R := (9 / 4 + M0) * Real.sqrt C) (B := Bamp) hH hc hcurv phaseCutoff.contDiff
+    hX hYX hT (by positivity) hsupp (fun y ↦ (hamp v hv y).1) (fun y ↦ (hamp v hv y).2)
+  rw [hνv] at hst
+  convert hst using 3
+  simp only [mainTerm, mainAmplitude, legendre, ← hvdef]
+
+/-- The nonstationary estimate at a single frequency. -/
+private theorem norm_integral_nonstationary_freq_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    {T ν δ C3 W : ℝ} (hT : 0 < T) (hδ : 0 < δ)
+    (hsep : ∀ x ∈ Icc (5 / 8 : ℝ) (19 / 8), δ * (1 + |ν|) ≤ |deriv H x - ν|)
+    (h3 : ∀ x ∈ Icc (5 / 8 : ℝ) (19 / 8), |iteratedDeriv 3 H x| ≤ C3)
+    (hW : ∀ k ≤ 2, ∀ x, |iteratedDeriv k (phaseCutoff : ℝ → ℝ) x| ≤ W) :
+    ‖∫ u : ℝ, (phaseCutoff u : ℂ) * 𝐞 (T * (H u - ν * u))‖ ≤
+      (7 / 4 * W * (1 + 3 * C / δ + (C3 / δ + 3 * C ^ 2 / δ ^ 2))) /
+        (T ^ 2 * (δ * (1 + |ν|)) ^ 2) := by
+  have hd : 0 < δ * (1 + |ν|) := by positivity
+  have hdδ : δ ≤ δ * (1 + |ν|) := by nlinarith [abs_nonneg ν]
+  have hC2 : ∀ x ∈ Icc (5 / 8 : ℝ) (19 / 8), |iteratedDeriv 2 H x| ≤ C := fun x _ ↦ by
+    rw [abs_le]; constructor <;> linarith [(hcurv x).1, (hcurv x).2]
+  have hC : 0 ≤ C := (abs_nonneg _).trans (hC2 1 ⟨by norm_num, by norm_num⟩)
+  have hC3 : 0 ≤ C3 := (abs_nonneg _).trans (h3 1 ⟨by norm_num, by norm_num⟩)
+  have hW0 : 0 ≤ W := (abs_nonneg _).trans (hW 0 (by norm_num) 0)
+  have h := norm_integral_nonstationary_le (a := 5 / 8) (a' := 3 / 4) (b' := 9 / 4) (b := 19 / 8)
+    (by norm_num) (by norm_num) (by norm_num) hH phaseCutoff.contDiff
+    (fun x hx ↦ phaseCutoff_eq_zero fun h ↦ hx ⟨h.1.le, h.2.le⟩) hT hd hsep hC2 h3 hW
+  refine h.trans ?_
+  apply div_le_div_of_nonneg_right _ (by positivity)
+  have e1 : 3 * C / (δ * (1 + |ν|)) ≤ 3 * C / δ :=
+    div_le_div_of_nonneg_left (by positivity) hδ hdδ
+  have e2 : C3 / (δ * (1 + |ν|)) ≤ C3 / δ := div_le_div_of_nonneg_left hC3 hδ hdδ
+  have e3 : 3 * C ^ 2 / (δ * (1 + |ν|)) ^ 2 ≤ 3 * C ^ 2 / δ ^ 2 :=
+    div_le_div_of_nonneg_left (by positivity) (by positivity)
+      (pow_le_pow_left₀ hδ.le hdδ 2)
+  norm_num
+  gcongr
+
+
+/-- Poisson summation followed by stationary phase at the frequencies in `[P₀, P₁)` and
+nonstationary phase at all the others. -/
+theorem norm_smooth_sum_sub_main_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    {T N : ℝ} (hT : 0 < T) (hN : 0 < N) (hNT : N ≤ T) {B : ℕ} (hB : 9 / 4 * N ≤ B)
+    {P₀ P₁ : ℕ} {M0 Bamp δ C3 W : ℝ} (hδ : 0 < δ)
+    (hstat : ∀ m ∈ Finset.Ico P₀ P₁, |phaseInverse H (N * m / T)| ≤ M0)
+    (hamp : ∀ v, |v| ≤ M0 → ∀ y, ‖iteratedDeriv 2 (stationaryAmplitude H v) y‖ ≤ Bamp ∧
+      ‖iteratedDeriv 4 (stationaryAmplitude H v) y‖ ≤ Bamp)
+    (hsep : ∀ m : ℤ, (m < P₀ ∨ (P₁ : ℤ) ≤ m) → ∀ x ∈ Icc (5 / 8 : ℝ) (19 / 8),
+      δ * (1 + |N * m / T|) ≤ |deriv H x - N * m / T|)
+    (h3 : ∀ x ∈ Icc (5 / 8 : ℝ) (19 / 8), |iteratedDeriv 3 H x| ≤ C3)
+    (hW : ∀ k ≤ 2, ∀ x, |iteratedDeriv k (phaseCutoff : ℝ → ℝ) x| ≤ W) :
+    ‖∑ n ∈ Finset.Icc 0 B, (phaseCutoff ((n : ℝ) / N) : ℂ) * 𝐞 (T * H ((n : ℝ) / N)) -
+        N * ∑ m ∈ Finset.Ico P₀ P₁, mainTerm H T (N * m / T)‖ ≤
+      N * (((P₁ - P₀ : ℕ) : ℝ) *
+          (4 * Real.pi ^ 2 * ((9 / 4 + M0) * Real.sqrt C) * Bamp / (T * Real.sqrt T))) +
+        (7 / 4 * W * (1 + 3 * C / δ + (C3 / δ + 3 * C ^ 2 / δ ^ 2))) *
+          (∑' m : ℤ, 1 / (1 + |(m : ℝ)|) ^ 2) / (δ ^ 2 * N) := by
+  classical
+  set Es : ℝ := 4 * Real.pi ^ 2 * ((9 / 4 + M0) * Real.sqrt C) * Bamp / (T * Real.sqrt T)
+    with hEs
+  set Kn : ℝ := 7 / 4 * W * (1 + 3 * C / δ + (C3 / δ + 3 * C ^ 2 / δ ^ 2)) with hKn
+  set S0 : ℝ := ∑' m : ℤ, 1 / (1 + |(m : ℝ)|) ^ 2 with hS0
+  rw [smooth_sum_eq_poisson hH hT hN hB]
+  set I : ℤ → ℂ := fun m ↦ ∫ u : ℝ, (phaseCutoff u : ℂ) * 𝐞 (T * (H u - N * m / T * u))
+    with hI
+  set S : Finset ℤ := (Finset.Ico P₀ P₁).image (fun n : ℕ ↦ (n : ℤ)) with hS
+  set f : ℤ → ℂ := fun m ↦ if m ∈ S then mainTerm H T (N * m / T) else 0 with hf
+  set E : ℤ → ℂ := fun m ↦ I m - f m with hE
+  set g : ℤ → ℝ := fun m ↦ (if m ∈ S then Es else 0) +
+    Kn / (δ ^ 2 * N ^ 2) * (1 / (1 + |(m : ℝ)|) ^ 2) with hg
+  have hW0 : 0 ≤ W := (abs_nonneg _).trans (hW 0 (by norm_num) 0)
+  have hC : 0 ≤ C := by linarith [(hcurv 0).1, (hcurv 0).2]
+  have hC3 : 0 ≤ C3 := (abs_nonneg _).trans (h3 1 ⟨by norm_num, by norm_num⟩)
+  have hKn : 0 ≤ Kn := by positivity
+  -- pointwise bounds
+  have hmemS : ∀ m : ℤ, m ∈ S ↔ ∃ n ∈ Finset.Ico P₀ P₁, (n : ℤ) = m := by
+    intro m; simp [S]
+  have hbound : ∀ m, ‖E m‖ ≤ g m := by
+    intro m
+    have h2 : 0 ≤ Kn / (δ ^ 2 * N ^ 2) * (1 / (1 + |(m : ℝ)|) ^ 2) := by positivity
+    by_cases hm : m ∈ S
+    · obtain ⟨n, hn, rfl⟩ := (hmemS m).1 hm
+      simp only [E, f, g, if_pos hm]
+      have := norm_integral_sub_mainTerm_le hH hc hcurv (ν := N * (n : ℤ) / T) hT
+        (by simpa using hstat n hn) hamp
+      simp only [I]
+      linarith
+    · simp only [E, f, g, if_neg hm, sub_zero, zero_add]
+      have hout : m < P₀ ∨ (P₁ : ℤ) ≤ m := by
+        by_contra hcon
+        push Not at hcon
+        apply hm
+        rw [hmemS]
+        refine ⟨m.toNat, Finset.mem_Ico.2 ⟨by omega, by omega⟩, by omega⟩
+      have hns := norm_integral_nonstationary_freq_le hH hc hcurv (ν := N * m / T) hT hδ
+        (hsep m hout) h3 hW
+      refine hns.trans ?_
+      have hden : δ ^ 2 * N ^ 2 * (1 + |(m : ℝ)|) ^ 2 ≤ T ^ 2 * (δ * (1 + |N * m / T|)) ^ 2 := by
+        have h1 : N * (1 + |(m : ℝ)|) ≤ T * (1 + |N * m / T|) := by
+          rw [abs_div, abs_mul, abs_of_pos hN, abs_of_pos hT]
+          field_simp
+          nlinarith [abs_nonneg (m : ℝ)]
+        have h2 : (N * (1 + |(m : ℝ)|)) ^ 2 ≤ (T * (1 + |N * m / T|)) ^ 2 :=
+          pow_le_pow_left₀ (by positivity) h1 2
+        nlinarith [sq_nonneg δ]
+      calc Kn / (T ^ 2 * (δ * (1 + |N * m / T|)) ^ 2)
+          ≤ Kn / (δ ^ 2 * N ^ 2 * (1 + |(m : ℝ)|) ^ 2) :=
+            div_le_div_of_nonneg_left hKn (by positivity) hden
+        _ = Kn / (δ ^ 2 * N ^ 2) * (1 / (1 + |(m : ℝ)|) ^ 2) := by
+            field_simp
+  have hgs : Summable g := by
+    refine Summable.add ?_ (summable_inv_one_add_abs_sq.mul_left _)
+    exact summable_of_ne_finset_zero (s := S) (fun m hm ↦ by simp [hm])
+  have hEs' : Summable E := Summable.of_norm_bounded hgs hbound
+  have hfs : Summable f := summable_of_ne_finset_zero (s := S) (fun m hm ↦ by simp [f, hm])
+  have hIf : ∀ m, I m = f m + E m := fun m ↦ by simp [E]
+  have hsumf : ∑' m, f m = ∑ m ∈ Finset.Ico P₀ P₁, mainTerm H T (N * m / T) := by
+    rw [tsum_eq_sum (s := S) (fun m hm ↦ by simp [f, hm])]
+    have hc : ∑ m ∈ S, f m = ∑ m ∈ S, mainTerm H T (N * m / T) :=
+      Finset.sum_congr rfl (fun m hm ↦ by simp only [f, if_pos hm])
+    rw [hc, hS, Finset.sum_image (fun a _ b _ h ↦ by exact_mod_cast h)]
+    simp only [Int.cast_natCast]
+  have htsum : ∑' m, I m = ∑ m ∈ Finset.Ico P₀ P₁, mainTerm H T (N * m / T) + ∑' m, E m := by
+    rw [tsum_congr hIf, hfs.tsum_add hEs', hsumf]
+  have hcard : S.card = P₁ - P₀ := by
+    rw [hS, Finset.card_image_of_injective _ (fun a b h ↦ by exact_mod_cast h), Nat.card_Ico]
+  have hsumg : ∑' m, g m = ((P₁ - P₀ : ℕ) : ℝ) * Es + Kn / (δ ^ 2 * N ^ 2) * S0 := by
+    rw [(summable_of_ne_finset_zero (s := S) (fun m hm ↦ by simp [hm])).tsum_add
+      (summable_inv_one_add_abs_sq.mul_left _), tsum_mul_left,
+      tsum_eq_sum (s := S) (fun m hm ↦ by simp [hm])]
+    have hc : ∑ m ∈ S, (if m ∈ S then Es else 0) = ∑ m ∈ S, Es :=
+      Finset.sum_congr rfl (fun m hm ↦ by simp only [if_pos hm])
+    rw [hc, Finset.sum_const, hcard, nsmul_eq_mul]
+  have hnormE : ‖∑' m, E m‖ ≤ ((P₁ - P₀ : ℕ) : ℝ) * Es + Kn / (δ ^ 2 * N ^ 2) * S0 := by
+    rw [← hsumg]
+    exact (norm_tsum_le_tsum_norm (hEs'.norm)).trans
+      (hEs'.norm.tsum_le_tsum hbound hgs)
+  rw [htsum, mul_add, add_sub_cancel_left, norm_mul, Complex.norm_real, Real.norm_of_nonneg hN.le]
+  calc N * ‖∑' m, E m‖ ≤ N * (((P₁ - P₀ : ℕ) : ℝ) * Es + Kn / (δ ^ 2 * N ^ 2) * S0) :=
+        mul_le_mul_of_nonneg_left hnormE hN.le
+    _ = _ := by field_simp
+
+end
+
+end Transformation
+
+end
+
+end Expdb.BProcess

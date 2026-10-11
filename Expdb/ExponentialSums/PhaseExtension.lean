@@ -1,13 +1,9 @@
-/-
-Copyright (c) 2026 Expdb contributors. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Expdb contributors
--/
 module
 
 public import Expdb.ExponentialSums.PhaseFunctions
 public import Expdb.Mathlib.SmoothExtension
 import Mathlib.Analysis.Calculus.MeanValue
+import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 import Mathlib.Analysis.SpecialFunctions.Pow.Deriv
 import Mathlib.Tactic.FunProp
@@ -26,7 +22,7 @@ of the error function and of its uncontrolled higher derivatives.
 namespace Expdb
 
 open Set
-open scoped ContDiff
+open scoped ContDiff Topology
 noncomputable section
 
 private lemma iteratedDerivWithin_eq_of_restriction
@@ -260,6 +256,82 @@ theorem exists_approximateModelPhase_extension (P : ℕ) :
       iteratedDerivWithin_modelPhasePrimitive σ hJ hposJ p hx, add_sub_cancel_right]
     exact hgb (p + 1) (by omega) x hx
 
+
+private theorem exists_global_smooth_restriction (l u : ℝ) (hl : 0 < l) (hlu : l < u)
+    (g : ℝ → ℝ) (hg : ContDiffOn ℝ ∞ g (Icc (l / 2) (2 * u))) :
+    ∃ G : ℝ → ℝ, ContDiff ℝ ∞ G ∧ EqOn G g (Icc l u) := by
+  let χ : ContDiffBump ((l + u) / 2 : ℝ) :=
+    ⟨(u - l) / 2 + l / 8, (u - l) / 2 + l / 4, by linarith, by linarith⟩
+  let G : ℝ → ℝ := fun x => χ x * g x
+  have hsupport : tsupport (χ : ℝ → ℝ) ⊆ Ioo (l / 2) (2 * u) := by
+    intro x hx
+    rw [χ.tsupport_eq, Metric.mem_closedBall, Real.dist_eq, abs_le] at hx
+    change -((u - l) / 2 + l / 4) ≤ x - (l + u) / 2 ∧
+      x - (l + u) / 2 ≤ (u - l) / 2 + l / 4 at hx
+    constructor <;> linarith [hx.1, hx.2]
+  have hG : ContDiff ℝ ∞ G := by
+    rw [contDiff_iff_contDiffAt]
+    intro x
+    by_cases hx : x ∈ tsupport (χ : ℝ → ℝ)
+    · have hm := hsupport hx
+      exact χ.contDiffAt.mul (hg.contDiffAt
+        (Icc_mem_nhds hm.1 hm.2))
+    · have he : G =ᶠ[𝓝 x] (fun _ => (0 : ℝ)) := by
+        have hz := notMem_tsupport_iff_eventuallyEq.mp hx
+        filter_upwards [hz] with y hy
+        simp [G, hy]
+      exact contDiffAt_const.congr_of_eventuallyEq he
+  refine ⟨G, hG, ?_⟩
+  intro x hx
+  have hχ : χ x = 1 := by
+    apply χ.one_of_mem_closedBall
+    rw [Metric.mem_closedBall, Real.dist_eq, abs_le]
+    change -((u - l) / 2 + l / 8) ≤ x - (l + u) / 2 ∧
+      x - (l + u) / 2 ≤ (u - l) / 2 + l / 8
+    constructor <;> linarith [hx.1, hx.2]
+  simp [G, hχ]
+
+/-- The controlled extension can be chosen globally smooth. This allows the
+ordinary-derivative normal-form machinery to be applied on a larger positive
+interval, without imposing any conditions on the original phase outside `[1,2]`. -/
+theorem exists_global_approximateModelPhase_extension (P : ℕ) :
+    ∃ C : ℝ, 1 ≤ C ∧ ∀ δ : ℝ, 0 < δ → ∀ σ : ℝ, ∀ F : ℝ → ℝ,
+      IsApproximateModelPhaseFunction F σ P δ →
+      ∀ l u : ℝ, 0 < l → l < 1 → 2 < u →
+      ∃ G : ℝ → ℝ, ContDiff ℝ ∞ G ∧ EqOn G F phaseInterval ∧
+        ∀ p ≤ P, ∀ x ∈ Icc l u,
+          ‖iteratedDeriv (p + 1) G x - iteratedDeriv p (modelPhase σ) x‖ ≤ C * δ := by
+  obtain ⟨C, hC, hext⟩ := exists_approximateModelPhase_extension P
+  refine ⟨C, hC, ?_⟩
+  intro δ hδ σ F hF l u hl0 hl hu
+  have hlu : l < u := by linarith
+  obtain ⟨g, hg, heq, hb⟩ := hext δ hδ σ F hF (l / 2) (2 * u)
+    (by positivity) (by linarith) (by linarith)
+  obtain ⟨G, hG, hGg⟩ := exists_global_smooth_restriction l u hl0 hlu g hg
+  have hJ : UniqueDiffOn ℝ (Icc l u) := uniqueDiffOn_Icc hlu
+  have hK : UniqueDiffOn ℝ (Icc (l / 2) (2 * u)) := uniqueDiffOn_Icc (by linarith)
+  have hJK : Icc l u ⊆ Icc (l / 2) (2 * u) := by
+    intro x hx
+    constructor <;> linarith [hx.1, hx.2]
+  have hmodel : ContDiffOn ℝ ∞ (modelPhase σ) (Icc (l / 2) (2 * u)) := by
+    intro x hx
+    exact (Real.contDiffAt_rpow_const_of_ne (ne_of_gt (show 0 < x by linarith
+      [hx.1]))).contDiffWithinAt
+  refine ⟨G, hG, ?_, ?_⟩
+  · intro x hx
+    exact (hGg ⟨hl.le.trans hx.1, hx.2.trans hu.le⟩).trans (heq hx)
+  · intro p hp x hx
+    have hphase := iteratedDerivWithin_eq_of_restriction hJK hJ hK hg hGg.symm hx (p + 1)
+    have hreference := iteratedDerivWithin_eq_of_restriction hJK hJ hK hmodel
+      (fun _ _ => rfl) hx p
+    have hGa : ContDiffAt ℝ (p + 1) G x := hG.contDiffAt.of_le
+      (ENat.natCast_le_of_coe_top_le_withTop le_rfl (p + 1))
+    have hma : ContDiffAt ℝ p (modelPhase σ) x :=
+      Real.contDiffAt_rpow_const_of_ne (ne_of_gt (hl0.trans_le hx.1))
+    rw [iteratedDerivWithin_eq_iteratedDeriv hJ hGa hx] at hphase
+    rw [iteratedDerivWithin_eq_iteratedDeriv hJ hma hx] at hreference
+    rw [← hphase, ← hreference]
+    exact hb p hp x (hJK hx)
 
 end
 end Expdb

@@ -3,6 +3,7 @@ module
 public import Expdb.ExponentialSums.UpperSemicontinuity
 public import Expdb.ExponentialSums.AProcess
 public import Expdb.ExponentialSums.FullInterval
+public import Expdb.ExponentialSums.BProcess
 
 /-!
 # Bounds for exponential sum growth exponents
@@ -416,7 +417,22 @@ theorem exponentSumGrowthExponent_reflection
     (α : ℝ≥0) (hα : 0 < α) (hα' : α < 1) :
     exponentSumGrowthExponent (1 - α) =
       1 / 2 - (α : ℝ) + exponentSumGrowthExponent α := by
-  sorry
+  have hα1' : (α : ℝ) < 1 := by exact_mod_cast hα'
+  have hsub : ((1 - α : ℝ≥0) : ℝ) = 1 - α := by rw [NNReal.coe_sub hα'.le, NNReal.coe_one]
+  apply le_antisymm
+  · -- the B-process at scale `1 - α`, using the bound at scale `1 - (1 - α) = α`
+    have h := isExponentSumBound_bProcess (α := 1 - α) (tsub_pos_of_lt hα')
+      (tsub_lt_self one_pos hα) (B := exponentSumGrowthExponent α)
+      (by rw [tsub_tsub_cancel_of_le hα'.le]
+          exact isExponentSumBound_exponentSumGrowthExponent α)
+    rw [hsub] at h
+    refine (exponentSumGrowthExponent_le_iff.mpr h).trans (le_of_eq ?_)
+    · ring
+  · -- the B-process at scale `α`, using the bound at scale `1 - α`
+    have h := isExponentSumBound_bProcess hα hα'
+      (isExponentSumBound_exponentSumGrowthExponent (1 - α))
+    have := exponentSumGrowthExponent_le_iff.mpr h
+    linarith
 
 end Expdb
 

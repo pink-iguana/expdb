@@ -206,12 +206,12 @@ $$ \left|\sum_{n \in [N,2N]} e(T F(n/N) - t F(n/N)) \right| \ll T^{\overline{\be
 for all such $t$, and the claim follows. See also Sargos \cite[p 310]{sargos_points_1995}.
 \end{proof}
 
-\begin{lemma}[Reflection]\label{beta-reflect}\uses{beta-def}  For any $0 < \alpha < 1$, we have $\beta(\alpha) - \frac{\alpha}{2} = \beta(1-\alpha) - \frac{1-\alpha}{2}$, or equivalently $\beta(1-\alpha) = \frac{1}{2} - \alpha + \beta(\alpha)$.
+\begin{lemma}[Reflection]\label{beta-reflect}\uses{beta-def}\lean{Expdb.exponentSumGrowthExponent_reflection}\leanok  For any $0 < \alpha < 1$, we have $\beta(\alpha) - \frac{\alpha}{2} = \beta(1-\alpha) - \frac{1-\alpha}{2}$, or equivalently $\beta(1-\alpha) = \frac{1}{2} - \alpha + \beta(\alpha)$.
 \end{lemma}
 \python{bound_beta}
 \code{apply_reflection_beta(bounds)}
 
-\begin{proof}  This is the van der Corput $B$-process. See e.g., \cite[p 370]{huxley_area_1996}.
+\begin{proof}\leanok  This is the van der Corput $B$-process. See e.g., \cite[p 370]{huxley_area_1996}.
 \end{proof}
 
 \section{Known bounds on \texorpdfstring{$\beta$}{beta}}

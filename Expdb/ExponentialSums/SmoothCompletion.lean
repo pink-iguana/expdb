@@ -1,8 +1,3 @@
-/-
-Copyright (c) 2026 Expdb contributors. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Expdb contributors
--/
 module
 
 public import Expdb.ExponentialSums.FixedExponentialSum
@@ -45,6 +40,12 @@ lemma support_phaseCutoff :
   rw [Metric.mem_ball, Real.dist_eq, abs_lt]
   change (-((3 / 4 : ℝ)) < x - 3 / 2 ∧ x - 3 / 2 < 3 / 4) ↔ _
   constructor <;> rintro ⟨h₁, h₂⟩ <;> constructor <;> linarith
+
+/-- The cutoff vanishes outside its support. -/
+lemma phaseCutoff_eq_zero {x : ℝ} (hx : x ∉ Set.Ioo (3 / 4 : ℝ) (9 / 4)) :
+    phaseCutoff x = 0 := by
+  rw [← support_phaseCutoff] at hx
+  exact Function.notMem_support.1 hx
 
 /-- Completing a sharp sum to the fixed smooth cutoff costs only a logarithm.
 The outer interval should contain the cutoff's support at scale `N`. -/

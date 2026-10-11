@@ -17,7 +17,7 @@ open Filter Topology
 
 namespace Expdb
 
-variable {α : Type*} [SeminormedAddCommGroup α]
+variable {ι α : Type*} [SeminormedAddCommGroup α]
 
 /-! ## Auxiliary lemmas for subsequence extraction -/
 
@@ -38,7 +38,7 @@ private lemma extract_strictMono_subseq {P : ℕ → Prop}
     with |f(φ n)(x n)| > n. Used in the proof of the Automatic uniformity result (`auto`),
     case (i). -/
 private lemma extract_bad_seq_i
-    (E : VariableObject (Set ℝ)) (f : VariableFunction (fun i ↦ E i) α)
+    (E : VariableObject (Set ι)) (f : VariableFunction (fun i ↦ E i) α)
     (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j : ℝ) < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ x : ∀ n, E (φ n), ∀ n, n < ‖f (φ n) (x n)‖ := by
@@ -60,7 +60,7 @@ private lemma extract_bad_seq_i
     x(n) ∈ E(φ n) with |f(φ n)(x n)| > ε. Used in the Automatic uniformity result (`auto`),
     case (ii). -/
 private lemma extract_bad_seq_ii
-    (E : VariableObject (Set ℝ)) (f : VariableFunction (fun i ↦ E i) α)
+    (E : VariableObject (Set ι)) (f : VariableFunction (fun i ↦ E i) α)
     {ε : ℝ}
     (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, ε < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
@@ -73,7 +73,7 @@ private lemma extract_bad_seq_ii
 /-- Build a strictly increasing threshold sequence φ such that
     |f(φ n)(x)| ≤ 1/(n+1) for all x ∈ E(φ n). -/
 private lemma build_increasing_thresholds
-    (E : VariableObject (Set ℝ)) (f : VariableFunction (fun i ↦ E i) α)
+    (E : VariableObject (Set ι)) (f : VariableFunction (fun i ↦ E i) α)
     (scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : E i,
              ‖f i x‖ ≤ 1/n) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
@@ -95,7 +95,7 @@ private lemma build_increasing_thresholds
 
 open Classical in
 private noncomputable def extend_subsequence
-    (E : VariableObject (Set ℝ)) (hE : ∀ i, (E i).Nonempty)
+    (E : VariableObject (Set ι)) (hE : ∀ i, (E i).Nonempty)
     (φ : ℕ → ℕ) (x : ∀ n, E (φ n)) : ∀ j, E j :=
   fun j =>
     if h : ∃ n, φ n = j then
@@ -103,7 +103,7 @@ private noncomputable def extend_subsequence
     else ⟨(hE j).choose, (hE j).choose_spec⟩
 
 private lemma norm_extend_subsequence_apply
-    {E : VariableObject (Set ℝ)} (hE : ∀ i, (E i).Nonempty)
+    {E : VariableObject (Set ι)} (hE : ∀ i, (E i).Nonempty)
     {f : VariableFunction (fun i ↦ E i) α} {φ : ℕ → ℕ} (hφ : StrictMono φ)
     (x : ∀ n, E (φ n)) (m : ℕ) :
     ‖f (φ m) (extend_subsequence E hE φ x (φ m))‖ = ‖f (φ m) (x m)‖ := by
@@ -122,7 +122,7 @@ private lemma norm_extend_subsequence_apply
     If f(x) = O(1) for every variable x ∈ E, then after passing to a
     subsequence there exists a *fixed* C with |f(x)| ≤ C for all x ∈ E. -/
 theorem automatic_uniformity_of_choicewise_bounded
-    (E : VariableObject (Set ℝ)) (hE : ∀ i, (E i).Nonempty)
+    (E : VariableObject (Set ι)) (hE : ∀ i, (E i).Nonempty)
     (f : VariableFunction (fun i ↦ E i) α)
     (hf : f.IsChoicewiseBounded) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
@@ -165,7 +165,7 @@ theorem automatic_uniformity_of_choicewise_bounded
     If f(x) = o(1) for every variable x ∈ E, then after passing to a
     subsequence there exists an *infinitesimal* c with |f(x)| ≤ c for all x ∈ E. -/
 theorem automatic_uniformity_of_choicewise_infinitesimal
-    (E : VariableObject (Set ℝ)) (hE : ∀ i, (E i).Nonempty)
+    (E : VariableObject (Set ι)) (hE : ∀ i, (E i).Nonempty)
     (f : VariableFunction (fun i ↦ E i) α)
     (hf : f.IsChoicewiseInfinitesimal) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
@@ -208,7 +208,7 @@ theorem automatic_uniformity_of_choicewise_infinitesimal
 /-- Boundedness along every variable choice is equivalent to an eventual bound uniform over
 the original variable sets. This strengthens `automatic_uniformity_of_choicewise_bounded`. -/
 theorem VariableFunction.isChoicewiseBounded_iff_eventually_uniform
-    (E : VariableObject (Set ℝ)) (hE : ∀ i, (E i).Nonempty)
+    (E : VariableObject (Set ι)) (hE : ∀ i, (E i).Nonempty)
     (f : VariableFunction (fun i ↦ E i) α) :
     f.IsChoicewiseBounded ↔
       ∃ C : ℝ, ∀ᶠ i in atTop, ∀ x : E i, ‖f i x‖ ≤ C := by
@@ -240,7 +240,7 @@ theorem VariableFunction.isChoicewiseBounded_iff_eventually_uniform
 uniform over the original variable sets. This strengthens
 `automatic_uniformity_of_choicewise_infinitesimal`. -/
 theorem VariableFunction.isChoicewiseInfinitesimal_iff_forall_pos_uniform
-    (E : VariableObject (Set ℝ)) (hE : ∀ i, (E i).Nonempty)
+    (E : VariableObject (Set ι)) (hE : ∀ i, (E i).Nonempty)
     (f : VariableFunction (fun i ↦ E i) α) :
     f.IsChoicewiseInfinitesimal ↔
       ∀ ε : ℝ, 0 < ε →

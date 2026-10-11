@@ -732,4 +732,35 @@ theorem isPowerBounded_of_subsequences {E : Type*} [SeminormedAddCommGroup E]
     (Filter.Eventually.of_forall fun i ↦ by simpa using (hφbad (ψ i)).le)
   linarith
 
+/-- A constant has power exponent zero. -/
+theorem isPowerBounded_const (T : VariableObject ℝ) (K : ℝ) :
+    IsPowerBounded (fun _ ↦ K) T 0 := by
+  refine ⟨VariableObject.fixed 0, IsEqUpToInfinitesimal.refl _, ?_⟩
+  simp only [VariableObject.fixed, Real.rpow_zero]
+  exact Asymptotics.isBigO_const_const K one_ne_zero atTop
+
+/-- Scaling by a constant preserves a power bound. -/
+theorem IsPowerBounded.const_mul {X T : VariableObject ℝ} {β : ℝ} (hX : IsPowerBounded X T β)
+    (K : ℝ) : IsPowerBounded (fun i ↦ K * X i) T β := by
+  obtain ⟨e, he, hXe⟩ := hX
+  exact ⟨e, he, hXe.const_mul_left K⟩
+
+/-- Finite sums of power-bounded quantities are power bounded with the same exponent. -/
+theorem isPowerBounded_finset_sum {ι : Type*} (s : Finset ι) {X : ι → VariableObject ℝ}
+    {T : VariableObject ℝ} {β : ℝ} (hT : ∀ i, 1 ≤ T i)
+    (hX : ∀ j ∈ s, IsPowerBounded (X j) T β) :
+    IsPowerBounded (fun i ↦ ∑ j ∈ s, X j i) T β := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+    simp only [Finset.sum_empty]
+    exact ⟨VariableObject.fixed β, IsEqUpToInfinitesimal.refl _,
+      Asymptotics.isBigO_zero _ _⟩
+  | insert j s hj ih =>
+    simp only [Finset.sum_insert hj]
+    have h := (hX j (Finset.mem_insert_self j s)).add
+      (ih fun k hk ↦ hX k (Finset.mem_insert_of_mem hk)) hT
+    rw [max_self] at h
+    exact h
+
 end Expdb

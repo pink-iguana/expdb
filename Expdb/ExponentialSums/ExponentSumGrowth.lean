@@ -58,6 +58,50 @@ def IsExponentSumBound (α : ℝ≥0) (β : ℝ) : Prop :=
     (∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i) →
     IsPowerBounded (exponentialSum F T N a b) T β
 
+/-- An exponential-sum bound applies when its setup conditions hold only eventually. -/
+theorem IsExponentSumBound.isPowerBounded_of_eventually_setup
+    {α : ℝ≥0} {β σ : ℝ} (hβ : IsExponentSumBound α β) (hσ : 0 < σ)
+    {N T : VariableObject ℝ} {F : VariableFunction (VariableObject.fixed ℝ) ℝ}
+    {a b : VariableObject ℕ} (hTtop : Tendsto T atTop atTop)
+    (hNT : IsPowerAsymptotic N T α) (hF : IsModelPhaseFunctionWith F σ)
+    (hsetup : ∀ᶠ i in atTop, 1 ≤ N i ∧ 1 ≤ T i ∧
+      N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i) :
+    IsPowerBounded (exponentialSum F T N a b) T β := by
+  obtain ⟨i₀, hi₀⟩ := eventually_atTop.1 hsetup
+  let φ : ℕ → ℕ := fun i ↦ i + i₀
+  have hφ : Tendsto φ atTop atTop := by
+    apply tendsto_atTop.2
+    intro k
+    filter_upwards [eventually_ge_atTop k] with i hi
+    dsimp [φ]
+    omega
+  have hT : ∀ i, 1 ≤ T (φ i) := fun i ↦ (hi₀ _ (by dsimp [φ]; omega)).2.1
+  have hTunbounded : VariableObject.IsUnbounded (T ∘ φ) :=
+    (VariableObject.isUnbounded_iff_tendsto_atTop
+      (fun i ↦ zero_le_one.trans (hT i))).2 (hTtop.comp hφ)
+  have htail := hβ (N ∘ φ) (T ∘ φ) (fun i ↦ F (φ i)) (a ∘ φ) (b ∘ φ)
+    (fun i ↦ (hi₀ _ (by dsimp [φ]; omega)).1) hT hTunbounded
+    (hNT.comp_tendsto hφ) ((hF.comp_tendsto hφ).isModelPhaseFunction hσ)
+    (fun i ↦ (hi₀ _ (by dsimp [φ]; omega)).2.2)
+  let ψ : ℕ → ℕ := fun i ↦ i - i₀
+  have hψ : Tendsto ψ atTop atTop := by
+    apply tendsto_atTop.2
+    intro k
+    filter_upwards [eventually_ge_atTop (k + i₀)] with i hi
+    dsimp [ψ]
+    omega
+  obtain ⟨e, he, hbound⟩ := htail.comp_tendsto hψ
+  refine ⟨e, he, hbound.congr' ?_ ?_⟩
+  · filter_upwards [eventually_ge_atTop i₀] with i hi
+    have hidx : φ (ψ i) = i := Nat.sub_add_cancel hi
+    change exponentialSumAt (F (φ (ψ i))) (T (φ (ψ i))) (N (φ (ψ i)))
+      (a (φ (ψ i))) (b (φ (ψ i))) = exponentialSumAt (F i) (T i) (N i) (a i) (b i)
+    rw [hidx]
+  · filter_upwards [eventually_ge_atTop i₀] with i hi
+    have hidx : φ (ψ i) = i := Nat.sub_add_cancel hi
+    change T (φ (ψ i)) ^ e i = T i ^ e i
+    rw [hidx]
+
 /-- The exponential sum bound obtained by testing only the full interval `[N, 2N]`. -/
 def IsFullIntervalExponentSumBound (α : ℝ≥0) (β : ℝ) : Prop :=
   ∀ (N T : VariableObject ℝ)
