@@ -7,6 +7,7 @@ public import Expdb.ExponentialSums.ExponentSumGrowthBounds
 
 This module records the bounds for the exponential sum growth exponent in the known bounds
 section of the blueprint's Exponential sum growth exponents chapter (`beta-chapter`).
+`AffineBetaBound` stores the exact rational coefficients and intervals used by the tables.
 -/
 
 @[expose] public section
@@ -16,6 +17,41 @@ open scoped NNReal
 noncomputable section
 
 namespace Expdb
+
+/-! ## Data for affine bounds -/
+
+/-- Exact rational data for an affine upper bound on `β` over a closed interval. -/
+structure AffineBetaBound where
+  /-- The slope of the affine function. -/
+  slope : ℚ
+  /-- The constant term of the affine function. -/
+  intercept : ℚ
+  /-- The lower endpoint of the interval. -/
+  lower : ℚ
+  /-- The upper endpoint of the interval. -/
+  upper : ℚ
+  deriving DecidableEq, Repr
+
+namespace AffineBetaBound
+
+/-- Evaluate the affine function associated to `b`. -/
+def eval (b : AffineBetaBound) (α : ℝ) : ℝ := b.slope * α + b.intercept
+
+/-- The assertion that an affine bound is valid on its stated interval. -/
+def IsValid (b : AffineBetaBound) : Prop :=
+  ∀ α : ℝ≥0, (b.lower : ℝ) ≤ α → (α : ℝ) ≤ b.upper →
+    exponentSumGrowthExponent α ≤ b.eval α
+
+/-- The assertion that every affine bound in a list is valid. -/
+def AllValid (bounds : List AffineBetaBound) : Prop :=
+  ∀ b ∈ bounds, b.IsValid
+
+/-- Extract the validity of a member of a valid list of affine bounds. -/
+theorem AllValid.isValid {bounds : List AffineBetaBound} (h : AllValid bounds)
+    {b : AffineBetaBound} (hb : b ∈ bounds) : b.IsValid :=
+  h b hb
+
+end AffineBetaBound
 
 /-! ## Bounds from 1989 to 1995 -/
 

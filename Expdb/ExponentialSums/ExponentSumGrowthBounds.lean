@@ -21,45 +21,6 @@ noncomputable section
 
 namespace Expdb
 
-/-! ## Bound data -/
-
-/-- The assertion that `f` is an upper bound for `β` on `s`. -/
-def IsExponentSumGrowthBoundOn (s : Set ℝ≥0) (f : ℝ≥0 → ℝ) : Prop :=
-  ∀ ⦃α⦄, α ∈ s → exponentSumGrowthExponent α ≤ f α
-
-/-- Exact rational data for an affine upper bound on `β` over a closed interval. -/
-structure AffineBetaBound where
-  /-- The slope of the affine function. -/
-  slope : ℚ
-  /-- The constant term of the affine function. -/
-  intercept : ℚ
-  /-- The lower endpoint of the interval. -/
-  lower : ℚ
-  /-- The upper endpoint of the interval. -/
-  upper : ℚ
-  deriving DecidableEq, Repr
-
-namespace AffineBetaBound
-
-/-- Evaluate the affine function associated to `b`. -/
-def eval (b : AffineBetaBound) (α : ℝ) : ℝ := b.slope * α + b.intercept
-
-/-- The assertion that an affine bound is valid on its stated interval. -/
-def IsValid (b : AffineBetaBound) : Prop :=
-  ∀ α : ℝ≥0, (b.lower : ℝ) ≤ α → (α : ℝ) ≤ b.upper →
-    exponentSumGrowthExponent α ≤ b.eval α
-
-/-- The assertion that every affine bound in a list is valid. -/
-def AllValid (bounds : List AffineBetaBound) : Prop :=
-  ∀ b ∈ bounds, b.IsValid
-
-/-- Extract the validity of a member of a valid list of affine bounds. -/
-theorem AllValid.isValid {bounds : List AffineBetaBound} (h : AllValid bounds)
-    {b : AffineBetaBound} (hb : b ∈ bounds) : b.IsValid :=
-  h b hb
-
-end AffineBetaBound
-
 /-- Extend the exponential sum growth exponent to real inputs by truncating negative inputs to
 zero. -/
 def exponentSumGrowthExponentReal (α : ℝ) : ℝ :=
@@ -378,14 +339,14 @@ theorem exponentSumGrowthExponent_le_vanDerCorput_min
   norm_num only at htwo hthree hfour
   apply le_min (le_min ?_ ?_) ?_
   · convert htwo using 1
-    congr 1
-    ring
+    · congr 1
+    · ring
   · convert hthree using 1
-    congr 1
-    ring
+    · congr 1
+    · ring
   · convert hfour using 1
-    congr 1
-    ring
+    · congr 1
+    · ring
 
 /-! ## Full dyadic intervals -/
 
@@ -417,7 +378,6 @@ theorem exponentSumGrowthExponent_reflection
     (α : ℝ≥0) (hα : 0 < α) (hα' : α < 1) :
     exponentSumGrowthExponent (1 - α) =
       1 / 2 - (α : ℝ) + exponentSumGrowthExponent α := by
-  have hα1' : (α : ℝ) < 1 := by exact_mod_cast hα'
   have hsub : ((1 - α : ℝ≥0) : ℝ) = 1 - α := by rw [NNReal.coe_sub hα'.le, NNReal.coe_one]
   apply le_antisymm
   · -- the B-process at scale `1 - α`, using the bound at scale `1 - (1 - α) = α`
