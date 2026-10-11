@@ -158,7 +158,7 @@ theorem isExponentSumBound_of_forall_gt {α : ℝ≥0} {β : ℝ}
 
 /-! ### Nonemptiness and lower bound -/
 
-private lemma norm_exponentialSum_le_three_mul
+private theorem norm_exponentialSum_le_three_mul
     (F : VariableFunction (VariableObject.fixed ℝ) ℝ)
     (T N : VariableObject ℝ) (a b : VariableObject ℕ)
     (hN : ∀ i, 1 ≤ N i)
@@ -188,7 +188,7 @@ theorem isExponentSumBound_self (α : ℝ≥0) :
       rw [Real.norm_eq_abs,
         abs_of_nonneg (Real.rpow_nonneg (le_trans zero_le_one (hT i)) _)]
 
-private lemma exponentSumBounds_nonempty (α : ℝ≥0) :
+private theorem exponentSumBounds_nonempty (α : ℝ≥0) :
     (exponentSumBounds α).Nonempty :=
   ⟨α, isExponentSumBound_self α⟩
 
@@ -224,7 +224,7 @@ theorem IsExponentSumBound.nonneg
     hT hTunbounded hbound zero_lt_one
   exact Filter.Eventually.of_forall fun i ↦ by simp
 
-private lemma exponentSumBounds_bddBelow {α : ℝ≥0} :
+private theorem exponentSumBounds_bddBelow {α : ℝ≥0} :
     BddBelow (exponentSumBounds α) :=
   ⟨0, fun _ hβ ↦ hβ.nonneg⟩
 

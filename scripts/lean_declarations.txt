@@ -189,7 +189,6 @@ Expdb.IsExponentSumBound.fullInterval
 Expdb.IsFullIntervalExponentSumBound.sub_one_le
 Expdb.IsFullIntervalExponentSumBound.half_le
 Expdb.exists_norm_sum_Icc_le_log_mul_twist
-Expdb.IsFullIntervalExponentSumBound.of_lt_one
 Expdb.isExponentSumBound_iff_fullInterval
 Expdb.exponentSumGrowthExponent_le_iff_fullInterval
 Expdb.exponentSumGrowthExponent_reflection

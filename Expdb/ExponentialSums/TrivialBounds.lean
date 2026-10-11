@@ -83,7 +83,7 @@ private noncomputable def oscillatoryScaleParameters
       exponent_mul_order_succ := hqmul
       one_add_half_le_order_mul := hsδ }
 
-private lemma OscillatoryScaleParameters.hasSmallEulerMaclaurinRemainder
+private theorem OscillatoryScaleParameters.hasSmallEulerMaclaurinRemainder
     {δ K T N : ℝ} (params : OscillatoryScaleParameters δ)
     (hT : 1 ≤ T) (hN : 1 ≤ N) (hK : 1 ≤ K)
     (hKpower : K ≤ T ^ params.exponent) (hNlower : T ^ (δ + 1) ≤ N) :

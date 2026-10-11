@@ -38,7 +38,7 @@ def rawBump : ContDiffBump (0 : ℝ) :=
 /-- The squared `L²` norm of `rawBump`. -/
 def rawL2 : ℝ := ∫ x : ℝ, (rawBump x) ^ 2
 
-private lemma rawL2_pos : 0 < rawL2 := by
+private theorem rawL2_pos : 0 < rawL2 := by
   have hraw : Continuous (rawBump : ℝ → ℝ) :=
     (rawBump.contDiff (n := ⊤)).continuous
   have hsq : Continuous (fun x : ℝ => (rawBump x) ^ 2) := by
@@ -115,7 +115,7 @@ lemma bump_integrable : Integrable bump :=
   bump_smooth.continuous.integrable_of_hasCompactSupport bump_hasCompactSupport
 
 /-- The integral of `bump` is positive. -/
-private lemma bump_integral_pos : 0 < ∫ x : ℝ, bump x := by
+private theorem bump_integral_pos : 0 < ∫ x : ℝ, bump x := by
   have hne : ∃ x, bump x ≠ 0 := by
     by_contra h
     push Not at h
@@ -134,7 +134,7 @@ private lemma bump_integral_pos : 0 < ∫ x : ℝ, bump x := by
 
 /-! ## Plancherel and decay of the bump's Fourier transform -/
 
-private lemma bump_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ => (bump x : ℂ)) :=
+private theorem bump_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ => (bump x : ℂ)) :=
   HasCompactSupport.of_support_subset_isCompact
     (isCompact_Icc (a := -1 / 4) (b := 1 / 4)) (by
       intro x hx
@@ -143,14 +143,14 @@ private lemma bump_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ =>
       simp only [Set.mem_Icc, abs_le] at h ⊢
       simpa only [neg_div] using h)
 
-private lemma bump_complex_smooth : ContDiff ℝ ∞ (fun x : ℝ => (bump x : ℂ)) := by
+private theorem bump_complex_smooth : ContDiff ℝ ∞ (fun x : ℝ => (bump x : ℂ)) := by
   change ContDiff ℝ ∞ (Complex.ofRealCLM ∘ bump)
   exact (Complex.ofRealCLM.contDiff (n := ∞)).comp bump_smooth
 
 private def bumpSchwartz : 𝓢(ℝ, ℂ) :=
   bump_complex_hasCompactSupport.toSchwartzMap bump_complex_smooth
 
-private lemma bumpFourier_eq_fourier : bumpFourier = 𝓕 (bumpSchwartz : ℝ → ℂ) := by
+private theorem bumpFourier_eq_fourier : bumpFourier = 𝓕 (bumpSchwartz : ℝ → ℂ) := by
   funext u
   rw [Real.fourier_real_eq]
   simp only [bumpFourier, Real.fourierChar_apply, mul_neg, Complex.ofReal_neg,
@@ -286,7 +286,7 @@ lemma fourier_bumpShift (w u : ℝ) :
     (Fourier.fourierIntegral_comp_add_right 𝐞 volume (fun x : ℝ => (bump x : ℂ)) w) u
   simpa [Fourier.fourierIntegral_def, Circle.smul_def, Real.fourierChar_apply] using ht
 
-private lemma bumpShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
+private theorem bumpShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
     ∫ x : ℝ, inner ℂ (bumpShift v x) (bumpShift w x) = 0 := by
   apply integral_eq_zero_of_ae
   filter_upwards with x
@@ -305,7 +305,7 @@ private lemma bumpShift_inner_eq_zero {v w : ℝ} (hvw : 1 ≤ |v - w|) :
       _ = 1 / 2 := by norm_num
   linarith
 
-private lemma bumpShift_inner_self (w : ℝ) :
+private theorem bumpShift_inner_self (w : ℝ) :
     ∫ x : ℝ, inner ℂ (bumpShift w x) (bumpShift w x) = 1 := by
   calc
     ∫ x : ℝ, inner ℂ (bumpShift w x) (bumpShift w x) =

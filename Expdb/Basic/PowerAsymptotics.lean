@@ -62,14 +62,14 @@ theorem IsPowerBounded.comp_tendsto {E : Type*} [SeminormedAddCommGroup E]
   rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal] at he ⊢
   exact he.comp hφ
 
-private lemma tendsto_of_isEqUpToInfinitesimal_fixed {e : VariableObject ℝ} {α : ℝ}
+private theorem tendsto_of_isEqUpToInfinitesimal_fixed {e : VariableObject ℝ} {α : ℝ}
     (he : e =o VariableObject.fixed α) : Tendsto e atTop (𝓝 α) := by
   rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal] at he
   have hzero : Tendsto (fun i ↦ e i - α) atTop (𝓝 0) :=
     tendsto_zero_iff_norm_tendsto_zero.mpr he
   simpa using hzero.add (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))
 
-private lemma isEqUpToInfinitesimal_fixed_of_tendsto {e : VariableObject ℝ} {α : ℝ}
+private theorem isEqUpToInfinitesimal_fixed_of_tendsto {e : VariableObject ℝ} {α : ℝ}
     (he : Tendsto e atTop (𝓝 α)) : e =o VariableObject.fixed α := by
   rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal]
   simpa using (he.sub (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))).norm
@@ -188,7 +188,7 @@ theorem isPowerAsymptotic_of_between
 
 /-- If `T` lies between fixed positive multiples of `N ^ α⁻¹`, then the logarithm of `N` to
 base `T` tends to `α`. -/
-private lemma tendsto_logb_of_between_const_rpow
+private theorem tendsto_logb_of_between_const_rpow
     {N T : VariableObject ℝ} {α A B : ℝ}
     (hα : 0 < α) (hA : 0 < A) (hB : 0 < B)
     (hNtop : Tendsto N atTop atTop)

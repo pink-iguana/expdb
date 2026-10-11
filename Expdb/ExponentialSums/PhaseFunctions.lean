@@ -372,7 +372,7 @@ theorem IsModelPhaseFunctionWith.eventually_isApproximate
   intro p hp' u
   exact (hi p (Finset.mem_range.mpr (by omega)) u).le
 
-private lemma modelPhaseError_sum_isChoicewiseInfinitesimal
+private theorem modelPhaseError_sum_isChoicewiseInfinitesimal
     {F : VariableFunction (VariableObject.fixed ℝ) ℝ} {σ : ℝ}
     (herror : ∀ p : ℕ, (modelPhaseError F σ p).IsChoicewiseInfinitesimal)
     (P : ℕ) :

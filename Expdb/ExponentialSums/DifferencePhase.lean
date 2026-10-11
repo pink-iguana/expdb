@@ -25,7 +25,7 @@ namespace Expdb
 def differencePhase (F : ℝ → ℝ) (σ r : ℝ) (u : ℝ) : ℝ :=
   -(σ * r)⁻¹ * (F ((1 - r) * u + 2 * r) - F ((1 - r) * u + r))
 
-private lemma differencePhase_mapsTo {r : ℝ} (hr : 0 ≤ r) (hr1 : r ≤ 1) :
+private theorem differencePhase_mapsTo {r : ℝ} (hr : 0 ≤ r) (hr1 : r ≤ 1) :
     Set.MapsTo (fun u ↦ (1 - r) * u + r) phaseInterval phaseInterval ∧
       Set.MapsTo (fun u ↦ (1 - r) * u + 2 * r) phaseInterval phaseInterval := by
   constructor <;> intro u hu <;> constructor <;>
@@ -40,7 +40,7 @@ theorem contDiffOn_differencePhase {F : ℝ → ℝ} {σ r : ℝ}
   exact contDiffOn_const.mul ((hF.comp (by fun_prop) hright).sub
     (hF.comp (by fun_prop) hleft))
 
-private lemma iteratedDerivWithin_differencePhase {F : ℝ → ℝ} {σ r u : ℝ}
+private theorem iteratedDerivWithin_differencePhase {F : ℝ → ℝ} {σ r u : ℝ}
     (hF : ContDiffOn ℝ ∞ F phaseInterval) (hr : 0 ≤ r) (hr1 : r ≤ 1)
     (hu : u ∈ phaseInterval) (p : ℕ) :
     iteratedDerivWithin p (differencePhase F σ r) phaseInterval u =
@@ -66,7 +66,7 @@ private lemma iteratedDerivWithin_differencePhase {F : ℝ → ℝ} {σ r u : �
 
 /-- A short derivative difference is a higher derivative at an intermediate point.
 Using the mean value theorem avoids differentiating a parameter-dependent integral. -/
-private lemma exists_iteratedDerivWithin_difference {F : ℝ → ℝ} {v r : ℝ}
+private theorem exists_iteratedDerivWithin_difference {F : ℝ → ℝ} {v r : ℝ}
     (hF : ContDiffOn ℝ ∞ F phaseInterval) (hr : 0 < r)
     (hv : v ∈ phaseInterval) (hvr : v + r ∈ phaseInterval) (p : ℕ) :
     ∃ w ∈ Set.Ioo v (v + r),
@@ -99,7 +99,7 @@ private lemma exists_iteratedDerivWithin_difference {F : ℝ → ℝ} {v r : ℝ
     simpa using heq
   exact (eq_div_iff hr.ne').mp heq' |>.symm.trans (mul_comm _ _)
 
-private lemma iteratedDerivWithin_modelPhase_succ (σ : ℝ) (p : ℕ)
+private theorem iteratedDerivWithin_modelPhase_succ (σ : ℝ) (p : ℕ)
     {u : ℝ} (hu : u ∈ phaseInterval) :
     iteratedDerivWithin (p + 1) (modelPhase σ) phaseInterval u =
       -σ * iteratedDerivWithin p (modelPhase (σ + 1)) phaseInterval u := by

@@ -25,7 +25,7 @@ namespace Expdb
 
 /-- Dyadic pigeonholing costs only the number of logarithmic ranges. Each range
 contains at most its lower endpoint's number of shifts. -/
-private lemma exists_shift_dyadic_bound (C : ℕ → ℝ) (hC : ∀ j, 0 ≤ C j)
+private theorem exists_shift_dyadic_bound (C : ℕ → ℝ) (hC : ∀ j, 0 ≤ C j)
     {H : ℕ} (hH : 1 ≤ H) :
     ∃ j : ℕ, 1 ≤ j ∧ j ≤ H ∧
       (∑ k ∈ Finset.Ico 1 H, C k) ≤ (Nat.log 2 H + 1 : ℕ) * ((j : ℝ) * C j) := by
@@ -82,7 +82,7 @@ private lemma exists_shift_dyadic_bound (C : ℕ → ℝ) (hC : ∀ j, 0 ≤ C j
       Finset.sum_le_sum fun k _ ↦ hbin k
     _ = _ := by simp [M]
 
-private lemma isPowerBounded_dyadic_range_count {H : VariableObject ℕ}
+private theorem isPowerBounded_dyadic_range_count {H : VariableObject ℕ}
     {T : VariableObject ℝ} {h : ℝ} (hh : 0 ≤ h)
     (hT : ∀ i, 1 ≤ T i) (hTunbounded : T.IsUnbounded)
     (hHT : IsPowerAsymptotic (fun i ↦ (H i : ℝ)) T h) :
@@ -117,7 +117,7 @@ private lemma isPowerBounded_dyadic_range_count {H : VariableObject ℕ}
     _ ≤ T i ^ ε / η / Real.log 2 + T i ^ ε := add_le_add hnatbound hone
     _ = _ := by ring
 
-private lemma correlation_isPowerBounded
+private theorem correlation_isPowerBounded
     {α h' σ : ℝ} (hα : 0 < α) (hα1 : α < 1) (hh' : 0 ≤ h') (hh'α : h' < α)
     (hσ : 0 < σ) {N T : VariableObject ℝ}
     {F : VariableFunction (VariableObject.fixed ℝ) ℝ} {a b j : VariableObject ℕ}
@@ -223,7 +223,7 @@ private lemma correlation_isPowerBounded
   have hrEq : r i = J i / N i := min_eq_left hiSmall.le
   simpa [exponentialSum_apply, G, hrEq, S, M, J] using hiO
 
-private lemma weighted_correlation_isPowerBounded
+private theorem weighted_correlation_isPowerBounded
     {α h σ γ : ℝ} (hα : 0 < α) (hα1 : α < 1) (hh : 0 < h) (hhα : h < α)
     (hσ : 0 < σ) {N T : VariableObject ℝ}
     {F : VariableFunction (VariableObject.fixed ℝ) ℝ} {a b j H : VariableObject ℕ}
@@ -281,7 +281,7 @@ private lemma weighted_correlation_isPowerBounded
   exact (hjpower.isPowerBounded.mul hcorrelation.norm hT').mono
     (Filter.Eventually.of_forall hT') (hγ h' ⟨hh'mem.1, hh'h⟩)
 
-private lemma exponentialSum_A_bound
+private theorem exponentialSum_A_bound
     {α h B σ : ℝ} (hα : 0 < α) (hα1 : α < 1) (hh : 0 < h) (hhα : h < α)
     (hσ : 0 < σ) (hdiag : 2 * α - h ≤ 2 * B)
     (hcorr : ∀ h' ∈ Set.Icc (2 * α - 1) h,

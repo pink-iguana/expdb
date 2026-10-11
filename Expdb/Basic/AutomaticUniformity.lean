@@ -23,7 +23,7 @@ variable {ι α : Type*} [SeminormedAddCommGroup α]
 
 /-- From a property holding arbitrarily late, extract a strictly
     increasing sequence on which it holds. -/
-private lemma extract_strictMono_subseq {P : ℕ → Prop}
+private theorem extract_strictMono_subseq {P : ℕ → Prop}
     (h : ∀ j, ∃ i ≥ j, P i) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧ ∀ n, P (φ n) := by
   have step : ∀ prev, ∃ i > prev, P i :=
@@ -37,7 +37,7 @@ private lemma extract_strictMono_subseq {P : ℕ → Prop}
 /-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
     with |f(φ n)(x n)| > n. Used in the proof of the Automatic uniformity result (`auto`),
     case (i). -/
-private lemma extract_bad_seq_i
+private theorem extract_bad_seq_i
     (E : VariableObject (Set ι)) (f : VariableFunction (fun i ↦ E i) α)
     (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, (j : ℝ) < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
@@ -59,7 +59,7 @@ private lemma extract_bad_seq_i
 /-- For a fixed threshold ε, extract a strictly increasing φ and bad elements
     x(n) ∈ E(φ n) with |f(φ n)(x n)| > ε. Used in the Automatic uniformity result (`auto`),
     case (ii). -/
-private lemma extract_bad_seq_ii
+private theorem extract_bad_seq_ii
     (E : VariableObject (Set ι)) (f : VariableFunction (fun i ↦ E i) α)
     {ε : ℝ}
     (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, ε < ‖f i x‖) :
@@ -72,7 +72,7 @@ private lemma extract_bad_seq_ii
 
 /-- Build a strictly increasing threshold sequence φ such that
     |f(φ n)(x)| ≤ 1/(n+1) for all x ∈ E(φ n). -/
-private lemma build_increasing_thresholds
+private theorem build_increasing_thresholds
     (E : VariableObject (Set ι)) (f : VariableFunction (fun i ↦ E i) α)
     (scale : ∀ n : ℕ, 0 < n → ∃ i_n, ∀ i ≥ i_n, ∀ x : E i,
              ‖f i x‖ ≤ 1/n) :
@@ -102,7 +102,7 @@ private noncomputable def extend_subsequence
       (show E (φ h.choose) = E j by rw [h.choose_spec]) ▸ x h.choose
     else ⟨(hE j).choose, (hE j).choose_spec⟩
 
-private lemma norm_extend_subsequence_apply
+private theorem norm_extend_subsequence_apply
     {E : VariableObject (Set ι)} (hE : ∀ i, (E i).Nonempty)
     {f : VariableFunction (fun i ↦ E i) α} {φ : ℕ → ℕ} (hφ : StrictMono φ)
     (x : ∀ n, E (φ n)) (m : ℕ) :

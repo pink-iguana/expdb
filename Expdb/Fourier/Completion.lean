@@ -18,7 +18,7 @@ open scoped FourierTransform
 noncomputable section
 namespace Expdb
 
-private lemma norm_fourierChar_sub_one (x : ℝ) :
+private theorem norm_fourierChar_sub_one (x : ℝ) :
     ‖(𝐞 x : ℂ) - 1‖ = 2 * |Real.sin (Real.pi * x)| := by
   have he : (𝐞 x : ℂ) - 1 =
       (𝐞 (x / 2) : ℂ) * ((𝐞 (x / 2) : ℂ) - (𝐞 (-(x / 2)) : ℂ)) := by
@@ -38,7 +38,7 @@ private lemma norm_fourierChar_sub_one (x : ℝ) :
   rw [hd, norm_mul, Complex.norm_real, Complex.norm_I, mul_one, Real.norm_eq_abs,
     abs_mul, abs_of_pos (by norm_num : (0 : ℝ) < 2)]
 
-private lemma fourierChar_sub_one_lower {x : ℝ} (hx : 0 ≤ x) (hx1 : x ≤ 1) :
+private theorem fourierChar_sub_one_lower {x : ℝ} (hx : 0 ≤ x) (hx1 : x ≤ 1) :
     4 * min x (1 - x) ≤ ‖(𝐞 x : ℂ) - 1‖ := by
   rw [norm_fourierChar_sub_one]
   have hs := Real.sin_nonneg_of_nonneg_of_le_pi
@@ -58,7 +58,7 @@ private lemma fourierChar_sub_one_lower {x : ℝ} (hx : 0 ≤ x) (hx1 : x ≤ 1)
     rw [he, show Real.pi * (1 - x) = Real.pi - Real.pi * x by ring, Real.sin_pi_sub] at h
     linarith
 
-private lemma norm_geometric_interval_le (z : ℂ) (hz : ‖z‖ = 1) (a b : ℕ) :
+private theorem norm_geometric_interval_le (z : ℂ) (hz : ‖z‖ = 1) (a b : ℕ) :
     ‖∑ n ∈ Finset.Icc a b, z ^ n‖ * ‖z - 1‖ ≤ 2 := by
   by_cases hab : a ≤ b
   · rw [← norm_mul, ← Finset.Ico_add_one_right_eq_Icc,
@@ -71,7 +71,7 @@ private lemma norm_geometric_interval_le (z : ℂ) (hz : ‖z‖ = 1) (a b : ℕ
 private def intervalCoefficient (q a b j : ℕ) : ℂ :=
   (q : ℂ)⁻¹ * ∑ n ∈ Finset.Icc a b, (𝐞 ((j : ℝ) * n / q) : ℂ)
 
-private lemma coefficient_zero_le {q a b : ℕ} (hq : 0 < q) (hb : b < q) :
+private theorem coefficient_zero_le {q a b : ℕ} (hq : 0 < q) (hb : b < q) :
     ‖intervalCoefficient q a b 0‖ ≤ 1 := by
   simp only [intervalCoefficient, Nat.cast_zero, zero_mul, zero_div,
     Finset.sum_const, nsmul_eq_mul,
@@ -80,7 +80,7 @@ private lemma coefficient_zero_le {q a b : ℕ} (hq : 0 < q) (hb : b < q) :
   have hc : (Finset.Icc a b).card ≤ q := by rw [Nat.card_Icc]; omega
   simpa using (show ((Finset.Icc a b).card : ℝ) ≤ q by exact_mod_cast hc)
 
-private lemma coefficient_nonzero_le {q a b j : ℕ} (hj : 0 < j) (hjq : j < q) :
+private theorem coefficient_nonzero_le {q a b j : ℕ} (hj : 0 < j) (hjq : j < q) :
     ‖intervalCoefficient q a b j‖ ≤ 1 / (j : ℝ) + 1 / ((q - j : ℕ) : ℝ) := by
   have hq : (0 : ℝ) < q := by exact_mod_cast (hj.trans hjq)
   have hjr : (0 : ℝ) < j := by exact_mod_cast hj
@@ -119,7 +119,7 @@ private lemma coefficient_nonzero_le {q a b j : ℕ} (hj : 0 < j) (hjq : j < q) 
         field_simp
         nlinarith
 
-private lemma coefficient_mass_le {q a b : ℕ} (hq : 0 < q) (hb : b < q) :
+private theorem coefficient_mass_le {q a b : ℕ} (hq : 0 < q) (hb : b < q) :
     ∑ j ∈ Finset.range q, ‖intervalCoefficient q a b j‖ ≤ 3 + 2 * Real.log q := by
   have hsplit : Finset.range q = insert 0 (Finset.Ico 1 q) := by
     ext j
@@ -155,7 +155,7 @@ private lemma coefficient_mass_le {q a b : ℕ} (hq : 0 < q) (hb : b < q) :
       positivity
   linarith [coefficient_zero_le (a := a) hq hb]
 
-private lemma stdAddChar_mul_nat {q : ℕ} [NeZero q] (h : ZMod q) (n : ℕ) :
+private theorem stdAddChar_mul_nat {q : ℕ} [NeZero q] (h : ZMod q) (n : ℕ) :
     ZMod.stdAddChar (h * (n : ZMod q)) = (𝐞 ((h.val : ℝ) * n / q) : ℂ) := by
   rw [← h.natCast_zmod_val, ← Nat.cast_mul, ZMod.stdAddChar_apply,
     ZMod.toCircle_natCast, Real.fourierChar_apply]
@@ -164,7 +164,7 @@ private lemma stdAddChar_mul_nat {q : ℕ} [NeZero q] (h : ZMod q) (n : ℕ) :
   congr 1
   ring
 
-private lemma sum_character_eq {q m n : ℕ} [NeZero q] (hm : m < q) (hn : n < q) :
+private theorem sum_character_eq {q m n : ℕ} [NeZero q] (hm : m < q) (hn : n < q) :
     ∑ j ∈ Finset.range q,
       (𝐞 ((j : ℝ) * m / q) : ℂ) * (𝐞 (-((j : ℝ) * n / q)) : ℂ) =
       if m = n then (q : ℂ) else 0 := by
@@ -194,7 +194,7 @@ private lemma sum_character_eq {q m n : ℕ} [NeZero q] (hm : m < q) (hn : n < q
   | zero => exact (NeZero.ne 0 rfl).elim
   | succ q => rfl
 
-private lemma interval_completion_identity {q A B a b : ℕ} [NeZero q]
+private theorem interval_completion_identity {q A B a b : ℕ} [NeZero q]
     (hAa : A ≤ a) (hbB : b ≤ B) (hBq : B < q) (f : ℕ → ℂ) :
     ∑ n ∈ Finset.Icc a b, f n =
       ∑ j ∈ Finset.range q, intervalCoefficient q a b j *

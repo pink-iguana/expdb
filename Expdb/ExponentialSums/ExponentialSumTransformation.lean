@@ -241,7 +241,7 @@ end FixedPhase
 section AmplitudeBounds
 
 /-- Apply automatic uniformity to a fixed parameter type. -/
-private lemma exists_eventually_uniform_bound {P : Type*} [Nonempty P] (g : ℕ → P → ℝ)
+private theorem exists_eventually_uniform_bound {P : Type*} [Nonempty P] (g : ℕ → P → ℝ)
     (h : ∀ p : ℕ → P, ∃ C, ∀ᶠ i in atTop, ‖g i (p i)‖ ≤ C) :
     ∃ C, ∀ᶠ i in atTop, ∀ q, ‖g i q‖ ≤ C := by
   let E : VariableObject (Set P) := fun _ ↦ Set.univ

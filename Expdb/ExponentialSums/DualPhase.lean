@@ -317,7 +317,7 @@ private theorem secondPrimitive_eqOn {h F : ℝ → ℝ} (hF : ContDiff ℝ ∞ 
 private def regSecond (χ : ℝ → ℝ) (c : ℝ) (g : ℝ → ℝ) (x : ℝ) : ℝ :=
   χ x * g x - c * (1 - χ x)
 
-private lemma regSecond_bounds {χ g : ℝ → ℝ} {c C x : ℝ} (hcC : c ≤ C)
+private theorem regSecond_bounds {χ g : ℝ → ℝ} {c C x : ℝ} (hcC : c ≤ C)
     (h0 : 0 ≤ χ x) (h1 : χ x ≤ 1) (hg : χ x ≠ 0 → -C ≤ g x ∧ g x ≤ -c) :
     -C ≤ regSecond χ c g x ∧ regSecond χ c g x ≤ -c := by
   unfold regSecond
@@ -327,7 +327,7 @@ private lemma regSecond_bounds {χ g : ℝ → ℝ} {c C x : ℝ} (hcC : c ≤ C
   · obtain ⟨hl, hu⟩ := hg hχ
     constructor <;> nlinarith
 
-private lemma iteratedDeriv_iteratedDeriv_two (f : ℝ → ℝ) (n : ℕ) :
+private theorem iteratedDeriv_iteratedDeriv_two (f : ℝ → ℝ) (n : ℕ) :
     iteratedDeriv n (iteratedDeriv 2 f) = iteratedDeriv (n + 2) f := by
   rw [iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate,
     ← Function.iterate_add_apply]

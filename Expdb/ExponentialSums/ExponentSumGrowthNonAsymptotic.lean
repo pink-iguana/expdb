@@ -55,7 +55,7 @@ def IsExponentSumBoundNonAsymptotic (α : ℝ≥0) (β : ℝ) : Prop :=
 
 /-! ## From fixed bounds to asymptotic bounds -/
 
-private lemma isExponentSumBound_of_nonAsymptotic
+private theorem isExponentSumBound_of_nonAsymptotic
     {α : ℝ≥0} {β : ℝ}
     (hbound : IsExponentSumBoundNonAsymptotic α β) :
     IsExponentSumBound α β := by
@@ -148,7 +148,7 @@ theorem isApproximateModelPhaseFunction_log (P : ℕ) :
 
 /-! ## Building asymptotic counterexamples -/
 
-private lemma isModelPhaseFunction_of_approximations
+private theorem isModelPhaseFunction_of_approximations
     {F : VariableFunction (VariableObject.fixed ℝ) ℝ}
     {σ : ℝ} {P : VariableObject ℕ} {δ : VariableObject ℝ}
     (hσ : 0 < σ)
@@ -171,7 +171,7 @@ private lemma isModelPhaseFunction_of_approximations
   rw [Real.norm_eq_abs] at hiδ
   exact lt_of_le_of_lt herror ((le_abs_self (δ i)).trans_lt hiδ)
 
-private lemma nonAsymptotic_of_isExponentSumBound
+private theorem nonAsymptotic_of_isExponentSumBound
     {α : ℝ≥0} {β : ℝ} (hbound : IsExponentSumBound α β) :
     IsExponentSumBoundNonAsymptotic α β := by
   intro ε hε σ hσ

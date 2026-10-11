@@ -25,7 +25,7 @@ open Set
 open scoped ContDiff Topology
 noncomputable section
 
-private lemma iteratedDerivWithin_eq_of_restriction
+private theorem iteratedDerivWithin_eq_of_restriction
     {f g : ℝ → ℝ} {s t : Set ℝ} (hst : s ⊆ t)
     (hs : UniqueDiffOn ℝ s) (ht : UniqueDiffOn ℝ t)
     (hg : ContDiffOn ℝ ∞ g t) (heq : EqOn g f s) {x : ℝ} (hx : x ∈ s) (k : ℕ) :
@@ -146,7 +146,7 @@ theorem exists_phaseError_extension (P : ℕ) :
 def modelPhasePrimitive (σ : ℝ) (x : ℝ) : ℝ :=
   if σ = 1 then Real.log x else x ^ (1 - σ) / (1 - σ)
 
-private lemma hasDerivAt_modelPhasePrimitive (σ : ℝ) {x : ℝ} (hx : 0 < x) :
+private theorem hasDerivAt_modelPhasePrimitive (σ : ℝ) {x : ℝ} (hx : 0 < x) :
     HasDerivAt (modelPhasePrimitive σ) (modelPhase σ x) x := by
   change HasDerivAt (fun y => if σ = 1 then Real.log y else y ^ (1 - σ) / (1 - σ))
     (modelPhase σ x) x
@@ -159,7 +159,7 @@ private lemma hasDerivAt_modelPhasePrimitive (σ : ℝ) {x : ℝ} (hx : 0 < x) :
       rw [show 1 - σ - 1 = -σ by ring, mul_div_cancel_left₀ _ hs]
     simpa only [modelPhasePrimitive, if_neg hσ, modelPhase, hd] using h
 
-private lemma contDiffOn_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
+private theorem contDiffOn_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
     (hs : ∀ x ∈ s, 0 < x) : ContDiffOn ℝ ∞ (modelPhasePrimitive σ) s := by
   intro x hx
   change ContDiffWithinAt ℝ ∞
@@ -170,7 +170,7 @@ private lemma contDiffOn_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
   · simp only [if_neg hσ]
     exact ((Real.contDiffAt_rpow_const_of_ne (hs x hx).ne').div_const _).contDiffWithinAt
 
-private lemma iteratedDerivWithin_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
+private theorem iteratedDerivWithin_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
     (hs : UniqueDiffOn ℝ s) (hpos : ∀ x ∈ s, 0 < x) (p : ℕ) {x : ℝ} (hx : x ∈ s) :
     iteratedDerivWithin (p + 1) (modelPhasePrimitive σ) s x =
       iteratedDerivWithin p (modelPhase σ) s x := by

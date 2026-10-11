@@ -43,7 +43,7 @@ noncomputable section
 open MeasureTheory Filter Set Complex
 open scoped Topology SchwartzMap FourierTransform Real ContDiff ComplexConjugate
 
-private lemma quadratic_gaussian_pairing (f : 𝓢(ℝ, ℂ)) {b : ℂ} (hb : 0 < b.re) :
+private theorem quadratic_gaussian_pairing (f : 𝓢(ℝ, ℂ)) {b : ℂ} (hb : 0 < b.re) :
     (∫ x : ℝ, f x * Complex.exp (-Real.pi * b * x ^ 2)) =
       (1 / b ^ (1 / 2 : ℂ)) * (∫ ξ : ℝ, (𝓕⁻ f) ξ *
         Complex.exp (-Real.pi / b * ξ ^ 2)) := by
@@ -68,7 +68,7 @@ private lemma quadratic_gaussian_pairing (f : 𝓢(ℝ, ℂ)) {b : ℂ} (hb : 0 
   ext x
   ring
 
-private lemma norm_quadratic_exp_le_one {b : ℂ} (hb : 0 ≤ b.re) (x : ℝ) :
+private theorem norm_quadratic_exp_le_one {b : ℂ} (hb : 0 ≤ b.re) (x : ℝ) :
     ‖Complex.exp (-(Real.pi : ℂ) * b * x ^ 2)‖ ≤ 1 := by
   rw [Complex.norm_exp, Real.exp_le_one_iff]
   have he : (-(Real.pi : ℂ) * b * (x : ℂ) ^ 2).re = -Real.pi * b.re * x ^ 2 := by
@@ -80,7 +80,7 @@ private lemma norm_quadratic_exp_le_one {b : ℂ} (hb : 0 ≤ b.re) (x : ℝ) :
 /-- The Gaussian identity extends to the imaginary boundary after pairing with
 an integrable Schwartz amplitude. This uses dominated convergence, never a
 non-absolutely convergent Bochner integral for a bare Fresnel kernel. -/
-private lemma quadratic_boundary_pairing (f : 𝓢(ℝ, ℂ)) {b : ℂ}
+private theorem quadratic_boundary_pairing (f : 𝓢(ℝ, ℂ)) {b : ℂ}
     (hb : 0 ≤ b.re) (hbslit : b ∈ Complex.slitPlane) :
     (∫ x : ℝ, f x * Complex.exp (-Real.pi * b * x ^ 2)) =
       (1 / b ^ (1 / 2 : ℂ)) * (∫ ξ : ℝ, (𝓕⁻ f) ξ *
@@ -133,14 +133,14 @@ private lemma quadratic_boundary_pairing (f : 𝓢(ℝ, ℂ)) {b : ℂ}
   have hright := hr.congr' (hre.mono (fun ε hε => (quadratic_gaussian_pairing f hε).symm))
   exact tendsto_nhds_unique hleft hright
 
-private lemma cpow_pos_mul {t : ℝ} (ht : 0 < t) {z : ℂ} (hz : z ≠ 0) (w : ℂ) :
+private theorem cpow_pos_mul {t : ℝ} (ht : 0 < t) {z : ℂ} (hz : z ≠ 0) (w : ℂ) :
     ((t : ℂ) * z) ^ w = (t : ℂ) ^ w * z ^ w := by
   rw [Complex.cpow_def_of_ne_zero (mul_ne_zero (ofReal_ne_zero.mpr ht.ne') hz),
     Complex.cpow_def_of_ne_zero (ofReal_ne_zero.mpr ht.ne'),
     Complex.cpow_def_of_ne_zero hz, Complex.log_ofReal_mul ht hz,
     ← Complex.ofReal_log ht.le, add_mul, Complex.exp_add]
 
-private lemma quadratic_factor {t : ℝ} (ht : 0 < t) :
+private theorem quadratic_factor {t : ℝ} (ht : 0 < t) :
     (Real.sqrt t : ℂ) / ((t : ℂ) * (-I)) ^ (1 / 2 : ℂ) =
       Complex.exp ((Real.pi : ℂ) / 4 * I) := by
   have hs : (Real.sqrt t : ℂ) = (t : ℂ) ^ (1 / 2 : ℂ) := by
@@ -153,7 +153,7 @@ private lemma quadratic_factor {t : ℝ} (ht : 0 < t) :
   congr 1
   ring
 
-private lemma integral_fourierInv (f : 𝓢(ℝ, ℂ)) : (∫ x : ℝ, (𝓕⁻ f) x) = f 0 := by
+private theorem integral_fourierInv (f : 𝓢(ℝ, ℂ)) : (∫ x : ℝ, (𝓕⁻ f) x) = f 0 := by
   have he : (𝓕 ((𝓕⁻ f : 𝓢(ℝ, ℂ)) : ℝ → ℂ)) 0 = f 0 := by
     rw [← SchwartzMap.fourier_coe, FourierTransform.fourier_fourierInv_eq]
   simpa [Real.fourier_eq] using he

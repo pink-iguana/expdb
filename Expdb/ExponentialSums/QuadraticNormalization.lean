@@ -55,7 +55,7 @@ theorem phase_sub_tangent_eq_quadraticFactor (F : ℝ → ℝ) (v x : ℝ)
   dsimp [phaseQuadraticFactor]
   linarith
 
-private lemma integral_one_sub : (∫ t : ℝ in 0..1, 1 - t) = 1 / 2 := by
+private theorem integral_one_sub : (∫ t : ℝ in 0..1, 1 - t) = 1 / 2 := by
   rw [intervalIntegral.integral_sub (f := fun _ : ℝ => (1 : ℝ))
     (g := fun t : ℝ => t) intervalIntegrable_const
     (continuous_id.intervalIntegrable _ _), intervalIntegral.integral_const, integral_id]
