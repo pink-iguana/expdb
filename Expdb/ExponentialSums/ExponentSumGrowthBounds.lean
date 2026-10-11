@@ -4,6 +4,7 @@ public import Expdb.ExponentialSums.UpperSemicontinuity
 public import Expdb.ExponentialSums.AProcess
 public import Expdb.ExponentialSums.FullInterval
 public import Expdb.ExponentialSums.BProcess
+import Mathlib.Data.Nat.Basic
 
 /-!
 # Bounds for exponential sum growth exponents
@@ -138,21 +139,6 @@ private theorem exponentSumGrowthExponent_le_half {α : ℝ≥0} (hαone : α �
     at htransfer
   linarith
 
-private theorem two_mul_le_two_pow {k : ℕ} (hk : 1 ≤ k) :
-    (2 : ℝ) * k ≤ (2 : ℝ) ^ k := by
-  have h := (Nat.lt_two_pow_self : k - 1 < 2 ^ (k - 1))
-  have heq : k = k - 1 + 1 := by omega
-  have hn : k ≤ 2 ^ (k - 1) := by omega
-  have hr : (k : ℝ) ≤ (2 : ℝ) ^ (k - 1) := by exact_mod_cast hn
-  calc
-    2 * (k : ℝ) ≤ 2 * (2 : ℝ) ^ (k - 1) := by linarith
-    _ = (2 : ℝ) ^ k := by
-      have hp : (2 : ℝ) ^ k = 2 ^ (k - 1) * 2 := by
-        nth_rw 1 [heq]
-        rw [pow_succ]
-      rw [hp]
-      ring
-
 /-- The first branch of the derivative bound holds throughout `0 ≤ α ≤ 1`. -/
 theorem exponentSumGrowthExponent_le_vanDerCorput_of_le_one
     (α : ℝ≥0) (k : ℕ) (hk : 2 ≤ k) (hαone : α ≤ 1) :
@@ -165,7 +151,8 @@ theorem exponentSumGrowthExponent_le_vanDerCorput_of_le_one
     linarith
   | succ k hk ih =>
     have hkreal : (2 : ℝ) ≤ k := by exact_mod_cast hk
-    have hq := two_mul_le_two_pow (by omega : 1 ≤ k)
+    have hq : (2 : ℝ) * k ≤ (2 : ℝ) ^ k := by
+      exact_mod_cast Nat.mul_le_pow (by decide : 2 ≠ 1) k
     have hqpos : 0 < (2 : ℝ) ^ k - 2 := by linarith
     have hqone : 0 < (2 : ℝ) ^ k - 1 := by linarith
     have hαreal : (α : ℝ) ≤ 1 := by exact_mod_cast hαone
@@ -256,7 +243,8 @@ theorem exponentSumGrowthExponent_le_vanDerCorput
   · norm_num
     linarith
   have hkfour : (4 : ℝ) ≤ k := by exact_mod_cast (show 4 ≤ k by omega)
-  have hq := two_mul_le_two_pow (by omega : 1 ≤ k)
+  have hq : (2 : ℝ) * k ≤ (2 : ℝ) ^ k := by
+    exact_mod_cast Nat.mul_le_pow (by decide : 2 ≠ 1) k
   have hqpos : 0 < (2 : ℝ) ^ k := by positivity
   have hd : 0 < (2 : ℝ) ^ k - 2 := by linarith
   have hz : (2 : ℝ) ^ (2 - (k : ℤ)) = 4 / (2 : ℝ) ^ k := by
