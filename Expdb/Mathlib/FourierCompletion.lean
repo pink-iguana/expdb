@@ -20,23 +20,11 @@ namespace Expdb
 
 private theorem norm_fourierChar_sub_one (x : ℝ) :
     ‖(𝐞 x : ℂ) - 1‖ = 2 * |Real.sin (Real.pi * x)| := by
-  have he : (𝐞 x : ℂ) - 1 =
-      (𝐞 (x / 2) : ℂ) * ((𝐞 (x / 2) : ℂ) - (𝐞 (-(x / 2)) : ℂ)) := by
-    rw [mul_sub, ← Circle.coe_mul, ← Circle.coe_mul,
-      ← AddChar.map_add_eq_mul, ← AddChar.map_add_eq_mul]
-    congr 1 <;> simp
-  rw [he, norm_mul, Circle.norm_coe, one_mul]
-  have hd : (𝐞 (x / 2) : ℂ) - (𝐞 (-(x / 2)) : ℂ) =
-      (2 * Real.sin (Real.pi * x) : ℝ) * Complex.I := by
-    rw [Real.fourierChar_apply, Real.fourierChar_apply]
-    have hp : (2 * Real.pi * (x / 2) : ℝ) = Real.pi * x := by ring
-    have hn : (2 * Real.pi * (-(x / 2)) : ℝ) = -(Real.pi * x) := by ring
-    simp only [hp, hn, Complex.exp_mul_I, ← Complex.ofReal_cos, ← Complex.ofReal_sin]
-    push_cast
-    simp only [Complex.cos_neg, Complex.sin_neg]
-    ring
-  rw [hd, norm_mul, Complex.norm_real, Complex.norm_I, mul_one, Real.norm_eq_abs,
-    abs_mul, abs_of_pos (by norm_num : (0 : ℝ) < 2)]
+  rw [Real.fourierChar_apply]
+  have h := Complex.norm_exp_I_mul_ofReal_sub_one (2 * Real.pi * x)
+  simpa only [Complex.ofReal_mul, Complex.ofReal_ofNat, mul_comm Complex.I,
+    show 2 * Real.pi * x / 2 = Real.pi * x by ring, Real.norm_eq_abs,
+    abs_mul, abs_of_pos (by norm_num : (0 : ℝ) < 2)] using h
 
 private theorem fourierChar_sub_one_lower {x : ℝ} (hx : 0 ≤ x) (hx1 : x ≤ 1) :
     4 * min x (1 - x) ≤ ‖(𝐞 x : ℂ) - 1‖ := by
@@ -130,17 +118,8 @@ private theorem coefficient_mass_le {q a b : ℕ} (hq : 0 < q) (hb : b < q) :
     (by have := (Finset.mem_Ico.mp hj).1; omega) (Finset.mem_Ico.mp hj).2 (a := a) (b := b))
   have hreverse : ∑ j ∈ Finset.Ico 1 q, 1 / ((q - j : ℕ) : ℝ) =
       ∑ j ∈ Finset.Ico 1 q, 1 / (j : ℝ) := by
-    apply Finset.sum_bij (fun j _ ↦ q - j)
-    · intro j hj
-      simp only [Finset.mem_Ico] at hj ⊢
-      omega
-    · intro j hj k hk heq
-      simp only [Finset.mem_Ico] at hj hk
-      omega
-    · intro j hj
-      refine ⟨q - j, ?_, ?_⟩ <;> simp only [Finset.mem_Ico] at hj ⊢ <;> omega
-    · intro j hj
-      rfl
+    simpa only [Nat.add_sub_cancel, Nat.add_sub_cancel_left] using
+      (Finset.sum_Ico_reflect (fun j ↦ 1 / (j : ℝ)) 1 (n := q) (m := q) (by omega))
   rw [Finset.sum_add_distrib, hreverse] at hsum
   have hharm : ∑ j ∈ Finset.Ico 1 q, 1 / (j : ℝ) ≤ 1 + Real.log q := by
     have h := harmonic_le_one_add_log q

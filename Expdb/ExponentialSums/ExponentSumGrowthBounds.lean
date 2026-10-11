@@ -3,7 +3,7 @@ module
 public import Expdb.ExponentialSums.UpperSemicontinuity
 public import Expdb.ExponentialSums.AProcess
 public import Expdb.ExponentialSums.BProcess
-import Expdb.Fourier.Completion
+import Expdb.Mathlib.FourierCompletion
 import Mathlib.Data.Nat.Basic
 
 /-!

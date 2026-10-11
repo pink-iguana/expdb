@@ -4,7 +4,7 @@ import Expdb.Basic.AutomaticUniformity
 public import Expdb.Basic.DerivativeAsymptotics
 public import Expdb.ExponentialSums.DualPhase
 public import Expdb.ExponentialSums.SmoothCompletion
-public import Expdb.Fourier.Poisson
+public import Expdb.Mathlib.Poisson
 public import Expdb.Mathlib.NonstationaryPhase
 public import Expdb.Mathlib.QuadraticNormalization
 public import Expdb.Mathlib.StationaryPhase

@@ -2,7 +2,7 @@ module
 
 public import Expdb.ExponentialSums.FixedExponentialSum
 public import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
-import Expdb.Fourier.Completion
+import Expdb.Mathlib.FourierCompletion
 
 /-!
 # Smooth completion for the B-process

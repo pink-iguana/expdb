@@ -15,7 +15,7 @@ public import Expdb.ExponentialSums.TrivialBounds
 public import Expdb.ExponentialSums.UpperSemicontinuity
 public import Expdb.Fourier.Bump
 public import Expdb.Fourier.L2Integral
-public import Expdb.Fourier.Poisson
+public import Expdb.Mathlib.Poisson
 public import Expdb.Mathlib.EulerMaclaurin
 public import Expdb.Mathlib.NonstationaryPhase
 public import Expdb.Mathlib.SmoothExtension
