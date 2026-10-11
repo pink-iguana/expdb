@@ -15,7 +15,7 @@ import Mathlib.Tactic.Ring
 Mathlib's integral Taylor theorem factors a phase minus its tangent as a
 quadratic polynomial times an averaged second derivative. This representation
 includes the stationary point itself, where dividing by `(x - v)²` would be
-singular. It is the starting point for the B-process change of variables.
+singular. Curvature bounds give a smooth quadratic coordinate and derivative estimates.
 -/
 
 @[expose] public section
@@ -376,5 +376,30 @@ theorem norm_iteratedDeriv_phaseQuadraticFactor_le (F : ℝ → ℝ) (v x : ℝ)
   linarith
 
 end
+
+/-- Global curvature bounds bound the quadratic factor. -/
+theorem phaseQuadraticFactor_mem {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v x : ℝ) :
+    -C ≤ phaseQuadraticFactor H v x ∧ phaseQuadraticFactor H v x ≤ -c :=
+  phaseQuadraticFactor_bounds H v x
+    ((hH.continuous_iteratedDeriv 2 (ENat.natCast_le_of_coe_top_le_withTop le_rfl 2)).comp
+      (by fun_prop)).continuousOn
+    (fun _ _ ↦ (hcurv _).1) (fun _ _ ↦ (hcurv _).2)
+
+/-- The quadratic coordinate of a globally concave phase is smooth. -/
+theorem contDiff_phaseQuadraticCoordinate {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hc : 0 < c) (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    (v : ℝ) : ContDiff ℝ ∞ (phaseQuadraticCoordinate H v) :=
+  contDiffOn_univ.1 (contDiffOn_phaseQuadraticCoordinate H v hH
+    (fun x _ ↦ (phaseQuadraticFactor_mem hH hcurv v x).2.trans_lt (by linarith)))
+
+/-- The quadratic coordinate of a globally concave phase has derivative bounded below. -/
+theorem le_deriv_phaseQuadraticCoordinate {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hc : 0 < c) (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    (v x : ℝ) : c / Real.sqrt C ≤ deriv (phaseQuadraticCoordinate H v) x :=
+  phaseQuadraticCoordinate_deriv_lower H v convex_univ (Set.mem_univ v) hc
+    (hH.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl 3)) (fun x _ ↦ (hcurv x).1) (fun x
+      _ ↦ (hcurv x).2)
+    x (Set.mem_univ x)
 
 end Expdb

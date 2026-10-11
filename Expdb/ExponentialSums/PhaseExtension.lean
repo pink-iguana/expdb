@@ -2,6 +2,7 @@ module
 
 public import Expdb.ExponentialSums.PhaseFunctions
 public import Expdb.Mathlib.SmoothExtension
+public import Expdb.Mathlib.IteratedDeriv
 import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
@@ -24,18 +25,6 @@ namespace Expdb
 open Set
 open scoped ContDiff Topology
 noncomputable section
-
-private theorem iteratedDerivWithin_eq_of_restriction
-    {f g : ℝ → ℝ} {s t : Set ℝ} (hst : s ⊆ t)
-    (hs : UniqueDiffOn ℝ s) (ht : UniqueDiffOn ℝ t)
-    (hg : ContDiffOn ℝ ∞ g t) (heq : EqOn g f s) {x : ℝ} (hx : x ∈ s) (k : ℕ) :
-    iteratedDerivWithin k g t x = iteratedDerivWithin k f s x := by
-  have hsub := iteratedFDerivWithin_subset hst hs ht
-    (hg.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤)) : ContDiffOn ℝ k g t) hx
-  have hderiv : iteratedDerivWithin k g s x = iteratedDerivWithin k g t x := by
-    simp only [iteratedDerivWithin, hsub]
-  rw [← hderiv]
-  exact iteratedDerivWithin_congr heq hx
 
 /-- A smooth error on the phase interval extends exactly to any larger compact
 interval, with finite derivative bounds uniform over the original error. -/
@@ -269,18 +258,9 @@ private theorem exists_global_smooth_restriction (l u : ℝ) (hl : 0 < l) (hlu :
     change -((u - l) / 2 + l / 4) ≤ x - (l + u) / 2 ∧
       x - (l + u) / 2 ≤ (u - l) / 2 + l / 4 at hx
     constructor <;> linarith [hx.1, hx.2]
-  have hG : ContDiff ℝ ∞ G := by
-    rw [contDiff_iff_contDiffAt]
-    intro x
-    by_cases hx : x ∈ tsupport (χ : ℝ → ℝ)
-    · have hm := hsupport hx
-      exact χ.contDiffAt.mul (hg.contDiffAt
-        (Icc_mem_nhds hm.1 hm.2))
-    · have he : G =ᶠ[𝓝 x] (fun _ => (0 : ℝ)) := by
-        have hz := notMem_tsupport_iff_eventuallyEq.mp hx
-        filter_upwards [hz] with y hy
-        simp [G, hy]
-      exact contDiffAt_const.congr_of_eventuallyEq he
+  have hG : ContDiff ℝ ∞ G :=
+    SmoothExtension.contDiff_mul_of_tsupport isOpen_Ioo χ.contDiff
+      (hg.mono Ioo_subset_Icc_self) hsupport
   refine ⟨G, hG, ?_⟩
   intro x hx
   have hχ : χ x = 1 := by

@@ -1,5 +1,7 @@
 module
 
+public import Expdb.Mathlib.QuadraticNormalization
+
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Positivity
@@ -14,9 +16,10 @@ import Mathlib.Analysis.Fourier.PoissonSummation
 import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
 import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 import Mathlib.MeasureTheory.Integral.Bochner.ContinuousLinearMap
+import Mathlib.MeasureTheory.Function.Jacobian
 
 /-!
-# Quantitative quadratic stationary phase
+# Quantitative stationary phase
 
 Adapted from `lean/OAI/Dynamics/ThreeTorus/StationaryPhase.lean` and
 `lean/OAI/MeasureTheory/Falconer/Fourier/SchwartzFourierMomentBounds.lean` in
@@ -362,6 +365,181 @@ lemma quadratic_stationary_error_negative_of_derivative_bounds (f : 𝓢(ℝ, �
     simp only [map_mul, hphase, hg]
   rw [← Complex.norm_conj, hconj]
   exact he
+
+/-! ## Stationary phase after quadratic normalization
+
+The following estimates are proved within Expdb. -/
+
+private theorem iteratedDeriv_ofReal_comp {g : ℝ → ℝ} (hg : ContDiff ℝ ∞ g) (k : ℕ) (x : ℝ) :
+    iteratedDeriv k (fun y ↦ (g y : ℂ)) x = ((iteratedDeriv k g x : ℝ) : ℂ) := by
+  change iteratedFDeriv ℝ k (Complex.ofRealCLM ∘ g) x (fun _ ↦ 1) = _
+  rw [Complex.ofRealCLM.iteratedFDeriv_comp_left hg.contDiffAt (by exact_mod_cast le_top)]
+  rfl
+
+/-- An integral of a function supported in `[-R, R]` and bounded by `B` is at most
+`2 R B`. -/
+private theorem integral_norm_le_of_support {g : ℝ → ℝ} {R B : ℝ} (hR : 0 ≤ R)
+    (hzero : ∀ y, R < |y| → g y = 0) (hB : ∀ y, ‖g y‖ ≤ B) :
+    ∫ y, ‖g y‖ ≤ 2 * R * B := by
+  rw [← setIntegral_eq_integral_of_forall_compl_eq_zero (s := Icc (-R) R)]
+  · have h := norm_setIntegral_le_of_norm_le_const (μ := volume) (s := Icc (-R) R)
+      (f := fun y ↦ ‖g y‖) (C := B) (by simp) (fun y _ ↦ by simpa using hB y)
+    rw [Real.norm_of_nonneg (integral_nonneg fun _ ↦ norm_nonneg _)] at h
+    simp only [Measure.real, Real.volume_Icc, sub_neg_eq_add] at h
+    rw [ENNReal.toReal_ofReal (by linarith)] at h
+    linarith
+  · intro y hy
+    have : R < |y| := by
+      rw [mem_Icc, not_and_or, not_le, not_le] at hy
+      rcases hy with h | h
+      · rw [abs_of_neg (by linarith)]; linarith
+      · rw [abs_of_pos (by linarith)]; linarith
+    simp [hzero y this]
+
+/-- Stationary phase for a fixed globally concave phase. A quadratic change of variables
+reduces the integral to the quadratic stationary-phase estimate. -/
+theorem norm_integral_stationary_sub_le {H w X : ℝ → ℝ} {c C lam R B v : ℝ}
+    (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c)
+    (hw : ContDiff ℝ ∞ w) (hX : ContDiff ℝ ∞ X)
+    (hYX : ∀ y, phaseQuadraticCoordinate H v (X y) = y)
+    (hlam : 0 < lam) (hR : 0 ≤ R)
+    (hsupp : ∀ y, R < |y| → w (X y) = 0)
+    (hB2 : ∀ y, ‖iteratedDeriv 2 (fun y ↦ w (X y) * deriv X y) y‖ ≤ B)
+    (hB4 : ∀ y, ‖iteratedDeriv 4 (fun y ↦ w (X y) * deriv X y) y‖ ≤ B) :
+    ‖(∫ x : ℝ, (w x : ℂ) * 𝐞 (lam * (H x - deriv H v * x))) -
+        𝐞 (lam * (H v - deriv H v * v)) *
+          (Complex.exp (-(Real.pi : ℂ) / 4 * I) *
+            ((w v / Real.sqrt (-iteratedDeriv 2 H v) : ℝ) : ℂ) / (Real.sqrt lam : ℂ))‖ ≤
+      4 * Real.pi ^ 2 * R * B / (lam * Real.sqrt lam) := by
+  set Y := phaseQuadraticCoordinate H v with hYdef
+  have hC : 0 < C := by linarith [(hcurv 0).1, (hcurv 0).2]
+  have hY : ContDiff ℝ ∞ Y := contDiff_phaseQuadraticCoordinate hH hc hcurv v
+  have hYd : Differentiable ℝ Y := hY.differentiable (by simp)
+  have hXd : Differentiable ℝ X := hX.differentiable (by simp)
+  have hYpos : ∀ x, 0 < deriv Y x := fun x ↦
+    lt_of_lt_of_le (div_pos hc (Real.sqrt_pos.2 hC)) (le_deriv_phaseQuadraticCoordinate hH hc
+      hcurv v x)
+  -- derivative of the inverse
+  have hchain : ∀ y, deriv Y (X y) * deriv X y = 1 := by
+    intro y
+    have h1 : deriv (Y ∘ X) y = 1 := by
+      have : Y ∘ X = id := funext hYX
+      rw [this, deriv_id]
+    rwa [deriv_comp y (hYd _) (hXd _)] at h1
+  have hXpos : ∀ y, 0 < deriv X y := by
+    intro y
+    have := hchain y
+    have := hYpos (X y)
+    by_contra h
+    push Not at h
+    nlinarith
+  -- the amplitude
+  set amp : ℝ → ℝ := fun y ↦ w (X y) * deriv X y with hamp
+  have hampS : ContDiff ℝ ∞ amp := (hw.comp hX).mul (hX.deriv' (n := ∞))
+  have hampz : ∀ y, R < |y| → amp y = 0 := fun y hy ↦ by simp [amp, hsupp y hy]
+  have hampzd : ∀ k y, R < |y| → iteratedDeriv k amp y = 0 := by
+    intro k y hy
+    have hev : amp =ᶠ[𝓝 y] fun _ ↦ 0 := by
+      have hopen : IsOpen {z : ℝ | R < |z|} := isOpen_lt continuous_const continuous_abs
+      filter_upwards [hopen.mem_nhds hy] with z hz
+      exact hampz z hz
+    rw [hev.iteratedDeriv_eq]
+    simp
+  set ampC : ℝ → ℂ := fun y ↦ (amp y : ℂ) with hampC
+  have hampCS : ContDiff ℝ ∞ ampC := Complex.ofRealCLM.contDiff.comp hampS
+  have hampCc : HasCompactSupport ampC := by
+    apply HasCompactSupport.intro (isCompact_closedBall (0 : ℝ) R)
+    intro y hy
+    rw [Metric.mem_closedBall, Real.dist_eq, sub_zero, not_le] at hy
+    simp [ampC, hampz y hy]
+  let f : 𝓢(ℝ, ℂ) := hampCc.toSchwartzMap hampCS
+  have hf : ∀ y, f y = ampC y := fun y ↦ by simp [f]
+  have hfcoe : (f : ℝ → ℂ) = ampC := funext hf
+  -- derivative bounds
+  have hL1 : ∀ k, (∀ y, ‖iteratedDeriv k amp y‖ ≤ B) →
+      StationaryPhase.fourierDerivativeL1 f k ≤ 2 * R * B := by
+    intro k hk
+    unfold StationaryPhase.fourierDerivativeL1
+    rw [hfcoe]
+    have hint : ∫ y, ‖iteratedDeriv k ampC y‖ ≤ 2 * R * B := by
+      have : (fun y ↦ ‖iteratedDeriv k ampC y‖) = fun y ↦ ‖iteratedDeriv k amp y‖ := by
+        funext y
+        rw [hampC, iteratedDeriv_ofReal_comp hampS, Complex.norm_real]
+      rw [this]
+      exact integral_norm_le_of_support hR (fun y hy ↦ hampzd k y hy) hk
+    have hpow : 1 ≤ (2 * Real.pi) ^ k :=
+      one_le_pow₀ (by nlinarith [Real.two_le_pi])
+    have hnn : 0 ≤ ∫ y, ‖iteratedDeriv k ampC y‖ := integral_nonneg fun _ ↦ norm_nonneg _
+    calc (∫ y, ‖iteratedDeriv k ampC y‖) / (2 * Real.pi) ^ k
+        ≤ ∫ y, ‖iteratedDeriv k ampC y‖ := div_le_self hnn hpow
+      _ ≤ 2 * R * B := hint
+  have herr := StationaryPhase.quadratic_stationary_error_negative_of_derivative_bounds f hlam
+    (hL1 2 hB2) (hL1 4 hB4)
+  rw [integral_univ_inv_one_add_sq] at herr
+  -- value at zero
+  have hX0 : X 0 = v := by
+    have hYv : Y v = 0 := phaseQuadraticCoordinate_self H v
+    have hinj : Function.Injective Y := (strictMono_of_deriv_pos hYpos).injective
+    apply hinj
+    rw [hYX, hYv]
+  have hcurvv : iteratedDeriv 2 H v < 0 := by linarith [(hcurv v).2]
+  have hYv' : deriv Y v = Real.sqrt (-iteratedDeriv 2 H v) :=
+    (hasDerivAt_phaseQuadraticCoordinate_self H v
+      (hH.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl 3))
+      hcurvv).deriv
+  have hf0 : f 0 = ((w v / Real.sqrt (-iteratedDeriv 2 H v) : ℝ) : ℂ) := by
+    rw [hf]
+    simp only [ampC, amp, hX0]
+    have h := hchain 0
+    rw [hX0, hYv'] at h
+    have hs : 0 < Real.sqrt (-iteratedDeriv 2 H v) := Real.sqrt_pos.2 (by linarith)
+    congr 1
+    field_simp
+    rw [mul_assoc, mul_comm (deriv X 0), h, mul_one]
+  -- change of variables
+  set ν := deriv H v
+  set A := H v - ν * v
+  have hcov : (∫ x : ℝ, (w x : ℂ) * 𝐞 (lam * (H x - ν * x))) =
+      𝐞 (lam * A) * ∫ y : ℝ, f y * Complex.exp (-I * (Real.pi * lam * y ^ 2 : ℝ)) := by
+    have hsurj : X '' univ = univ := by
+      rw [image_univ, range_eq_univ]
+      intro x
+      exact ⟨Y x, by
+        have hinj : Function.Injective Y := (strictMono_of_deriv_pos hYpos).injective
+        apply hinj
+        rw [hYX]⟩
+    have hinjX : InjOn X univ := fun a _ b _ hab ↦ by
+      have := congrArg Y hab
+      rwa [hYX, hYX] at this
+    have hcv := integral_image_eq_integral_abs_deriv_smul (s := univ) (f := X) (f' := deriv X)
+      MeasurableSet.univ (fun y _ ↦ (hXd y).hasDerivAt.hasDerivWithinAt) hinjX
+      (fun x ↦ (w x : ℂ) * 𝐞 (lam * (H x - ν * x)))
+    rw [hsurj, setIntegral_univ, setIntegral_univ] at hcv
+    rw [hcv, ← integral_const_mul]
+    congr 1
+    funext y
+    have hq := phaseQuadraticFactor_mem hH hcurv v (X y)
+    have hphase := phase_sub_tangent_eq_neg_coordinate_sq H v (X y)
+      (fun _ _ ↦ (hH.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl 2)).contDiffAt) (by
+        linarith [hq.2])
+    rw [← hYdef, hYX] at hphase
+    rw [abs_of_pos (hXpos y), hf]
+    simp only [ampC, amp, Real.fourierChar_apply, real_smul]
+    have : (2 * Real.pi * (lam * (H (X y) - ν * X y)) : ℝ) =
+        2 * Real.pi * (lam * A) + (-(Real.pi * lam * y ^ 2)) := by
+      simp only [A]
+      linear_combination (2 * Real.pi * lam) * hphase
+    rw [this]
+    push_cast
+    rw [show ((2 : ℂ) * Real.pi * (lam * A) + -(Real.pi * lam * y ^ 2)) * I =
+      (2 * Real.pi * (lam * A)) * I + -I * (Real.pi * lam * y ^ 2) by ring, Complex.exp_add]
+    ring
+  rw [hcov, ← mul_sub, norm_mul, Circle.norm_coe, one_mul]
+  rw [hf0] at herr
+  calc _ ≤ Real.pi * ((2 * R * B + 2 * R * B) * Real.pi) / (lam * Real.sqrt lam) := herr
+    _ = _ := by ring
+
 
 end
 end Expdb.StationaryPhase

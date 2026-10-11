@@ -9,7 +9,6 @@ public import Expdb.ExponentialSums.LogPhase
 public import Expdb.ExponentialSums.FixedExponentialSum
 public import Expdb.ExponentialSums.OscillatoryBounds
 public import Expdb.ExponentialSums.PhaseExtension
-public import Expdb.ExponentialSums.QuadraticNormalization
 public import Expdb.ExponentialSums.SmoothCompletion
 public import Expdb.ExponentialSums.ScaleTransfer
 public import Expdb.ExponentialSums.TrivialBounds
@@ -22,6 +21,8 @@ public import Expdb.Mathlib.NonstationaryPhase
 public import Expdb.Mathlib.SmoothExtension
 public import Expdb.Mathlib.StationaryPhase
 public import Expdb.Mathlib.IteratedDeriv
+public import Expdb.Mathlib.InverseFunction
+public import Expdb.Mathlib.QuadraticNormalization
 public import Expdb.LargeValues.Exponents
 public import Expdb.Zeta.GrowthRight
 public import Expdb.Zeta.PowerRemainder

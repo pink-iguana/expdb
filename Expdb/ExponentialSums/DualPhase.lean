@@ -3,22 +3,20 @@ module
 public import Expdb.Basic.DerivativeAsymptotics
 public import Expdb.ExponentialSums.PhaseExtension
 public import Expdb.ExponentialSums.PhaseFunctions
+public import Expdb.Mathlib.InverseFunction
+public import Expdb.Mathlib.IteratedDeriv
 public import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 public import Mathlib.Analysis.Calculus.ContDiff.Basic
 import Mathlib.Analysis.Calculus.ContDiff.Operations
 public import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.Deriv.MeanValue
 import Mathlib.Analysis.Calculus.Deriv.Support
-import Mathlib.Analysis.Calculus.InverseFunctionTheorem.Deriv
 public import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
 import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Analysis.SpecialFunctions.Pow.Deriv
 import Mathlib.Data.Nat.Find
 public import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
-import Mathlib.Order.Hom.Set
 import Mathlib.Topology.Algebra.Order.Field
-import Mathlib.Topology.Order.IntermediateValue
-import Mathlib.Topology.Order.Monotone
 
 /-!
 # Regularization and the dual phase for the B-process
@@ -110,21 +108,6 @@ private theorem tsupport_plateauBump {a b η : ℝ} (hab : a < b) (hη : 0 < η)
 
 /-! ## Products with cutoffs -/
 
-/-- A smooth cutoff times a function smooth on an open neighbourhood of its support is
-smooth. -/
-private theorem contDiff_mul_of_tsupport {χ g : ℝ → ℝ} {U : Set ℝ} (hU : IsOpen U)
-    (hχ : ContDiff ℝ ∞ χ) (hg : ContDiffOn ℝ ∞ g U) (hsupp : tsupport χ ⊆ U) :
-    ContDiff ℝ ∞ (fun x ↦ χ x * g x) := by
-  rw [contDiff_iff_contDiffAt]
-  intro x
-  by_cases hx : x ∈ U
-  · exact hχ.contDiffAt.mul (hg.contDiffAt (hU.mem_nhds hx))
-  · have hnot : x ∉ tsupport χ := fun h ↦ hx (hsupp h)
-    have hzero : (fun y ↦ χ y * g y) =ᶠ[𝓝 x] fun _ ↦ 0 := by
-      filter_upwards [(notMem_tsupport_iff_eventuallyEq.1 hnot)] with y hy
-      simp [show χ y = 0 from hy]
-    exact (contDiffAt_const (c := (0 : ℝ))).congr_of_eventuallyEq hzero
-
 /-- All derivatives of a cutoff times any function vanish outside the cutoff's support. -/
 private theorem iteratedDeriv_mul_eq_zero_of_notMem_tsupport {χ g : ℝ → ℝ} {x : ℝ}
     (hx : x ∉ tsupport χ) (k : ℕ) : iteratedDeriv k (fun y ↦ χ y * g y) x = 0 := by
@@ -133,19 +116,6 @@ private theorem iteratedDeriv_mul_eq_zero_of_notMem_tsupport {χ g : ℝ → ℝ
     simp [show χ y = 0 from hy]
   rw [hzero.iteratedDeriv_eq]
   simp
-
-/-- Every derivative of a compactly supported smooth function is bounded. -/
-theorem exists_bound_iteratedDeriv_of_hasCompactSupport {f : ℝ → ℝ}
-    (hf : ContDiff ℝ ∞ f) (hc : HasCompactSupport f) (k : ℕ) :
-    ∃ C, ∀ x, ‖iteratedDeriv k f x‖ ≤ C := by
-  apply Continuous.bounded_above_of_compact_support
-    (hf.continuous_iteratedDeriv k (by exact_mod_cast le_top))
-  have hcompact : ∀ n, HasCompactSupport (iteratedDeriv n f) := by
-    intro n
-    induction n with
-    | zero => simpa using hc
-    | succ n ih => simpa only [iteratedDeriv_succ] using ih.deriv
-  exact hcompact k
 
 /-! ## Integrals of functions supported in an interval -/
 
@@ -180,95 +150,6 @@ private theorem norm_integral_le_of_vanishing_outside {f : ℝ → ℝ} (hf : Co
         using h
 
 end Primitives
-
-section GlobalInverse
-
-/-- A positive derivative lower bound gives a two-sided linear lower bound. -/
-theorem mul_abs_sub_le_abs_sub_of_le_deriv {f : ℝ → ℝ} (hf : Differentiable ℝ f) {c : ℝ}
-    (h : ∀ x, c ≤ deriv f x) (a b : ℝ) : c * |a - b| ≤ |f a - f b| := by
-  rcases le_total a b with hab | hab
-  · have := mul_sub_le_image_sub_of_le_deriv hf h hab
-    rw [abs_sub_comm a b, abs_of_nonneg (sub_nonneg.2 hab), abs_sub_comm]
-    exact this.trans (le_abs_self _)
-  · have := mul_sub_le_image_sub_of_le_deriv hf h hab
-    rw [abs_of_nonneg (sub_nonneg.2 hab)]
-    exact this.trans (le_abs_self _)
-
-/-- A smooth function with derivative bounded below by a positive constant is a smooth
-diffeomorphism of the real line. -/
-theorem exists_smooth_inverse_of_le_deriv {f : ℝ → ℝ} (hf : ContDiff ℝ ∞ f) {c : ℝ}
-    (hc : 0 < c) (h : ∀ x, c ≤ deriv f x) :
-    ∃ g : ℝ → ℝ, ContDiff ℝ ∞ g ∧ (∀ x, g (f x) = x) ∧ (∀ y, f (g y) = y) := by
-  have hd : Differentiable ℝ f := hf.differentiable (by simp)
-  have hmono : StrictMono f :=
-    strictMono_of_deriv_pos fun x ↦ lt_of_lt_of_le hc (h x)
-  have htop : Tendsto f atTop atTop := by
-    refine tendsto_atTop_mono' atTop ?_
-      (tendsto_atTop_add_const_left atTop (f 0)
-        (tendsto_id.const_mul_atTop hc))
-    filter_upwards [eventually_ge_atTop 0] with x hx
-    have := mul_sub_le_image_sub_of_le_deriv hd h hx
-    simp only [sub_zero, id] at this ⊢
-    linarith
-  have hbot : Tendsto f atBot atBot := by
-    refine tendsto_atBot_mono' atBot ?_
-      (tendsto_atBot_add_const_left atBot (f 0)
-        (tendsto_id.const_mul_atBot hc))
-    filter_upwards [eventually_le_atBot 0] with x hx
-    have := mul_sub_le_image_sub_of_le_deriv hd h hx
-    simp only [zero_sub, id] at this ⊢
-    linarith
-  have hsurj : Function.Surjective f := hd.continuous.surjective htop hbot
-  let e : ℝ ≃o ℝ := StrictMono.orderIsoOfSurjective f hmono hsurj
-  let E : ℝ ≃ₜ ℝ := e.toHomeomorph
-  have hE : (E : ℝ → ℝ) = f := rfl
-  have hsmooth : ContDiff ℝ ∞ (E.symm : ℝ → ℝ) := by
-    apply E.contDiff_symm_deriv (f' := deriv f)
-    · exact fun x ↦ (lt_of_lt_of_le hc (h x)).ne'
-    · exact fun x ↦ (hd x).hasDerivAt
-    · exact hf
-  refine ⟨E.symm, hsmooth, fun x ↦ ?_, fun y ↦ ?_⟩
-  · exact E.symm_apply_apply x
-  · exact E.apply_symm_apply y
-
-/-- A smooth function with derivative bounded above by a negative constant is a smooth
-diffeomorphism of the real line. -/
-theorem exists_smooth_inverse_of_deriv_le_neg {f : ℝ → ℝ} (hf : ContDiff ℝ ∞ f) {c : ℝ}
-    (hc : 0 < c) (h : ∀ x, deriv f x ≤ -c) :
-    ∃ g : ℝ → ℝ, ContDiff ℝ ∞ g ∧ (∀ x, g (f x) = x) ∧ (∀ y, f (g y) = y) := by
-  have hneg : ∀ x, c ≤ deriv (fun y ↦ -f y) x := by
-    intro x
-    rw [deriv.fun_neg]
-    linarith [h x]
-  obtain ⟨g, hg, hgf, hfg⟩ := exists_smooth_inverse_of_le_deriv hf.neg hc hneg
-  refine ⟨fun y ↦ g (-y), hg.comp contDiff_neg, fun x ↦ ?_, fun y ↦ ?_⟩
-  · simpa using hgf x
-  · have := hfg (-y)
-    linarith
-
-/-- Inverses of functions with derivative at least `c > 0` are `1/c`-Lipschitz. -/
-private theorem abs_inverse_sub_le {f g : ℝ → ℝ} (hf : Differentiable ℝ f) {c : ℝ} (hc : 0 < c)
-    (h : ∀ x, c ≤ deriv f x) (hfg : ∀ y, f (g y) = y) (y y' : ℝ) :
-    |g y - g y'| ≤ |y - y'| / c := by
-  have := mul_abs_sub_le_abs_sub_of_le_deriv hf h (g y) (g y')
-  rw [hfg, hfg] at this
-  rw [le_div_iff₀ hc]
-  linarith
-
-/-- Inverses of functions with derivative at most `-c < 0` are `1/c`-Lipschitz. -/
-theorem abs_inverse_sub_le_of_neg {f g : ℝ → ℝ} (hf : Differentiable ℝ f) {c : ℝ}
-    (hc : 0 < c) (h : ∀ x, deriv f x ≤ -c) (hfg : ∀ y, f (g y) = y) (y y' : ℝ) :
-    |g y - g y'| ≤ |y - y'| / c := by
-  have hneg : ∀ x, c ≤ deriv (fun y ↦ -f y) x := by
-    intro x
-    rw [deriv.fun_neg]
-    linarith [h x]
-  have := abs_inverse_sub_le (f := fun y ↦ -f y) (g := fun y ↦ g (-y)) hf.neg hc hneg
-    (fun y ↦ by simp [hfg]) (-y) (-y')
-  rw [show -y - -y' = -(y - y') by ring, abs_neg] at this
-  simpa using this
-
-end GlobalInverse
 
 section Regularization
 
@@ -407,7 +288,7 @@ theorem exists_regularizedPhases {σ : ℝ} (hσ : 0 < σ) {a b : ℝ} (ha : 0 <
     rw [iteratedDeriv_succ, iteratedDeriv_one]
     exact (((hG i).deriv' (n := ∞))).deriv' (n := ∞)
   have hχg₀ : ContDiff ℝ ∞ (fun x ↦ χ x * g₀ x) :=
-    contDiff_mul_of_tsupport isOpen_Ioi hχs hg₀smooth (fun x hx ↦
+    SmoothExtension.contDiff_mul_of_tsupport isOpen_Ioi hχs hg₀smooth (fun x hx ↦
       show (0 : ℝ) < x from lt_of_lt_of_le (by linarith) (htsupp hx).1)
   have hrs : ∀ i, ContDiff ℝ ∞ (r i) := fun i ↦
     (hχs.mul (hG2 i)).sub (contDiff_const.mul (contDiff_const.sub hχs))

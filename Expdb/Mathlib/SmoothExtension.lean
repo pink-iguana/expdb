@@ -532,6 +532,25 @@ theorem contDiffOn_Icc_ite_of_jet_match {fL fR : ℝ → F} {a b x₀ : ℝ} (ha
     (hasFTaylorSeriesUpToOn_top_iff' (le_refl _)).mpr ⟨hzero, hderiv⟩
   exact hTaylor.contDiffOn
 
+/-! ## Smooth multiplication by a cutoff
+
+The following lemma is proved within Expdb. -/
+
+/-- A smooth cutoff times a function smooth on an open neighbourhood of its support is
+smooth. -/
+theorem contDiff_mul_of_tsupport {χ g : ℝ → ℝ} {U : Set ℝ} (hU : IsOpen U)
+    (hχ : ContDiff ℝ ∞ χ) (hg : ContDiffOn ℝ ∞ g U) (hsupp : tsupport χ ⊆ U) :
+    ContDiff ℝ ∞ (fun x ↦ χ x * g x) := by
+  rw [contDiff_iff_contDiffAt]
+  intro x
+  by_cases hx : x ∈ U
+  · exact hχ.contDiffAt.mul (hg.contDiffAt (hU.mem_nhds hx))
+  · have hnot : x ∉ tsupport χ := fun h ↦ hx (hsupp h)
+    have hzero : (fun y ↦ χ y * g y) =ᶠ[𝓝 x] fun _ ↦ 0 := by
+      filter_upwards [(notMem_tsupport_iff_eventuallyEq.1 hnot)] with y hy
+      simp [show χ y = 0 from hy]
+    exact (contDiffAt_const (c := (0 : ℝ))).congr_of_eventuallyEq hzero
+
 
 end
 end Expdb.SmoothExtension
