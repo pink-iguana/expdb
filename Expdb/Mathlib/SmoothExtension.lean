@@ -2,7 +2,8 @@ module
 
 import Mathlib.Analysis.Calculus.SmoothSeries
 import Mathlib.Analysis.SpecialFunctions.SmoothTransition
-public import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
+public import Expdb.Mathlib.IteratedDeriv
+import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.Calculus.ContDiff.FTaylorSeries
 import Mathlib.Analysis.SpecificLimits.Basic
 
@@ -532,6 +533,113 @@ theorem contDiffOn_Icc_ite_of_jet_match {fL fR : ℝ → F} {a b x₀ : ℝ} (ha
     (hasFTaylorSeriesUpToOn_top_iff' (le_refl _)).mpr ⟨hzero, hderiv⟩
   exact hTaylor.contDiffOn
 
+/-! ## Controlled extension on a closed interval
+
+The following extension theorem is proved within Expdb. -/
+
+/-- A smooth function on `[1, 2]` extends exactly to any larger compact interval,
+with finite derivative bounds uniform over the original function. -/
+theorem exists_contDiffOn_Icc_extension_with_bound (P : ℕ) :
+    ∃ C : ℝ, 1 ≤ C ∧ ∀ δ : ℝ, 0 < δ → ∀ f : ℝ → ℝ,
+      ContDiffOn ℝ ∞ f (Icc 1 2) →
+      (∀ k ≤ P, ∀ x ∈ Icc 1 2, ‖iteratedDerivWithin k f (Icc 1 2) x‖ ≤ δ) →
+      ∀ l u : ℝ, l < 1 → 2 < u →
+      ∃ g : ℝ → ℝ, ContDiffOn ℝ ∞ g (Icc l u) ∧ EqOn g f (Icc 1 2) ∧
+        ∀ k ≤ P, ∀ x ∈ Icc l u, ‖iteratedDerivWithin k g (Icc l u) x‖ ≤ C * δ := by
+  obtain ⟨C, hC, hrealize⟩ :=
+    exists_contDiff_iteratedDeriv_eq_with_small_bound (F := ℝ) P
+  refine ⟨max 1 C, le_max_left _ _, ?_⟩
+  intro δ hδ f hf hbound l u hl hu
+  obtain ⟨L, hL, hLj, hLb⟩ := hrealize δ hδ
+    (fun k => iteratedDerivWithin k f (Icc 1 2) 1)
+    (fun k hk => hbound k hk 1 (by norm_num))
+  obtain ⟨R, hR, hRj, hRb⟩ := hrealize δ hδ
+    (fun k => iteratedDerivWithin k f (Icc 1 2) 2)
+    (fun k hk => hbound k hk 2 (by norm_num))
+  let fL : ℝ → ℝ := fun x => L (x - 1)
+  let fR : ℝ → ℝ := fun x => R (x - 2)
+  have hfL : ContDiff ℝ ∞ fL := hL.comp (contDiff_id.sub contDiff_const)
+  have hfR : ContDiff ℝ ∞ fR := hR.comp (contDiff_id.sub contDiff_const)
+  have hLderiv (k : ℕ) (x : ℝ) : iteratedDeriv k fL x = iteratedDeriv k L (x - 1) :=
+    congrFun (iteratedDeriv_comp_sub_const k L 1) x
+  have hRderiv (k : ℕ) (x : ℝ) : iteratedDeriv k fR x = iteratedDeriv k R (x - 2) :=
+    congrFun (iteratedDeriv_comp_sub_const k R 2) x
+  have hLzero : fL 1 = f 1 := by
+    simpa [fL, iteratedDeriv_zero, iteratedDerivWithin_zero] using hLj 0
+  have hRzero : fR 2 = f 2 := by
+    simpa [fR, iteratedDeriv_zero, iteratedDerivWithin_zero] using hRj 0
+  let g₁ : ℝ → ℝ := fun x => if x ≤ 1 then fL x else f x
+  have hg₁ : ContDiffOn ℝ ∞ g₁ (Icc l 2) := by
+    apply contDiffOn_Icc_ite_of_jet_match hl (by norm_num)
+      hfL.contDiffOn hf
+    intro k
+    rw [iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hl)
+      (hfL.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt
+        ⟨hl.le, le_rfl⟩, hLderiv, sub_self, hLj]
+  have hg₁eq : EqOn g₁ f (Icc 1 2) := by
+    intro x hx
+    dsimp [g₁]
+    split_ifs with h
+    · have : x = 1 := le_antisymm h hx.1
+      subst x
+      exact hLzero
+    · rfl
+  have hsub : Icc 1 2 ⊆ Icc l 2 := fun x hx => ⟨hl.le.trans hx.1, hx.2⟩
+  let g : ℝ → ℝ := fun x => if x ≤ 2 then g₁ x else fR x
+  have hg : ContDiffOn ℝ ∞ g (Icc l u) := by
+    apply contDiffOn_Icc_ite_of_jet_match (by linarith) hu
+      hg₁ hfR.contDiffOn
+    intro k
+    rw [iteratedDerivWithin_eq_of_restriction hsub (uniqueDiffOn_Icc (by norm_num))
+      (uniqueDiffOn_Icc (by linarith)) hg₁ hg₁eq (by norm_num) k]
+    rw [iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hu)
+      (hfR.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt
+        ⟨le_rfl, hu.le⟩, hRderiv, sub_self, hRj]
+  have hgeq : EqOn g f (Icc 1 2) := by
+    intro x hx
+    exact (if_pos hx.2).trans (hg₁eq hx)
+  have hgLeq : EqOn g fL (Icc l 1) := by
+    intro x hx
+    dsimp [g, g₁]
+    rw [if_pos (hx.2.trans (by norm_num)), if_pos hx.2]
+  have hgReq : EqOn g fR (Icc 2 u) := by
+    intro x hx
+    dsimp [g]
+    split_ifs with h
+    · have : x = 2 := le_antisymm h hx.1
+      subst x
+      exact (hg₁eq (by norm_num)).trans hRzero.symm
+    · rfl
+  have hJ : UniqueDiffOn ℝ (Icc l u) := uniqueDiffOn_Icc (by linarith)
+  have hleftSub : Icc l 1 ⊆ Icc l u := fun y hy => ⟨hy.1, by linarith [hy.2]⟩
+  have hrightSub : Icc 2 u ⊆ Icc l u := fun y hy => ⟨by linarith [hy.1], hy.2⟩
+  have hmiddleSub : Icc 1 2 ⊆ Icc l u :=
+    fun y hy => ⟨hl.le.trans hy.1, hy.2.trans hu.le⟩
+  refine ⟨g, hg, hgeq, ?_⟩
+  intro k hk x hx
+  by_cases hleft : x ≤ 1
+  · have hxL : x ∈ Icc l 1 := ⟨hx.1, hleft⟩
+    rw [iteratedDerivWithin_eq_of_restriction
+      hleftSub
+      (uniqueDiffOn_Icc hl) hJ hg hgLeq hxL k,
+      iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hl)
+        (hfL.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt hxL, hLderiv]
+    exact (hLb k hk _).trans (mul_le_mul_of_nonneg_right (le_max_right _ _) hδ.le)
+  · by_cases hright : 2 ≤ x
+    · have hxR : x ∈ Icc 2 u := ⟨hright, hx.2⟩
+      rw [iteratedDerivWithin_eq_of_restriction
+        hrightSub
+        (uniqueDiffOn_Icc hu) hJ hg hgReq hxR k,
+        iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hu)
+          (hfR.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt hxR, hRderiv]
+      exact (hRb k hk _).trans (mul_le_mul_of_nonneg_right (le_max_right _ _) hδ.le)
+    · have hxF : x ∈ Icc 1 2 := ⟨(lt_of_not_ge hleft).le, (lt_of_not_ge hright).le⟩
+      rw [iteratedDerivWithin_eq_of_restriction
+        hmiddleSub
+        (uniqueDiffOn_Icc (by norm_num)) hJ hg hgeq hxF k]
+      exact (hbound k hk x hxF).trans (by
+        simpa using mul_le_mul_of_nonneg_right (le_max_left (1 : ℝ) C) hδ.le)
+
 /-! ## Smooth multiplication by a cutoff
 
 The following lemma is proved within Expdb. -/
@@ -551,6 +659,33 @@ theorem contDiff_mul_of_tsupport {χ g : ℝ → ℝ} {U : Set ℝ} (hU : IsOpen
       simp [show χ y = 0 from hy]
     exact (contDiffAt_const (c := (0 : ℝ))).congr_of_eventuallyEq hzero
 
+
+/-- A function smooth on a larger interval has a globally smooth representative on the
+smaller positive interval. -/
+theorem exists_contDiff_eqOn_Icc (l u : ℝ) (hl : 0 < l) (hlu : l < u)
+    (g : ℝ → ℝ) (hg : ContDiffOn ℝ ∞ g (Icc (l / 2) (2 * u))) :
+    ∃ G : ℝ → ℝ, ContDiff ℝ ∞ G ∧ EqOn G g (Icc l u) := by
+  let χ : ContDiffBump ((l + u) / 2 : ℝ) :=
+    ⟨(u - l) / 2 + l / 8, (u - l) / 2 + l / 4, by linarith, by linarith⟩
+  let G : ℝ → ℝ := fun x => χ x * g x
+  have hsupport : tsupport (χ : ℝ → ℝ) ⊆ Ioo (l / 2) (2 * u) := by
+    intro x hx
+    rw [χ.tsupport_eq, Metric.mem_closedBall, Real.dist_eq, abs_le] at hx
+    change -((u - l) / 2 + l / 4) ≤ x - (l + u) / 2 ∧
+      x - (l + u) / 2 ≤ (u - l) / 2 + l / 4 at hx
+    constructor <;> linarith [hx.1, hx.2]
+  have hG : ContDiff ℝ ∞ G :=
+    contDiff_mul_of_tsupport isOpen_Ioo χ.contDiff
+      (hg.mono Ioo_subset_Icc_self) hsupport
+  refine ⟨G, hG, ?_⟩
+  intro x hx
+  have hχ : χ x = 1 := by
+    apply χ.one_of_mem_closedBall
+    rw [Metric.mem_closedBall, Real.dist_eq, abs_le]
+    change -((u - l) / 2 + l / 8) ≤ x - (l + u) / 2 ∧
+      x - (l + u) / 2 ≤ (u - l) / 2 + l / 8
+    constructor <;> linarith [hx.1, hx.2]
+  simp [G, hχ]
 
 end
 end Expdb.SmoothExtension

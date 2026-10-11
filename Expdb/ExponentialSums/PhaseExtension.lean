@@ -4,18 +4,14 @@ public import Expdb.ExponentialSums.PhaseFunctions
 public import Expdb.Mathlib.SmoothExtension
 public import Expdb.Mathlib.IteratedDeriv
 import Mathlib.Analysis.Calculus.MeanValue
-import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 import Mathlib.Analysis.SpecialFunctions.Pow.Deriv
-import Mathlib.Tactic.FunProp
 
 /-!
-# Controlled extension of phase errors
+# Extension of approximate model phases
 
-The B-process needs phases on a larger interval than `[1, 2]`. This bridge uses
-Borel jet realization and gluing to extend a smooth error exactly, with a bound
-for any prescribed finite number of derivatives. The constant is independent
-of the error function and of its uncontrolled higher derivatives.
+This file extends approximate model phases to larger positive intervals while
+preserving their values on `[1, 2]` and controlling finitely many derivative errors.
 -/
 
 @[expose] public section
@@ -26,113 +22,8 @@ open Set
 open scoped ContDiff Topology
 noncomputable section
 
-/-- A smooth error on the phase interval extends exactly to any larger compact
-interval, with finite derivative bounds uniform over the original error. -/
-theorem exists_phaseError_extension (P : ℕ) :
-    ∃ C : ℝ, 1 ≤ C ∧ ∀ δ : ℝ, 0 < δ → ∀ f : ℝ → ℝ,
-      ContDiffOn ℝ ∞ f phaseInterval →
-      (∀ k ≤ P, ∀ x ∈ phaseInterval, ‖iteratedDerivWithin k f phaseInterval x‖ ≤ δ) →
-      ∀ l u : ℝ, l < 1 → 2 < u →
-      ∃ g : ℝ → ℝ, ContDiffOn ℝ ∞ g (Icc l u) ∧ EqOn g f phaseInterval ∧
-        ∀ k ≤ P, ∀ x ∈ Icc l u, ‖iteratedDerivWithin k g (Icc l u) x‖ ≤ C * δ := by
-  obtain ⟨C, hC, hrealize⟩ :=
-    SmoothExtension.exists_contDiff_iteratedDeriv_eq_with_small_bound (F := ℝ) P
-  refine ⟨max 1 C, le_max_left _ _, ?_⟩
-  intro δ hδ f hf hbound l u hl hu
-  have hf' : ContDiffOn ℝ ∞ f (Icc 1 2) := hf
-  obtain ⟨L, hL, hLj, hLb⟩ := hrealize δ hδ
-    (fun k => iteratedDerivWithin k f phaseInterval 1)
-    (fun k hk => hbound k hk 1 (by norm_num [phaseInterval]))
-  obtain ⟨R, hR, hRj, hRb⟩ := hrealize δ hδ
-    (fun k => iteratedDerivWithin k f phaseInterval 2)
-    (fun k hk => hbound k hk 2 (by norm_num [phaseInterval]))
-  let fL : ℝ → ℝ := fun x => L (x - 1)
-  let fR : ℝ → ℝ := fun x => R (x - 2)
-  have hfL : ContDiff ℝ ∞ fL := hL.comp (contDiff_id.sub contDiff_const)
-  have hfR : ContDiff ℝ ∞ fR := hR.comp (contDiff_id.sub contDiff_const)
-  have hLderiv (k : ℕ) (x : ℝ) : iteratedDeriv k fL x = iteratedDeriv k L (x - 1) :=
-    congrFun (iteratedDeriv_comp_sub_const k L 1) x
-  have hRderiv (k : ℕ) (x : ℝ) : iteratedDeriv k fR x = iteratedDeriv k R (x - 2) :=
-    congrFun (iteratedDeriv_comp_sub_const k R 2) x
-  have hLzero : fL 1 = f 1 := by
-    simpa [fL, iteratedDeriv_zero, iteratedDerivWithin_zero] using hLj 0
-  have hRzero : fR 2 = f 2 := by
-    simpa [fR, iteratedDeriv_zero, iteratedDerivWithin_zero] using hRj 0
-  let g₁ : ℝ → ℝ := fun x => if x ≤ 1 then fL x else f x
-  have hg₁ : ContDiffOn ℝ ∞ g₁ (Icc l 2) := by
-    apply SmoothExtension.contDiffOn_Icc_ite_of_jet_match hl (by norm_num)
-      hfL.contDiffOn hf'
-    intro k
-    rw [iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hl)
-      (hfL.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt
-        ⟨hl.le, le_rfl⟩, hLderiv, sub_self, hLj]
-    rfl
-  have hg₁eq : EqOn g₁ f phaseInterval := by
-    intro x hx
-    dsimp [g₁]
-    split_ifs with h
-    · have : x = 1 := le_antisymm h hx.1
-      subst x
-      exact hLzero
-    · rfl
-  have hsub : phaseInterval ⊆ Icc l 2 := fun x hx => ⟨hl.le.trans hx.1, hx.2⟩
-  let g : ℝ → ℝ := fun x => if x ≤ 2 then g₁ x else fR x
-  have hg : ContDiffOn ℝ ∞ g (Icc l u) := by
-    apply SmoothExtension.contDiffOn_Icc_ite_of_jet_match (by linarith) hu
-      hg₁ hfR.contDiffOn
-    intro k
-    rw [iteratedDerivWithin_eq_of_restriction hsub uniqueDiffOn_phaseInterval
-      (uniqueDiffOn_Icc (by linarith)) hg₁ hg₁eq (by norm_num [phaseInterval]) k]
-    rw [iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hu)
-      (hfR.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt
-        ⟨le_rfl, hu.le⟩, hRderiv, sub_self, hRj]
-  have hgeq : EqOn g f phaseInterval := by
-    intro x hx
-    exact (if_pos hx.2).trans (hg₁eq hx)
-  have hgLeq : EqOn g fL (Icc l 1) := by
-    intro x hx
-    dsimp [g, g₁]
-    rw [if_pos (hx.2.trans (by norm_num)), if_pos hx.2]
-  have hgReq : EqOn g fR (Icc 2 u) := by
-    intro x hx
-    dsimp [g]
-    split_ifs with h
-    · have : x = 2 := le_antisymm h hx.1
-      subst x
-      exact (hg₁eq (by norm_num [phaseInterval])).trans hRzero.symm
-    · rfl
-  have hJ : UniqueDiffOn ℝ (Icc l u) := uniqueDiffOn_Icc (by linarith)
-  have hleftSub : Icc l 1 ⊆ Icc l u := fun y hy => ⟨hy.1, by linarith [hy.2]⟩
-  have hrightSub : Icc 2 u ⊆ Icc l u := fun y hy => ⟨by linarith [hy.1], hy.2⟩
-  have hmiddleSub : phaseInterval ⊆ Icc l u :=
-    fun y hy => ⟨hl.le.trans hy.1, hy.2.trans hu.le⟩
-  refine ⟨g, hg, hgeq, ?_⟩
-  intro k hk x hx
-  by_cases hleft : x ≤ 1
-  · have hxL : x ∈ Icc l 1 := ⟨hx.1, hleft⟩
-    rw [iteratedDerivWithin_eq_of_restriction
-      hleftSub
-      (uniqueDiffOn_Icc hl) hJ hg hgLeq hxL k,
-      iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hl)
-        (hfL.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt hxL, hLderiv]
-    exact (hLb k hk _).trans (mul_le_mul_of_nonneg_right (le_max_right _ _) hδ.le)
-  · by_cases hright : 2 ≤ x
-    · have hxR : x ∈ Icc 2 u := ⟨hright, hx.2⟩
-      rw [iteratedDerivWithin_eq_of_restriction
-        hrightSub
-        (uniqueDiffOn_Icc hu) hJ hg hgReq hxR k,
-        iteratedDerivWithin_eq_iteratedDeriv (uniqueDiffOn_Icc hu)
-          (hfR.of_le (by exact_mod_cast (le_top : (k : ℕ∞) ≤ ⊤))).contDiffAt hxR, hRderiv]
-      exact (hRb k hk _).trans (mul_le_mul_of_nonneg_right (le_max_right _ _) hδ.le)
-    · have hxF : x ∈ phaseInterval := ⟨(lt_of_not_ge hleft).le, (lt_of_not_ge hright).le⟩
-      rw [iteratedDerivWithin_eq_of_restriction
-        hmiddleSub
-        uniqueDiffOn_phaseInterval hJ hg hgeq hxF k]
-      exact (hbound k hk x hxF).trans (by
-        simpa using mul_le_mul_of_nonneg_right (le_max_left (1 : ℝ) C) hδ.le)
-
 /-- A primitive of the reference derivative on the positive half-line. -/
-def modelPhasePrimitive (σ : ℝ) (x : ℝ) : ℝ :=
+private def modelPhasePrimitive (σ : ℝ) (x : ℝ) : ℝ :=
   if σ = 1 then Real.log x else x ^ (1 - σ) / (1 - σ)
 
 private theorem hasDerivAt_modelPhasePrimitive (σ : ℝ) {x : ℝ} (hx : 0 < x) :
@@ -159,11 +50,11 @@ private theorem contDiffOn_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
   · simp only [if_neg hσ]
     exact ((Real.contDiffAt_rpow_const_of_ne (hs x hx).ne').div_const _).contDiffWithinAt
 
-private theorem iteratedDerivWithin_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
+private theorem iteratedDerivWithin_modelPhasePrimitive (σ c : ℝ) {s : Set ℝ}
     (hs : UniqueDiffOn ℝ s) (hpos : ∀ x ∈ s, 0 < x) (p : ℕ) {x : ℝ} (hx : x ∈ s) :
-    iteratedDerivWithin (p + 1) (modelPhasePrimitive σ) s x =
+    iteratedDerivWithin (p + 1) (fun y ↦ c + modelPhasePrimitive σ y) s x =
       iteratedDerivWithin p (modelPhase σ) s x := by
-  rw [iteratedDerivWithin_succ']
+  rw [iteratedDerivWithin_const_add (by omega), iteratedDerivWithin_succ']
   apply iteratedDerivWithin_congr (s := s) _ hx
   intro y hy
   exact (hasDerivAt_modelPhasePrimitive σ (hpos y hy)).hasDerivWithinAt.derivWithin
@@ -180,7 +71,7 @@ theorem exists_approximateModelPhase_extension (P : ℕ) :
         ∀ p ≤ P, ∀ x ∈ Icc l u,
           ‖iteratedDerivWithin (p + 1) G (Icc l u) x -
             iteratedDerivWithin p (modelPhase σ) (Icc l u) x‖ ≤ C * δ := by
-  obtain ⟨C, hC, hextend⟩ := exists_phaseError_extension (P + 1)
+  obtain ⟨C, hC, hextend⟩ := SmoothExtension.exists_contDiffOn_Icc_extension_with_bound (P + 1)
   refine ⟨C, hC, ?_⟩
   intro δ hδ σ F hF l u hl0 hl hu
   have hpos : ∀ x ∈ phaseInterval, 0 < x := fun x hx => zero_lt_one.trans_le hx.1
@@ -199,8 +90,7 @@ theorem exists_approximateModelPhase_extension (P : ℕ) :
       ((hQc.of_le (by exact_mod_cast (le_top : ((p + 1) : ℕ∞) ≤ ⊤))) x hx)]
     change iteratedDerivWithin (p + 1) F phaseInterval x -
       iteratedDerivWithin (p + 1) (fun x => c + modelPhasePrimitive σ x) phaseInterval x = _
-    rw [iteratedDerivWithin_const_add (by omega),
-      iteratedDerivWithin_modelPhasePrimitive σ uniqueDiffOn_phaseInterval hpos p hx]
+    rw [iteratedDerivWithin_modelPhasePrimitive σ c uniqueDiffOn_phaseInterval hpos p hx]
     rfl
   have hfirst : ∀ x ∈ phaseInterval, ‖derivWithin f phaseInterval x‖ ≤ δ := by
     intro x hx
@@ -241,35 +131,8 @@ theorem exists_approximateModelPhase_extension (P : ℕ) :
       ((hQJ.of_le (by exact_mod_cast (le_top : ((p + 1) : ℕ∞) ≤ ⊤))) x hx)]
     change ‖iteratedDerivWithin (p + 1) g (Icc l u) x +
       iteratedDerivWithin (p + 1) (fun x => c + modelPhasePrimitive σ x) (Icc l u) x - _‖ ≤ _
-    rw [iteratedDerivWithin_const_add (by omega),
-      iteratedDerivWithin_modelPhasePrimitive σ hJ hposJ p hx, add_sub_cancel_right]
+    rw [iteratedDerivWithin_modelPhasePrimitive σ c hJ hposJ p hx, add_sub_cancel_right]
     exact hgb (p + 1) (by omega) x hx
-
-
-private theorem exists_global_smooth_restriction (l u : ℝ) (hl : 0 < l) (hlu : l < u)
-    (g : ℝ → ℝ) (hg : ContDiffOn ℝ ∞ g (Icc (l / 2) (2 * u))) :
-    ∃ G : ℝ → ℝ, ContDiff ℝ ∞ G ∧ EqOn G g (Icc l u) := by
-  let χ : ContDiffBump ((l + u) / 2 : ℝ) :=
-    ⟨(u - l) / 2 + l / 8, (u - l) / 2 + l / 4, by linarith, by linarith⟩
-  let G : ℝ → ℝ := fun x => χ x * g x
-  have hsupport : tsupport (χ : ℝ → ℝ) ⊆ Ioo (l / 2) (2 * u) := by
-    intro x hx
-    rw [χ.tsupport_eq, Metric.mem_closedBall, Real.dist_eq, abs_le] at hx
-    change -((u - l) / 2 + l / 4) ≤ x - (l + u) / 2 ∧
-      x - (l + u) / 2 ≤ (u - l) / 2 + l / 4 at hx
-    constructor <;> linarith [hx.1, hx.2]
-  have hG : ContDiff ℝ ∞ G :=
-    SmoothExtension.contDiff_mul_of_tsupport isOpen_Ioo χ.contDiff
-      (hg.mono Ioo_subset_Icc_self) hsupport
-  refine ⟨G, hG, ?_⟩
-  intro x hx
-  have hχ : χ x = 1 := by
-    apply χ.one_of_mem_closedBall
-    rw [Metric.mem_closedBall, Real.dist_eq, abs_le]
-    change -((u - l) / 2 + l / 8) ≤ x - (l + u) / 2 ∧
-      x - (l + u) / 2 ≤ (u - l) / 2 + l / 8
-    constructor <;> linarith [hx.1, hx.2]
-  simp [G, hχ]
 
 /-- The controlled extension can be chosen globally smooth. This allows the
 ordinary-derivative normal-form machinery to be applied on a larger positive
@@ -287,7 +150,7 @@ theorem exists_global_approximateModelPhase_extension (P : ℕ) :
   have hlu : l < u := by linarith
   obtain ⟨g, hg, heq, hb⟩ := hext δ hδ σ F hF (l / 2) (2 * u)
     (by positivity) (by linarith) (by linarith)
-  obtain ⟨G, hG, hGg⟩ := exists_global_smooth_restriction l u hl0 hlu g hg
+  obtain ⟨G, hG, hGg⟩ := SmoothExtension.exists_contDiff_eqOn_Icc l u hl0 hlu g hg
   have hJ : UniqueDiffOn ℝ (Icc l u) := uniqueDiffOn_Icc hlu
   have hK : UniqueDiffOn ℝ (Icc (l / 2) (2 * u)) := uniqueDiffOn_Icc (by linarith)
   have hJK : Icc l u ⊆ Icc (l / 2) (2 * u) := by
