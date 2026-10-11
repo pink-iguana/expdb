@@ -3,7 +3,7 @@ module
 public import Expdb.Basic.DerivativeAsymptotics
 public import Expdb.ExponentialSums.PhaseExtension
 public import Expdb.ExponentialSums.PhaseFunctions
-public import Expdb.Mathlib.InverseFunction
+public import Expdb.Mathlib.StationaryPhase
 public import Expdb.Mathlib.IteratedDeriv
 public import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 public import Mathlib.Analysis.Calculus.ContDiff.Basic
@@ -21,20 +21,15 @@ import Mathlib.Topology.Algebra.Order.Field
 /-!
 # Regularization and the dual phase for the B-process
 
-Model phases are extended smoothly and regularized outside the summation interval to give
-uniform global curvature and derivative bounds. `RegularizedPhases` records these properties.
-
-For a globally concave phase `H`, the stationary point of `x ↦ H x - ν x` is
-`x(ν) = (H')⁻¹(ν)`. The stationary value `Ψ(ν) = H(x(ν)) - ν x(ν)` uses the negative
-Legendre-transform convention. Its derivative is `-x(ν)`.
-
-On a block `ν ∈ [κ, 2κ]`, the normalized dual phase
-`u ↦ -Ψ(κ u) / κ ^ (1 - 1 / σ)` is a model phase of exponent `1 / σ`.
+This module regularizes model phases and constructs the normalized dual model phases
+used by the van der Corput B-process.
 -/
 
 @[expose] public section
 
 namespace Expdb.BProcess
+
+open StationaryPhase
 
 open Filter Topology Set MeasureTheory
 open scoped ContDiff
@@ -136,18 +131,7 @@ private theorem norm_integral_le_of_vanishing_outside {f : ℝ → ℝ} (hf : Co
       intervalIntegral.norm_integral_le_integral_norm_uIoc
     _ ≤ ∫ t, ‖f t‖ := setIntegral_le_integral hint.norm
       (Eventually.of_forall fun _ ↦ norm_nonneg _)
-    _ = ∫ t in Icc a b, ‖f t‖ := by
-      symm
-      apply setIntegral_eq_integral_of_forall_compl_eq_zero
-      intro y hy
-      simp [hzero y hy]
-    _ ≤ ε * (b - a) := by
-      have h := norm_setIntegral_le_of_norm_le_const (μ := volume) (s := Icc a b)
-        (f := fun t ↦ ‖f t‖) (C := ε) (by simp)
-        (fun t ht ↦ by simpa using hbound t ht)
-      rw [Real.norm_of_nonneg (integral_nonneg fun _ ↦ norm_nonneg _)] at h
-      simpa only [Measure.real, Real.volume_Icc, ENNReal.toReal_ofReal (sub_nonneg.2 hab)]
-        using h
+    _ ≤ ε * (b - a) := integral_norm_le_of_support_Icc hab hzero hbound
 
 end Primitives
 
@@ -582,86 +566,6 @@ section DualPhase
 
 /-! ## Derivative convergence at moving points -/
 
-/-- Uniform derivative convergence with bounded limits gives `DerivativesClose`
-at asymptotically equal points. -/
-private theorem derivativesClose_of_uniform {f : ℕ → ℝ → ℝ} {f₀ : ℝ → ℝ} (hf₀ : ContDiff ℝ ∞ f₀)
-    (hconv : ∀ k, ∀ ε > 0, ∀ᶠ i in atTop, ∀ x,
-      ‖iteratedDeriv k (f i) x - iteratedDeriv k f₀ x‖ ≤ ε)
-    (hbdd : ∀ k, ∃ K, ∀ x, ‖iteratedDeriv k f₀ x‖ ≤ K)
-    {p p' : ℕ → ℝ} (hpp : Tendsto (fun i ↦ p i - p' i) atTop (𝓝 0)) (n : ℕ) :
-    DerivativesClose f (fun _ ↦ f₀) p p' n := by
-  intro k _
-  obtain ⟨K, hK⟩ := hbdd k
-  obtain ⟨K', hK'⟩ := hbdd (k + 1)
-  refine ⟨?_, ⟨K, ?_⟩⟩
-  · rw [isEqUpToInfinitesimal_iff_tendsto_sub]
-    have h1 : Tendsto (fun i ↦ iteratedDeriv k (f i) (p i) - iteratedDeriv k f₀ (p i))
-        atTop (𝓝 0) := by
-      rw [Metric.tendsto_nhds]
-      intro ε hε
-      filter_upwards [hconv k (ε / 2) (half_pos hε)] with i hi
-      rw [dist_zero_right]
-      exact lt_of_le_of_lt (hi _) (half_lt_self hε)
-    have hlip : ∀ x y, ‖iteratedDeriv k f₀ x - iteratedDeriv k f₀ y‖ ≤ K' * ‖x - y‖ := by
-      intro x y
-      exact Convex.norm_image_sub_le_of_norm_deriv_le (s := univ)
-        (fun z _ ↦ (hf₀.differentiable_iteratedDeriv k (by exact_mod_cast WithTop.coe_lt_top _))
-          z)
-        (fun z _ ↦ by rw [← iteratedDeriv_succ]; exact hK' z) convex_univ trivial trivial
-    have h2 : Tendsto (fun i ↦ iteratedDeriv k f₀ (p i) - iteratedDeriv k f₀ (p' i))
-        atTop (𝓝 0) := by
-      apply squeeze_zero_norm (fun i ↦ hlip _ _)
-      simpa using hpp.norm.const_mul K'
-    simpa using h1.add h2
-  · exact Eventually.of_forall fun i ↦ hK _
-
-/-! ## Stationary points and the Legendre transform -/
-
-/-- The inverse of the derivative of a phase: `phaseInverse H ν` is the stationary point of
-`x ↦ H x - ν x`. -/
-def phaseInverse (H : ℝ → ℝ) : ℝ → ℝ := Function.invFun (deriv H)
-
-theorem phaseInverse_spec {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c : ℝ} (hc : 0 < c)
-    (hcurv : ∀ x, iteratedDeriv 2 H x ≤ -c) :
-    ContDiff ℝ ∞ (phaseInverse H) ∧ (∀ x, phaseInverse H (deriv H x) = x) ∧
-      ∀ y, deriv H (phaseInverse H y) = y := by
-  have hH1 : ContDiff ℝ ∞ (deriv H) := hH.deriv' (n := ∞)
-  have hd : ∀ x, deriv (deriv H) x ≤ -c := fun x ↦ by
-    simpa [iteratedDeriv_succ, iteratedDeriv_one] using hcurv x
-  obtain ⟨g, hg, hgf, hfg⟩ := exists_smooth_inverse_of_deriv_le_neg hH1 hc hd
-  have hinj : Function.Injective (deriv H) := fun x y hxy ↦ by
-    rw [← hgf x, ← hgf y, hxy]
-  have heq : phaseInverse H = g := by
-    funext y
-    apply hinj
-    rw [hfg]
-    exact Function.invFun_eq ⟨g y, hfg y⟩
-  rw [heq]
-  exact ⟨hg, hgf, hfg⟩
-
-/-- The stationary value `ν ↦ H(x(ν)) - ν x(ν)`, using the negative Legendre-transform
-convention. Here `x(ν)` is the stationary point of `x ↦ H x - ν x`. -/
-def legendre (H : ℝ → ℝ) (ν : ℝ) : ℝ := H (phaseInverse H ν) - ν * phaseInverse H ν
-
-private theorem contDiff_legendre {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c : ℝ} (hc : 0 < c)
-    (hcurv : ∀ x, iteratedDeriv 2 H x ≤ -c) : ContDiff ℝ ∞ (legendre H) := by
-  have hψ := (phaseInverse_spec hH hc hcurv).1
-  exact (hH.comp hψ).sub (contDiff_id.mul hψ)
-
-private theorem deriv_legendre {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c : ℝ} (hc : 0 < c)
-    (hcurv : ∀ x, iteratedDeriv 2 H x ≤ -c) (ν : ℝ) :
-    HasDerivAt (legendre H) (-phaseInverse H ν) ν := by
-  obtain ⟨hψ, -, hfg⟩ := phaseInverse_spec hH hc hcurv
-  have hψd : HasDerivAt (phaseInverse H) (deriv (phaseInverse H) ν) ν :=
-    ((hψ.differentiable (by simp)) ν).hasDerivAt
-  have hHd : HasDerivAt H (deriv H (phaseInverse H ν)) (phaseInverse H ν) :=
-    ((hH.differentiable (by simp)) _).hasDerivAt
-  have h := (hHd.comp ν hψd).sub ((hasDerivAt_id ν).mul hψd)
-  refine h.congr_deriv ?_
-  rw [hfg]
-  simp only [id]
-  ring
-
 /-- The normalized dual phase on the block `[κ, 2κ]`. -/
 def dualPhase (H : ℝ → ℝ) (κ S : ℝ) (u : ℝ) : ℝ := -legendre H (κ * u) / S
 
@@ -676,7 +580,7 @@ private theorem deriv_dualPhase {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c :
   have h1 : HasDerivAt (fun u ↦ κ * u) κ u := by
     simpa using (hasDerivAt_id u).const_mul κ
   have h : HasDerivAt (dualPhase H κ S) (-(-phaseInverse H (κ * u) * κ) / S) u :=
-    ((deriv_legendre hH hc hcurv (κ * u)).comp u h1).neg.div_const S
+    ((hasDerivAt_legendre hH hc hcurv (κ * u)).comp u h1).neg.div_const S
   rw [h.deriv]
   ring
 
@@ -776,7 +680,7 @@ private theorem derivativesClose_phaseInverse (hR : RegularizedPhases σ a b G H
     have h2 : ∀ (F : ℝ → ℝ), deriv (deriv F) = iteratedDeriv 2 F := fun F ↦ by
       rw [iteratedDeriv_succ, iteratedDeriv_one]
     simp only [h2]
-    apply derivativesClose_of_uniform
+    apply DerivativesClose.of_uniform
     · rw [← h2]
       exact ((hR.smooth_lim.deriv' (n := ∞))).deriv' (n := ∞)
     · intro k ε hε

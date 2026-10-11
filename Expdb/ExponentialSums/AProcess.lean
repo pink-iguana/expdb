@@ -9,9 +9,7 @@ import Mathlib.Data.Nat.Log
 /-!
 # The van der Corput A-process for growth exponents
 
-The blueprint proof selects a logarithmic range of shifts, normalizes its difference
-phase, and applies the defining bound for β. Below the cutoff `N²/T`, the existing
-formula `β(x) = x - 1` for `x > 1` supplies the small-shift cancellation estimate.
+This module derives growth bounds from differencing and normalized difference phases.
 -/
 
 @[expose] public section
@@ -23,99 +21,29 @@ noncomputable section
 
 namespace Expdb
 
-/-- Dyadic pigeonholing costs only the number of logarithmic ranges. Each range
-contains at most its lower endpoint's number of shifts. -/
-private theorem exists_shift_dyadic_bound (C : ℕ → ℝ) (hC : ∀ j, 0 ≤ C j)
-    {H : ℕ} (hH : 1 ≤ H) :
-    ∃ j : ℕ, 1 ≤ j ∧ j ≤ H ∧
-      (∑ k ∈ Finset.Ico 1 H, C k) ≤ (Nat.log 2 H + 1 : ℕ) * ((j : ℝ) * C j) := by
-  classical
-  by_cases hH1 : H = 1
-  · refine ⟨1, le_rfl, by omega, ?_⟩
-    simp only [hH1, Finset.Ico_self, Finset.sum_empty]
-    exact mul_nonneg (Nat.cast_nonneg _) (by simpa using hC 1)
-  let J := Finset.Ico 1 H
-  obtain ⟨j, hj, hmax⟩ := Finset.exists_max_image J (fun k ↦ (k : ℝ) * C k)
-    ⟨1, by simp [J]; omega⟩
-  let M : ℝ := (j : ℝ) * C j
-  have hM : 0 ≤ M := mul_nonneg (Nat.cast_nonneg _) (hC j)
-  have hbin : ∀ k : ℕ, (∑ n ∈ J with Nat.log 2 n = k, C n) ≤ M := by
-    intro k
-    let B := J.filter (fun n ↦ Nat.log 2 n = k)
-    have hB : B ⊆ Finset.Ico (2 ^ k) (2 ^ (k + 1)) := by
-      intro n hn
-      obtain ⟨hnJ, hnlog⟩ := Finset.mem_filter.1 hn
-      have hnpos : n ≠ 0 := by have := (Finset.mem_Ico.1 hnJ).1; omega
-      rw [Finset.mem_Ico]
-      constructor
-      · simpa [hnlog] using Nat.pow_log_le_self 2 hnpos
-      · simpa [hnlog] using Nat.lt_pow_succ_log_self (by decide : 1 < 2) n
-    have hcard : (B.card : ℝ) ≤ (2 : ℝ) ^ k := by
-      have hc := Finset.card_le_card hB
-      rw [Nat.card_Ico, pow_succ] at hc
-      have hc' : B.card ≤ 2 ^ k := by omega
-      exact_mod_cast hc'
-    have hpow : (0 : ℝ) < 2 ^ k := by positivity
-    have hentry : ∀ n ∈ B, C n ≤ M / (2 : ℝ) ^ k := by
-      intro n hn
-      have hnJ := (Finset.mem_filter.1 hn).1
-      have hlower : (2 : ℝ) ^ k ≤ n := by exact_mod_cast (Finset.mem_Ico.1 (hB hn)).1
-      apply (le_div_iff₀ hpow).2
-      calc
-        C n * 2 ^ k ≤ (n : ℝ) * C n := by nlinarith [hC n]
-        _ ≤ M := hmax n hnJ
-    calc
-      _ ≤ ∑ _n ∈ B, M / (2 : ℝ) ^ k := Finset.sum_le_sum hentry
-      _ = (B.card : ℝ) * (M / (2 : ℝ) ^ k) := by simp
-      _ ≤ (2 : ℝ) ^ k * (M / (2 : ℝ) ^ k) :=
-        mul_le_mul_of_nonneg_right hcard (div_nonneg hM hpow.le)
-      _ = M := by field_simp
-  have hfiber := Finset.sum_fiberwise_of_maps_to
-    (s := J) (t := Finset.range (Nat.log 2 H + 1)) (g := Nat.log 2)
-    (fun n hn ↦ Finset.mem_range.2 (by
-      exact Nat.lt_succ_of_le (Nat.log_mono_right (Finset.mem_Ico.1 hn).2.le))) C
-  refine ⟨j, (Finset.mem_Ico.1 hj).1, (Finset.mem_Ico.1 hj).2.le, ?_⟩
-  calc
-    _ = ∑ k ∈ Finset.range (Nat.log 2 H + 1), ∑ n ∈ J with Nat.log 2 n = k, C n :=
-      hfiber.symm
-    _ ≤ ∑ _k ∈ Finset.range (Nat.log 2 H + 1), M :=
-      Finset.sum_le_sum fun k _ ↦ hbin k
-    _ = _ := by simp [M]
-
 private theorem isPowerBounded_dyadic_range_count {H : VariableObject ℕ}
     {T : VariableObject ℝ} {h : ℝ} (hh : 0 ≤ h)
     (hT : ∀ i, 1 ≤ T i) (hTunbounded : T.IsUnbounded)
     (hHT : IsPowerAsymptotic (fun i ↦ (H i : ℝ)) T h) :
     IsPowerBounded (fun i ↦ ((Nat.log 2 (H i) + 1 : ℕ) : ℝ)) T 0 := by
-  apply (isPowerBounded_iff_forall_pos _ T 0 hT hTunbounded).2
-  intro ε hε
-  let η : ℝ := ε / (h + 1)
-  have hη : 0 < η := div_pos hε (by linarith)
-  have hlog2 : 0 < Real.log 2 := Real.log_pos (by norm_num)
-  have hupper := hHT.eventually_between (Filter.Eventually.of_forall hT) zero_lt_one
-  refine Asymptotics.IsBigO.of_bound (1 / (η * Real.log 2) + 1) ?_
-  filter_upwards [hupper] with i hi
-  have hpow : (H i : ℝ) ^ η ≤ T i ^ ε := by
-    calc
-      _ ≤ (T i ^ (h + 1)) ^ η :=
-        Real.rpow_le_rpow (Nat.cast_nonneg _) hi.2 hη.le
-      _ = T i ^ ε := by
-        rw [← Real.rpow_mul (zero_le_one.trans (hT i))]
-        congr 1
-        dsimp [η]
-        field_simp
-  have hlog : Real.log (H i) ≤ T i ^ ε / η :=
-    (Real.log_natCast_le_rpow_div (H i) hη).trans
-      (div_le_div_of_nonneg_right hpow hη.le)
-  have hnatlog : (Nat.log 2 (H i) : ℝ) ≤ Real.log (H i) / Real.log 2 := by
-    simpa [Real.logb] using Real.natLog_le_logb (H i) 2
-  have hnatbound := hnatlog.trans (div_le_div_of_nonneg_right hlog hlog2.le)
-  have hone : 1 ≤ T i ^ ε := Real.one_le_rpow (hT i) hε.le
-  rw [Real.norm_of_nonneg (Nat.cast_nonneg _), Real.norm_of_nonneg
-    (Real.rpow_nonneg (zero_le_one.trans (hT i)) _), zero_add, Nat.cast_add, Nat.cast_one]
-  calc
-    _ ≤ T i ^ ε / η / Real.log 2 + T i ^ ε := add_le_add hnatbound hone
-    _ = _ := by ring
+  have hupper := hHT.eventually_between (Eventually.of_forall hT) zero_lt_one
+  have hpos : ∀ᶠ i in atTop, 1 ≤ (H i : ℝ) := by
+    filter_upwards [hupper] with i hi
+    have hpos : 0 < (H i : ℝ) :=
+      (Real.rpow_pos_of_pos (zero_lt_one.trans_le (hT i)) _).trans_le hi.1
+    have hnat : 0 < H i := by exact_mod_cast hpos
+    exact_mod_cast hnat
+  have hlog := isPowerBounded_log_of_le_const_rpow (C := 1) le_rfl
+    (by linarith : 0 ≤ h + 1) hT hTunbounded hpos (by simpa using hupper.mono fun i hi ↦ hi.2)
+  have hconst := isPowerBounded_const T 1
+  have hb : IsPowerBounded (fun i ↦ 1 / Real.log 2 * Real.log (H i) + 1) T 0 := by
+    simpa only [Pi.add_def, max_self] using (hlog.const_mul (1 / Real.log 2)).add hconst hT
+  apply hb.of_norm_le
+  filter_upwards [hpos] with i hi
+  rw [Real.norm_of_nonneg (Nat.cast_nonneg _)]
+  simp only [Nat.cast_add, Nat.cast_one]
+  have h := Real.natLog_le_logb (H i) 2
+  simpa [Real.logb, div_eq_mul_inv, mul_comm] using add_le_add_right h 1
 
 private theorem correlation_isPowerBounded
     {α h' σ : ℝ} (hα : 0 < α) (hα1 : α < 1) (hh' : 0 ≤ h') (hh'α : h' < α)
@@ -175,10 +103,8 @@ private theorem correlation_isPowerBounded
   have hStop : Tendsto S atTop atTop := hST.tendsto_atTop_of_pos hκ hT hTunbounded
   have hMS : IsPowerAsymptotic M S (α / κ) := hMT.change_base hST hκ hT
   have hακ : 0 ≤ α / κ := (div_pos hα hκ).le
-  have hsetup : ∀ᶠ i in atTop, 1 ≤ M i ∧ 1 ≤ S i ∧
-      M i ≤ ((a i - j i : ℕ) : ℝ) ∧ ((b i - 2 * j i : ℕ) : ℝ) ≤ 2 * M i := by
-    filter_upwards [hsmall, hNtop.eventually (eventually_ge_atTop 2),
-      hStop.eventually (eventually_ge_atTop 1)] with i hi hiN hiS
+  have hindices : ∀ᶠ i in atTop, j i ≤ a i ∧ 2 * j i ≤ b i := by
+    filter_upwards [hsmall] with i hi
     have hjN : 2 * J i < N i := by
       have := (div_lt_iff₀ (hNpos i)).1 hi
       linarith
@@ -191,6 +117,16 @@ private theorem correlation_isPowerBounded
         ((hab i).1.trans (by exact_mod_cast (hab i).2.2))
       dsimp [J] at this
       exact_mod_cast this
+    exact ⟨hja, hjb⟩
+  have hsetup : ∀ᶠ i in atTop, 1 ≤ M i ∧ 1 ≤ S i ∧
+      M i ≤ ((a i - j i : ℕ) : ℝ) ∧ ((b i - 2 * j i : ℕ) : ℝ) ≤ 2 * M i := by
+    filter_upwards [hindices, hsmall, hNtop.eventually (eventually_ge_atTop 2),
+      hStop.eventually (eventually_ge_atTop 1)] with i hiIndices hi hiN hiS
+    have hjN : 2 * J i < N i := by
+      have := (div_lt_iff₀ (hNpos i)).1 hi
+      linarith
+    have hja := hiIndices.1
+    have hjb := hiIndices.2
     dsimp [M]
     rw [Nat.cast_sub hja, Nat.cast_sub hjb, Nat.cast_mul, Nat.cast_ofNat]
     exact ⟨by linarith, hiS, by linarith [(hab i).1], by linarith [(hab i).2.1]⟩
@@ -202,20 +138,9 @@ private theorem correlation_isPowerBounded
   obtain ⟨e, he, hO⟩ := hbase
   obtain ⟨C, hCpos, hC⟩ := hO.exists_pos
   refine ⟨e, he, Asymptotics.IsBigO.of_bound C ?_⟩
-  filter_upwards [hC.bound, hsmall, hsetup] with i hiO hiSmall hiSetup
-  have hja : j i ≤ a i := by
-    have : (j i : ℝ) ≤ (a i : ℝ) := by
-      have := (div_lt_iff₀ (hNpos i)).1 hiSmall
-      dsimp [J] at this
-      linarith [(hab i).1, hN i]
-    exact_mod_cast this
-  have hjb : 2 * j i ≤ b i := by
-    have hjN : 2 * J i < N i := by
-      have := (div_lt_iff₀ (hNpos i)).1 hiSmall
-      linarith
-    have : (2 : ℝ) * (j i : ℝ) ≤ (b i : ℝ) := hjN.le.trans
-      ((hab i).1.trans (by exact_mod_cast (hab i).2.2))
-    exact_mod_cast this
+  filter_upwards [hC.bound, hsmall, hsetup, hindices] with i hiO hiSmall hiSetup hiIndices
+  have hja := hiIndices.1
+  have hjb := hiIndices.2
   have heq := norm_correlationSumAt_eq_differencePhase (F i) (T := T i) hσ.ne' (hNpos i).ne'
     (hj i).ne' (by dsimp [M] at hiSetup; linarith [hiSetup.1] : N i - (j i : ℝ) ≠ 0)
     hja hjb
@@ -301,7 +226,7 @@ private theorem exponentialSum_A_bound
     have hsmall := hHNzero.eventually (gt_mem_nhds (by norm_num : (0 : ℝ) < 1))
     filter_upwards [hsmall] with i hi
     exact ((div_lt_one (zero_lt_one.trans_le (hN i))).1 hi).le
-  have hselect := fun i ↦ exists_shift_dyadic_bound
+  have hselect := fun i ↦ VanDerCorput.exists_dyadic_weighted_bound
     (fun j ↦ ‖correlationSumAt (F i) (T i) (N i) (a i) (b i) j‖)
     (fun j ↦ norm_nonneg _) (Nat.one_le_iff_ne_zero.2 (hHpos i).ne')
   choose j hj hjH hdyadic using hselect

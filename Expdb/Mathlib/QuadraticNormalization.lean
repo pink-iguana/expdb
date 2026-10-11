@@ -1,5 +1,7 @@
 module
 
+public import Expdb.Mathlib.InverseFunction
+
 public import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
 public import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.Analysis.Calculus.TaylorIntegral
@@ -375,8 +377,6 @@ theorem norm_iteratedDeriv_phaseQuadraticFactor_le (F : ℝ → ℝ) (v x : ℝ)
   rw [intervalIntegral.integral_mul_const, integral_one_sub] at hi
   linarith
 
-end
-
 /-- Global curvature bounds bound the quadratic factor. -/
 theorem phaseQuadraticFactor_mem {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
     (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v x : ℝ) :
@@ -401,5 +401,36 @@ theorem le_deriv_phaseQuadraticCoordinate {H : ℝ → ℝ} (hH : ContDiff ℝ �
     (hH.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl 3)) (fun x _ ↦ (hcurv x).1) (fun x
       _ ↦ (hcurv x).2)
     x (Set.mem_univ x)
+
+/-! ## The inverse quadratic coordinate -/
+
+/-- The inverse of the quadratic normal-form coordinate centred at `v`. -/
+def quadInverse (H : ℝ → ℝ) (v : ℝ) : ℝ → ℝ :=
+  Function.invFun (phaseQuadraticCoordinate H v)
+
+theorem quadInverse_spec {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ} (hc : 0 < c)
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v : ℝ) :
+    ContDiff ℝ ∞ (quadInverse H v) ∧
+      (∀ y, phaseQuadraticCoordinate H v (quadInverse H v y) = y) ∧
+      (∀ x, quadInverse H v (phaseQuadraticCoordinate H v x) = x) := by
+  have hC : 0 < C := by linarith [(hcurv 0).1, (hcurv 0).2]
+  obtain ⟨g, hg, hgY, hYg⟩ := exists_smooth_inverse_of_le_deriv
+    (contDiff_phaseQuadraticCoordinate hH hc hcurv v) (div_pos hc (Real.sqrt_pos.2 hC))
+    (le_deriv_phaseQuadraticCoordinate hH hc hcurv v)
+  have heq : quadInverse H v = g :=
+    Function.invFun_eq_of_injective_of_rightInverse
+      (show Function.LeftInverse g _ from hgY).injective hYg
+  rw [heq]
+  exact ⟨hg, hYg, hgY⟩
+
+/-- The quadratic coordinate grows at most linearly. -/
+theorem abs_phaseQuadraticCoordinate_le {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
+    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v x : ℝ) :
+    |phaseQuadraticCoordinate H v x| ≤ |x - v| * Real.sqrt C := by
+  have hq := phaseQuadraticFactor_mem hH hcurv v x
+  rw [phaseQuadraticCoordinate, abs_mul, abs_of_nonneg (Real.sqrt_nonneg _)]
+  exact mul_le_mul_of_nonneg_left (Real.sqrt_le_sqrt (by linarith)) (abs_nonneg _)
+
+end
 
 end Expdb

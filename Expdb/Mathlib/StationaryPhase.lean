@@ -235,10 +235,6 @@ private theorem schwartz_iteratedDeriv_integrable (φ : 𝓢(ℝ, ℂ)) (n : ℕ
 noncomputable def fourierDerivativeL1 (φ : 𝓢(ℝ, ℂ)) (n : ℕ) : ℝ :=
   (∫ x : ℝ, ‖iteratedDeriv n (φ : ℝ → ℂ) x‖)/(2*Real.pi)^n
 
-theorem fourierDerivativeL1_nonneg (φ : 𝓢(ℝ, ℂ)) (n : ℕ) : 0 ≤ fourierDerivativeL1 φ n := by
-  unfold fourierDerivativeL1
-  exact div_nonneg (integral_nonneg (fun _ => norm_nonneg _)) (by positivity)
-
 private theorem schwartz_fourier_weighted_pointwise (φ : 𝓢(ℝ, ℂ)) (n : ℕ) (ξ : ℝ) :
     ‖ξ‖^n * ‖𝓕 φ ξ‖ ≤ fourierDerivativeL1 φ n := by
   have he := congrFun (Real.fourier_iteratedDeriv (N := (⊤ : ℕ∞)) (φ.smooth ⊤)
@@ -376,25 +372,30 @@ private theorem iteratedDeriv_ofReal_comp {g : ℝ → ℝ} (hg : ContDiff ℝ �
   rw [Complex.ofRealCLM.iteratedFDeriv_comp_left hg.contDiffAt (by exact_mod_cast le_top)]
   rfl
 
+/-- The integral norm budget of a function supported in an interval. -/
+theorem integral_norm_le_of_support_Icc {g : ℝ → ℝ} {a b B : ℝ} (hab : a ≤ b)
+    (hzero : ∀ y, y ∉ Icc a b → g y = 0) (hB : ∀ y ∈ Icc a b, ‖g y‖ ≤ B) :
+    ∫ y, ‖g y‖ ≤ B * (b - a) := by
+  rw [← setIntegral_eq_integral_of_forall_compl_eq_zero (s := Icc a b)]
+  · have h := norm_setIntegral_le_of_norm_le_const (μ := volume) (s := Icc a b)
+      (f := fun y ↦ ‖g y‖) (C := B) (by simp) (fun y hy ↦ by simpa using hB y hy)
+    rw [Real.norm_of_nonneg (integral_nonneg fun _ ↦ norm_nonneg _)] at h
+    simpa only [Measure.real, Real.volume_Icc, ENNReal.toReal_ofReal (sub_nonneg.2 hab)] using h
+  · intro y hy
+    simp [hzero y hy]
+
 /-- An integral of a function supported in `[-R, R]` and bounded by `B` is at most
 `2 R B`. -/
 private theorem integral_norm_le_of_support {g : ℝ → ℝ} {R B : ℝ} (hR : 0 ≤ R)
     (hzero : ∀ y, R < |y| → g y = 0) (hB : ∀ y, ‖g y‖ ≤ B) :
     ∫ y, ‖g y‖ ≤ 2 * R * B := by
-  rw [← setIntegral_eq_integral_of_forall_compl_eq_zero (s := Icc (-R) R)]
-  · have h := norm_setIntegral_le_of_norm_le_const (μ := volume) (s := Icc (-R) R)
-      (f := fun y ↦ ‖g y‖) (C := B) (by simp) (fun y _ ↦ by simpa using hB y)
-    rw [Real.norm_of_nonneg (integral_nonneg fun _ ↦ norm_nonneg _)] at h
-    simp only [Measure.real, Real.volume_Icc, sub_neg_eq_add] at h
-    rw [ENNReal.toReal_ofReal (by linarith)] at h
-    linarith
-  · intro y hy
-    have : R < |y| := by
+  have h := integral_norm_le_of_support_Icc (g := g) (a := -R) (b := R) (by linarith)
+    (fun y hy ↦ hzero y (by
       rw [mem_Icc, not_and_or, not_le, not_le] at hy
       rcases hy with h | h
       · rw [abs_of_neg (by linarith)]; linarith
-      · rw [abs_of_pos (by linarith)]; linarith
-    simp [hzero y this]
+      · rw [abs_of_pos (by linarith)]; linarith)) (fun y _ ↦ hB y)
+  nlinarith
 
 /-- Stationary phase for a fixed globally concave phase. A quadratic change of variables
 reduces the integral to the quadratic stationary-phase estimate. -/
@@ -540,6 +541,83 @@ theorem norm_integral_stationary_sub_le {H w X : ℝ → ℝ} {c C lam R B v : �
   calc _ ≤ Real.pi * ((2 * R * B + 2 * R * B) * Real.pi) / (lam * Real.sqrt lam) := herr
     _ = _ := by ring
 
+/-! ## Scalar amplitude estimates (proved for Expdb) -/
+
+/-- Reciprocal square roots are Lipschitz on an interval bounded away from zero. -/
+theorem abs_inv_sqrt_sub_le {c s s' : ℝ} (hc : 0 < c) (hs : c ≤ s) (hs' : c ≤ s') :
+    |1 / Real.sqrt s - 1 / Real.sqrt s'| ≤ |s - s'| / (2 * c * Real.sqrt c) := by
+  have hsc : 0 < Real.sqrt c := Real.sqrt_pos.2 hc
+  have hrs : Real.sqrt c ≤ Real.sqrt s := Real.sqrt_le_sqrt hs
+  have hrs' : Real.sqrt c ≤ Real.sqrt s' := Real.sqrt_le_sqrt hs'
+  have hps : 0 < Real.sqrt s := lt_of_lt_of_le hsc hrs
+  have hps' : 0 < Real.sqrt s' := lt_of_lt_of_le hsc hrs'
+  have h1 : 1 / Real.sqrt s - 1 / Real.sqrt s' =
+      (s' - s) / (Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s')) := by
+    have e1 := Real.sq_sqrt (hc.le.trans hs)
+    have e2 := Real.sq_sqrt (hc.le.trans hs')
+    field_simp
+    nlinarith [e1, e2]
+  have hdpos : 0 < Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s') :=
+    mul_pos (mul_pos hps hps') (add_pos hps hps')
+  have h2c : 0 < 2 * c * Real.sqrt c := mul_pos (mul_pos two_pos hc) hsc
+  rw [h1, abs_div, abs_of_pos hdpos, abs_sub_comm s' s]
+  have hden : 2 * c * Real.sqrt c ≤
+      Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s') := by
+    have e : Real.sqrt c * Real.sqrt c = c := Real.mul_self_sqrt hc.le
+    have h2 : Real.sqrt c * Real.sqrt c ≤ Real.sqrt s * Real.sqrt s' :=
+      mul_le_mul hrs hrs' hsc.le hps.le
+    have h3 : 2 * Real.sqrt c ≤ Real.sqrt s + Real.sqrt s' := by linarith
+    calc 2 * c * Real.sqrt c = (Real.sqrt c * Real.sqrt c) * (2 * Real.sqrt c) := by
+          rw [e]; ring
+      _ ≤ (Real.sqrt s * Real.sqrt s') * (Real.sqrt s + Real.sqrt s') :=
+          mul_le_mul h2 h3 (by positivity) (by positivity)
+  calc |s - s'| / (Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s'))
+      ≤ |s - s'| / (2 * c * Real.sqrt c) :=
+        div_le_div_of_nonneg_left (abs_nonneg _) h2c hden
+
+/-! ## Stationary points and the Legendre transform (proved for Expdb) -/
+
+/-- The inverse of the derivative of a phase: `phaseInverse H ν` is the stationary point of
+`x ↦ H x - ν x`. -/
+def phaseInverse (H : ℝ → ℝ) : ℝ → ℝ := Function.invFun (deriv H)
+
+theorem phaseInverse_spec {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c : ℝ} (hc : 0 < c)
+    (hcurv : ∀ x, iteratedDeriv 2 H x ≤ -c) :
+    ContDiff ℝ ∞ (phaseInverse H) ∧ (∀ x, phaseInverse H (deriv H x) = x) ∧
+      ∀ y, deriv H (phaseInverse H y) = y := by
+  have hH1 : ContDiff ℝ ∞ (deriv H) := hH.deriv' (n := ∞)
+  have hd : ∀ x, deriv (deriv H) x ≤ -c := fun x ↦ by
+    simpa [iteratedDeriv_succ, iteratedDeriv_one] using hcurv x
+  obtain ⟨g, hg, hgf, hfg⟩ := exists_smooth_inverse_of_deriv_le_neg hH1 hc hd
+  have heq : phaseInverse H = g :=
+    Function.invFun_eq_of_injective_of_rightInverse
+      (show Function.LeftInverse g _ from hgf).injective hfg
+  rw [heq]
+  exact ⟨hg, hgf, hfg⟩
+
+/-- The stationary value `ν ↦ H(x(ν)) - ν x(ν)`, using the negative Legendre-transform
+convention. Here `x(ν)` is the stationary point of `x ↦ H x - ν x`. -/
+def legendre (H : ℝ → ℝ) (ν : ℝ) : ℝ := H (phaseInverse H ν) - ν * phaseInverse H ν
+
+theorem contDiff_legendre {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c : ℝ} (hc : 0 < c)
+    (hcurv : ∀ x, iteratedDeriv 2 H x ≤ -c) : ContDiff ℝ ∞ (legendre H) := by
+  have hψ := (phaseInverse_spec hH hc hcurv).1
+  exact (hH.comp hψ).sub (contDiff_id.mul hψ)
+
+theorem hasDerivAt_legendre {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c : ℝ} (hc : 0 < c)
+    (hcurv : ∀ x, iteratedDeriv 2 H x ≤ -c) (ν : ℝ) :
+    HasDerivAt (legendre H) (-phaseInverse H ν) ν := by
+  obtain ⟨hψ, -, hfg⟩ := phaseInverse_spec hH hc hcurv
+  have hψd : HasDerivAt (phaseInverse H) (deriv (phaseInverse H) ν) ν :=
+    ((hψ.differentiable (by simp)) ν).hasDerivAt
+  have hHd : HasDerivAt H (deriv H (phaseInverse H ν)) (phaseInverse H ν) :=
+    ((hH.differentiable (by simp)) _).hasDerivAt
+  have h := (hHd.comp ν hψd).sub ((hasDerivAt_id ν).mul hψd)
+  refine h.congr_deriv ?_
+  rw [hfg]
+  simp only [id]
+  ring
 
 end
+
 end Expdb.StationaryPhase

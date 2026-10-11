@@ -4,6 +4,7 @@ public import Expdb.Basic.Asymptotics
 import Mathlib.Analysis.Asymptotics.Lemmas
 public import Mathlib.Analysis.Calculus.ContDiff.Basic
 public import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
+import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Analysis.SpecificLimits.Basic
 public import Mathlib.Order.Filter.AtTopBot.Basic
 public import Mathlib.Topology.Algebra.Order.Field
@@ -74,6 +75,47 @@ def PositiveDerivativesClose (f g : ℕ → ℝ → ℝ) (x y : ℕ → ℝ) (n 
   ∀ k, 1 ≤ k → k ≤ n →
     (fun i ↦ iteratedDeriv k (f i) (x i)) =o (fun i ↦ iteratedDeriv k (g i) (y i)) ∧
       VariableObject.IsBounded (fun i ↦ iteratedDeriv k (g i) (y i))
+
+/-- Uniform derivative convergence with bounded limits gives `DerivativesClose`
+at asymptotically equal points. -/
+theorem DerivativesClose.of_uniform {f : ℕ → ℝ → ℝ} {f₀ : ℝ → ℝ} (hf₀ : ContDiff ℝ ∞ f₀)
+    (hconv : ∀ k, ∀ ε > 0, ∀ᶠ i in atTop, ∀ x,
+      ‖iteratedDeriv k (f i) x - iteratedDeriv k f₀ x‖ ≤ ε)
+    (hbdd : ∀ k, ∃ K, ∀ x, ‖iteratedDeriv k f₀ x‖ ≤ K)
+    {p p' : ℕ → ℝ} (hpp : Tendsto (fun i ↦ p i - p' i) atTop (𝓝 0)) (n : ℕ) :
+    DerivativesClose f (fun _ ↦ f₀) p p' n := by
+  intro k _
+  obtain ⟨K, hK⟩ := hbdd k
+  obtain ⟨K', hK'⟩ := hbdd (k + 1)
+  refine ⟨?_, ⟨K, ?_⟩⟩
+  · rw [isEqUpToInfinitesimal_iff_tendsto_sub]
+    have h1 : Tendsto (fun i ↦ iteratedDeriv k (f i) (p i) - iteratedDeriv k f₀ (p i))
+        atTop (𝓝 0) := by
+      rw [Metric.tendsto_nhds]
+      intro ε hε
+      filter_upwards [hconv k (ε / 2) (half_pos hε)] with i hi
+      rw [dist_zero_right]
+      exact lt_of_le_of_lt (hi _) (half_lt_self hε)
+    have hlip : ∀ x y, ‖iteratedDeriv k f₀ x - iteratedDeriv k f₀ y‖ ≤ K' * ‖x - y‖ := by
+      intro x y
+      exact Convex.norm_image_sub_le_of_norm_deriv_le (s := Set.univ)
+        (fun z _ ↦ (hf₀.differentiable_iteratedDeriv k (by exact_mod_cast WithTop.coe_lt_top _))
+          z)
+        (fun z _ ↦ by rw [← iteratedDeriv_succ]; exact hK' z) convex_univ trivial trivial
+    have h2 : Tendsto (fun i ↦ iteratedDeriv k f₀ (p i) - iteratedDeriv k f₀ (p' i))
+        atTop (𝓝 0) := by
+      apply squeeze_zero_norm (fun i ↦ hlip _ _)
+      simpa using hpp.norm.const_mul K'
+    simpa using h1.add h2
+  · exact Eventually.of_forall fun i ↦ hK _
+
+/-- Uniform derivative bounds give `DerivativesClose` for a family compared with itself. -/
+theorem DerivativesClose.of_uniform_bound {f : ℕ → ℝ → ℝ} {z : ℕ → ℝ} {n : ℕ}
+    (h : ∀ k ≤ n, ∃ K, ∀ᶠ i in atTop, ∀ x, ‖iteratedDeriv k (f i) x‖ ≤ K) :
+    DerivativesClose f f z z n := by
+  intro k hk
+  obtain ⟨K, hK⟩ := h k hk
+  exact ⟨IsEqUpToInfinitesimal.refl _, K, hK.mono fun i hi ↦ hi (z i)⟩
 
 theorem DerivativesClose.mono {f g : ℕ → ℝ → ℝ} {x y : ℕ → ℝ} {m n : ℕ}
     (h : DerivativesClose f g x y n) (hmn : m ≤ n) : DerivativesClose f g x y m :=

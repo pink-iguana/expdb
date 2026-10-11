@@ -5,7 +5,7 @@ public import Expdb.ExponentialSums.ExponentSumGrowth
 public import Expdb.ExponentialSums.ExponentialSumTransformation
 public import Expdb.ExponentialSums.FixedExponentialSum
 import Expdb.ExponentialSums.TrivialBounds
-public import Mathlib.Algebra.BigOperators.Module
+import Expdb.Mathlib.PartialSummation
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Analysis.Calculus.Deriv.Mul
 import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
@@ -14,106 +14,19 @@ public import Mathlib.Analysis.Complex.Basic
 /-!
 # The van der Corput B-process for growth exponents
 
-This module proves the transfer used in the blueprint's reflection lemma (`beta-reflect`).
-An admissible exponent `B` at scale `1 - α` gives the admissible exponent `α - 1 / 2 + B` at
-scale `α`, for `0 < α < 1`.
-
-Partial summation removes the amplitude from the quantitative van der Corput transformation,
-and frequency blocks become sums with normalized dual model phases of exponent `1 / σ`.
-Smooth completion and phase regularization reduce the original sum to this bound; the
-logarithmic completion loss is absorbed into the growth exponent.
+This module proves the growth-bound transfer underlying the blueprint's reflection lemma.
 -/
 
 @[expose] public section
 
 namespace Expdb.BProcess
 
-open Filter Topology Set MeasureTheory Complex
+open StationaryPhase
+
+open Filter Topology Set MeasureTheory Complex PartialSummation
 open scoped ContDiff FourierTransform NNReal
 
 noncomputable section
-
-section PartialSummation
-
-/-- Partial summation with partial sums starting at `P`. -/
-private theorem norm_sum_Ico_mul_le (a z : ℕ → ℂ) {P Q : ℕ} (hPQ : P ≤ Q) {D : ℝ}
-    (hD : ∀ k ∈ Finset.Icc P Q, ‖∑ m ∈ Finset.Ico P k, z m‖ ≤ D) :
-    ‖∑ m ∈ Finset.Ico P Q, a m * z m‖ ≤
-      (‖a (Q - 1)‖ + ∑ m ∈ Finset.Ico P (Q - 1), ‖a (m + 1) - a m‖) * D := by
-  have hD0 : 0 ≤ D := by
-    have := hD P (Finset.mem_Icc.2 ⟨le_rfl, hPQ⟩)
-    simp only [Finset.Ico_self, Finset.sum_empty, norm_zero] at this
-    exact this
-  rcases eq_or_lt_of_le hPQ with rfl | hlt
-  · simp only [Finset.Ico_self, Finset.sum_empty, norm_zero]
-    exact mul_nonneg (add_nonneg (norm_nonneg _) (Finset.sum_nonneg fun _ _ ↦ norm_nonneg _)) hD0
-  set g : ℕ → ℂ := fun i ↦ if P ≤ i then z i else 0 with hg
-  have hparts := Finset.sum_Ico_by_parts a g hlt
-  have hlhs : ∑ i ∈ Finset.Ico P Q, a i • g i = ∑ m ∈ Finset.Ico P Q, a m * z m :=
-    Finset.sum_congr rfl fun i hi ↦ by
-      rw [smul_eq_mul, hg]; simp only [if_pos (Finset.mem_Ico.1 hi).1]
-  rw [hlhs] at hparts
-  rw [hparts]
-  have hZ : ∀ k, P ≤ k → ∑ i ∈ Finset.range k, g i = ∑ i ∈ Finset.Ico P k, z i :=
-    by
-      intro k hk
-      change (∑ i ∈ Finset.range k, if P ≤ i then z i else 0) = _
-      rw [← Finset.sum_filter]
-      congr 1
-      ext i
-      simp only [Finset.mem_filter, Finset.mem_range, Finset.mem_Ico]
-      omega
-  rw [hZ Q hPQ, hZ P le_rfl, Finset.Ico_self, Finset.sum_empty, smul_zero, sub_zero]
-  refine (norm_sub_le _ _).trans ?_
-  rw [add_mul, Finset.sum_mul]
-  apply add_le_add
-  · rw [smul_eq_mul, norm_mul]
-    exact mul_le_mul_of_nonneg_left (hD Q (Finset.mem_Icc.2 ⟨hPQ, le_rfl⟩)) (norm_nonneg _)
-  · refine (norm_sum_le _ _).trans (Finset.sum_le_sum fun i hi ↦ ?_)
-    have hi' := Finset.mem_Ico.1 hi
-    rw [smul_eq_mul, norm_mul, hZ (i + 1) (by omega)]
-    exact mul_le_mul_of_nonneg_left (hD (i + 1) (Finset.mem_Icc.2 ⟨by omega, by omega⟩))
-      (norm_nonneg _)
-
-/-- Partial summation with Lipschitz real weights `A (m / M)`. -/
-private theorem norm_sum_Ico_lipschitz_mul_le (A : ℝ → ℝ) {Amax LA M : ℝ} (hM : 0 < M)
-    (hA : ∀ ν, |A ν| ≤ Amax) (hLip : ∀ ν ν', |A ν - A ν'| ≤ LA * |ν - ν'|)
-    (z : ℕ → ℂ) {P Q : ℕ} (hPQ : P ≤ Q) {D : ℝ}
-    (hD : ∀ k ∈ Finset.Icc P Q, ‖∑ m ∈ Finset.Ico P k, z m‖ ≤ D) :
-    ‖∑ m ∈ Finset.Ico P Q, ((A (m / M) : ℝ) : ℂ) * z m‖ ≤
-      (Amax + LA * ((Q : ℝ) - P) / M) * D := by
-  have hD0 : 0 ≤ D := by
-    have := hD P (Finset.mem_Icc.2 ⟨le_rfl, hPQ⟩)
-    simp only [Finset.Ico_self, Finset.sum_empty, norm_zero] at this
-    exact this
-  have hLA : 0 ≤ LA := by
-    have := hLip 1 0
-    norm_num at this
-    linarith [abs_nonneg (A 1 - A 0)]
-  refine (norm_sum_Ico_mul_le _ z hPQ hD).trans (mul_le_mul_of_nonneg_right ?_ hD0)
-  apply add_le_add
-  · rw [Complex.norm_real, Real.norm_eq_abs]
-    exact hA _
-  · have hstep : ∀ m ∈ Finset.Ico P (Q - 1),
-        ‖((A (((m + 1 : ℕ) : ℝ) / M) : ℝ) : ℂ) - ((A ((m : ℝ) / M) : ℝ) : ℂ)‖ ≤ LA / M := by
-      intro m _
-      rw [← Complex.ofReal_sub, Complex.norm_real, Real.norm_eq_abs]
-      refine (hLip _ _).trans (le_of_eq ?_)
-      push_cast
-      rw [show ((m : ℝ) + 1) / M - m / M = 1 / M by field_simp; ring,
-        abs_of_pos (by positivity)]
-      ring
-    refine (Finset.sum_le_sum hstep).trans ?_
-    rw [Finset.sum_const, Nat.card_Ico, nsmul_eq_mul]
-    have hcount : ((Q - 1 - P : ℕ) : ℝ) ≤ (Q : ℝ) - P := by
-      have h1 : (Q - 1 - P : ℕ) ≤ Q - P := by omega
-      calc ((Q - 1 - P : ℕ) : ℝ) ≤ ((Q - P : ℕ) : ℝ) := by exact_mod_cast h1
-        _ = (Q : ℝ) - P := by rw [Nat.cast_sub hPQ]
-    calc ((Q - 1 - P : ℕ) : ℝ) * (LA / M) ≤ ((Q : ℝ) - P) * (LA / M) :=
-          mul_le_mul_of_nonneg_right hcount (div_nonneg hLA hM.le)
-      _ = LA * ((Q : ℝ) - P) / M := by ring
-
-end PartialSummation
 
 section DualBlocks
 
@@ -128,13 +41,10 @@ private theorem sum_Ico_eq_sum_blocks {E : Type*} [AddCommMonoid E] (f : ℕ →
     rw [Finset.sum_range_succ, ← ih, Finset.sum_Ico_consecutive _ (hP (Nat.zero_le J))
       (hP (Nat.le_succ J))]
 
-private theorem fourierChar_neg_eq_conj (x : ℝ) : (𝐞 (-x) : ℂ) = (starRingEnd ℂ) (𝐞 x : ℂ) := by
-  rw [AddChar.map_neg_eq_inv, Circle.coe_inv_eq_conj]
-
 /-- Partial sums of the dual exponentials are conjugates of exponential sums with the
 normalized dual phase. -/
 private theorem norm_sum_Ico_fourierChar_legendre_eq (H : ℝ → ℝ) {T N κ S : ℝ} (hT : 0 < T)
-    (_hN : 0 < N) (hκ : 0 < κ) (hS : 0 < S) {P k : ℕ} (hP : 1 ≤ P) :
+    (hκ : 0 < κ) (hS : 0 < S) {P k : ℕ} (hP : 1 ≤ P) :
     ‖∑ m ∈ Finset.Ico P k, (𝐞 (T * legendre H (N * m / T)) : ℂ)‖ =
       ‖exponentialSumAt (dualPhase H κ S) (T * S) (κ * (T / N)) P (k - 1)‖ := by
   have hIco : Finset.Ico P k = Finset.Icc P (k - 1) := by
@@ -142,7 +52,10 @@ private theorem norm_sum_Ico_fourierChar_legendre_eq (H : ℝ → ℝ) {T N κ S
   rw [exponentialSumAt, hIco, ← Complex.norm_conj, map_sum]
   congr 1
   refine Finset.sum_congr rfl fun m _ ↦ ?_
-  rw [oscillatory, ← fourierChar_neg_eq_conj]
+  rw [oscillatory]
+  have hconj (x : ℝ) : (𝐞 (-x) : ℂ) = (starRingEnd ℂ) (𝐞 x : ℂ) := by
+    rw [AddChar.map_neg_eq_inv, Circle.coe_inv_eq_conj]
+  rw [← hconj]
   congr 2
   simp only [dualPhase]
   field_simp
@@ -214,36 +127,11 @@ private theorem abs_mainAmplitude_sub_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
     rw [show -iteratedDeriv 2 H x - -iteratedDeriv 2 H x' =
       -(iteratedDeriv 2 H x - iteratedDeriv 2 H x') by ring, abs_neg]
     exact hsl
-  -- the inverse square root
   have hg : |1 / Real.sqrt s - 1 / Real.sqrt s'| ≤ K3 / (2 * c * Real.sqrt c) * |x - x'| := by
-    have hps : 0 < Real.sqrt s := lt_of_lt_of_le hsc hrs
-    have hps' : 0 < Real.sqrt s' := lt_of_lt_of_le hsc hrs'
-    have h1 : 1 / Real.sqrt s - 1 / Real.sqrt s' =
-        (s' - s) / (Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s')) := by
-      have e1 := Real.sq_sqrt (hc.le.trans hs)
-      have e2 := Real.sq_sqrt (hc.le.trans hs')
-      field_simp
-      nlinarith [e1, e2]
-    have hdpos : 0 < Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s') :=
-      mul_pos (mul_pos hps hps') (add_pos hps hps')
-    have h2c : 0 < 2 * c * Real.sqrt c := mul_pos (mul_pos two_pos hc) hsc
-    rw [h1, abs_div, abs_of_pos hdpos, abs_sub_comm s' s]
-    have hden : 2 * c * Real.sqrt c ≤
-        Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s') := by
-      have e : Real.sqrt c * Real.sqrt c = c := Real.mul_self_sqrt hc.le
-      have h2 : Real.sqrt c * Real.sqrt c ≤ Real.sqrt s * Real.sqrt s' :=
-        mul_le_mul hrs hrs' hsc.le hps.le
-      have h3 : 2 * Real.sqrt c ≤ Real.sqrt s + Real.sqrt s' := by linarith
-      calc 2 * c * Real.sqrt c = (Real.sqrt c * Real.sqrt c) * (2 * Real.sqrt c) := by
-            rw [e]; ring
-        _ ≤ (Real.sqrt s * Real.sqrt s') * (Real.sqrt s + Real.sqrt s') :=
-            mul_le_mul h2 h3 (by positivity) (by positivity)
-    calc |s - s'| / (Real.sqrt s * Real.sqrt s' * (Real.sqrt s + Real.sqrt s'))
-        ≤ |s - s'| / (2 * c * Real.sqrt c) :=
-          div_le_div_of_nonneg_left (abs_nonneg _) h2c hden
+    calc _ ≤ |s - s'| / (2 * c * Real.sqrt c) := abs_inv_sqrt_sub_le hc hs hs'
       _ ≤ K3 * |x - x'| / (2 * c * Real.sqrt c) :=
-          div_le_div_of_nonneg_right hss h2c.le
-      _ = K3 / (2 * c * Real.sqrt c) * |x - x'| := by ring
+        div_le_div_of_nonneg_right hss (by positivity)
+      _ = _ := by ring
   have hgb : |1 / Real.sqrt s| ≤ 1 / Real.sqrt c := by
     rw [abs_of_pos (one_div_pos.2 (lt_of_lt_of_le hsc hrs))]
     exact div_le_div_of_nonneg_left zero_le_one hsc hrs
@@ -407,7 +295,6 @@ private theorem norm_smooth_sum_le_blocks {H : ℝ → ℝ} (hH : ContDiff ℝ �
     Nat.ceil_mono (mul_le_mul_of_nonneg_right (hκmono hjk) hM.le)
   have hC : 0 ≤ C := by linarith [(hcurv 0).1, (hcurv 0).2]
   have hW0 : 0 ≤ W := (abs_nonneg _).trans (hW 0 (by norm_num) 0)
-  have hK3 : 0 ≤ K3 := (abs_nonneg _).trans (h3 0)
   have hBamp : 0 ≤ Bamp := (norm_nonneg _).trans (hamp 0 (by simpa using hM0) 0).1
   have hS0 : 0 ≤ ∑' m : ℤ, 1 / (1 + |(m : ℝ)|) ^ 2 := tsum_nonneg fun m ↦ by positivity
   have hsc : 0 < Real.sqrt c := Real.sqrt_pos.2 hc
@@ -444,6 +331,7 @@ private theorem norm_smooth_sum_le_blocks {H : ℝ → ℝ} (hH : ContDiff ℝ �
     · right
       rw [le_div_iff₀ hM]
       exact (Nat.le_ceil _).trans (by exact_mod_cast hm)
+  have hK3 : 0 ≤ K3 := (abs_nonneg _).trans (h3 0)
   have hdec := norm_smooth_sum_sub_main_le hH hc hcurv hT hN hNT hBc hδ hstat' hamp hsep'
     (fun x _ ↦ h3 x) hW
   -- main terms
@@ -643,7 +531,7 @@ section PowerBounds
 private theorem isPowerBounded_dual {α : ℝ≥0} (hα1 : α < 1) {B σ' κ S : ℝ}
     (hB : IsExponentSumBound (1 - α) B) (hσ' : 0 < σ') (hκ : 0 < κ) (hS : 0 < S)
     {Hd : ℕ → ℝ → ℝ} (hmodel : IsModelPhaseFunctionWith Hd σ')
-    {N T : VariableObject ℝ} (_hN : ∀ i, 1 ≤ N i) (hT : ∀ i, 1 ≤ T i)
+    {N T : VariableObject ℝ} (hT : ∀ i, 1 ≤ T i)
     (hTunb : T.IsUnbounded) (hNT : IsPowerAsymptotic N T α)
     {a' b' : ℕ → ℕ}
     (hab : ∀ᶠ i in atTop, κ * (T i / N i) ≤ a' i ∧ (b' i : ℝ) ≤ 2 * (κ * (T i / N i))) :
@@ -686,48 +574,21 @@ private theorem isPowerBounded_three_add_two_log {X T : VariableObject ℝ} {C p
     (hp : 0 ≤ p) (hT : ∀ i, 1 ≤ T i) (hTunb : T.IsUnbounded)
     (hX1 : ∀ᶠ i in atTop, 1 ≤ X i) (hXle : ∀ᶠ i in atTop, X i ≤ C * T i ^ p) :
     IsPowerBounded (fun i ↦ 3 + 2 * Real.log (X i)) T 0 := by
-  apply (isPowerBounded_iff_forall_pos _ T 0 hT hTunb).2
-  intro ε hε
-  apply Asymptotics.IsBigO.of_bound (3 + 2 * Real.log C + 2 * p / ε)
-  filter_upwards [hX1, hXle] with i h1 h2
-  have hTi := hT i
-  have hTpos : 0 < T i := zero_lt_one.trans_le hTi
-  have hCpos : 0 < C := zero_lt_one.trans_le hC
-  have hlogX : 0 ≤ Real.log (X i) := Real.log_nonneg h1
-  have hlog : Real.log (X i) ≤ Real.log C + p * Real.log (T i) := by
-    calc Real.log (X i) ≤ Real.log (C * T i ^ p) :=
-          Real.log_le_log (zero_lt_one.trans_le h1) h2
-      _ = Real.log C + p * Real.log (T i) := by
-          rw [Real.log_mul hCpos.ne' (Real.rpow_pos_of_pos hTpos _).ne', Real.log_rpow hTpos]
-  have hlogT : Real.log (T i) ≤ T i ^ ε / ε := Real.log_le_rpow_div hTpos.le hε
-  have hTε : 1 ≤ T i ^ ε := Real.one_le_rpow hTi hε.le
-  have hlogC : 0 ≤ Real.log C := Real.log_nonneg hC
-  rw [Real.norm_of_nonneg (by positivity), zero_add,
-    Real.norm_of_nonneg (Real.rpow_nonneg hTpos.le _)]
-  have e1 : p * Real.log (T i) ≤ p * (T i ^ ε / ε) := mul_le_mul_of_nonneg_left hlogT hp
-  have e2 : (3 + 2 * Real.log C) * 1 ≤ (3 + 2 * Real.log C) * T i ^ ε :=
-    mul_le_mul_of_nonneg_left hTε (by positivity)
-  calc 3 + 2 * Real.log (X i) ≤ (3 + 2 * Real.log C) * 1 + 2 * (p * Real.log (T i)) := by
-        linarith
-    _ ≤ (3 + 2 * Real.log C) * T i ^ ε + 2 * (p * (T i ^ ε / ε)) := by linarith
-    _ = (3 + 2 * Real.log C + 2 * p / ε) * T i ^ ε := by ring
+  have hlog := isPowerBounded_log_of_le_const_rpow hC hp hT hTunb hX1 hXle
+  have hconst := isPowerBounded_const T 3
+  simpa only [Pi.add_def, max_self] using hconst.add (hlog.const_mul 2) hT
 
 /-- Twisting by a linear function only changes the first derivative. -/
 private theorem iteratedDeriv_succ_sub_linear {g : ℝ → ℝ} (hg : ContDiff ℝ ∞ g) (c : ℝ) (p : ℕ)
     (x : ℝ) :
     iteratedDeriv (p + 1) (fun y ↦ g y - c * y) x =
       iteratedDeriv (p + 1) g x - if p = 0 then c else 0 := by
-  have hd : deriv (fun y ↦ g y - c * y) = fun y ↦ deriv g y - c := by
-    funext y
-    rw [deriv_fun_sub ((hg.differentiable (by simp)) y) (by fun_prop)]
-    simp
-  rw [iteratedDeriv_succ', iteratedDeriv_succ', hd]
-  rcases p with _ | q
-  · simp
-  · have hd2 : deriv (fun y ↦ deriv g y - c) = deriv (deriv g) := by
-      funext y; exact deriv_sub_const c
-    rw [iteratedDeriv_succ', iteratedDeriv_succ' (f := deriv g), hd2]
-    simp
+  rw [iteratedDeriv_fun_sub
+    (hg.of_le (ENat.natCast_le_of_coe_top_le_withTop le_rfl (p + 1))).contDiffAt (by fun_prop),
+    iteratedDeriv_const_mul_field]
+  change _ - c * iteratedDeriv (p + 1) id x = _
+  simp only [iteratedDeriv_id]
+  split_ifs <;> simp_all
 
 end PowerBounds
 
@@ -739,7 +600,7 @@ namespace Expdb
 
 open Filter Topology Set Complex
 open scoped NNReal ContDiff FourierTransform
-open BProcess
+open BProcess StationaryPhase
 
 noncomputable section
 
@@ -870,13 +731,13 @@ theorem isExponentSumBound_bProcess {α : ℝ≥0} (hα0 : 0 < α) (hα1 : α < 
     intro j i
     have hP : 1 ≤ Pf j i := Nat.one_le_iff_ne_zero.2 (Nat.pos_iff_ne_zero.1
       (Nat.ceil_pos.2 (mul_pos (hκpos j) (div_pos (hTpos i) (hNpos i)))))
-    exact norm_sum_Ico_fourierChar_legendre_eq (H i) (hTpos i) (hNpos i) (hκpos j)
+    exact norm_sum_Ico_fourierChar_legendre_eq (H i) (hTpos i) (hκpos j)
       (Real.rpow_pos_of_pos (hκpos j) _) hP
   have hDpow : ∀ j ∈ Finset.range J, IsPowerBounded (D j) T B := by
     intro j hj
     have hjJ := Finset.mem_range.1 hj
     refine (isPowerBounded_dual hα1 hB (one_div_pos.2 hσ) (hκpos j)
-      (Real.rpow_pos_of_pos (hκpos j) _) (hmodel j hjJ) hN hT hTunb hNT
+      (Real.rpow_pos_of_pos (hκpos j) _) (hmodel j hjJ) hT hTunb hNT
       (a' := Pf j) (b' := fun i ↦ kk j i - 1) (Eventually.of_forall fun i ↦ ?_)).norm
     have hM : 0 < T i / N i := div_pos (hTpos i) (hNpos i)
     refine ⟨Nat.le_ceil _, ?_⟩

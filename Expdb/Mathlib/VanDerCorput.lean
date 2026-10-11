@@ -1,5 +1,7 @@
 module
 
+import Mathlib.Data.Nat.Log
+
 public import Mathlib.Analysis.Complex.Circle
 public import Mathlib.Order.Interval.Finset.Nat
 
@@ -498,6 +500,67 @@ theorem norm_sum_Icc_sq_le_correlations {φ : ℕ → ℝ} {a b H : ℕ}
           ‖∑ n ∈ Finset.Ico a (b + 1 - j), (𝐞 (φ (n + j) - φ n) : ℂ)‖) := by
   simpa only [e_eq_fourierChar, Finset.Ico_add_one_right_eq_Icc] using
     weyl_differencing (φ := φ) hH hHa hab
+
+/-! ## Dyadic selection (proved for Expdb) -/
+
+/-- Dyadic pigeonholing costs only the number of logarithmic ranges. Each range
+contains at most its lower endpoint's number of shifts. -/
+theorem exists_dyadic_weighted_bound (C : ℕ → ℝ) (hC : ∀ j, 0 ≤ C j)
+    {H : ℕ} (hH : 1 ≤ H) :
+    ∃ j : ℕ, 1 ≤ j ∧ j ≤ H ∧
+      (∑ k ∈ Finset.Ico 1 H, C k) ≤ (Nat.log 2 H + 1 : ℕ) * ((j : ℝ) * C j) := by
+  classical
+  by_cases hH1 : H = 1
+  · refine ⟨1, le_rfl, by omega, ?_⟩
+    simp only [hH1, Finset.Ico_self, Finset.sum_empty]
+    exact mul_nonneg (Nat.cast_nonneg _) (by simpa using hC 1)
+  let J := Finset.Ico 1 H
+  obtain ⟨j, hj, hmax⟩ := Finset.exists_max_image J (fun k ↦ (k : ℝ) * C k)
+    ⟨1, by simp [J]; omega⟩
+  let M : ℝ := (j : ℝ) * C j
+  have hM : 0 ≤ M := mul_nonneg (Nat.cast_nonneg _) (hC j)
+  have hbin : ∀ k : ℕ, (∑ n ∈ J with Nat.log 2 n = k, C n) ≤ M := by
+    intro k
+    let B := J.filter (fun n ↦ Nat.log 2 n = k)
+    have hB : B ⊆ Finset.Ico (2 ^ k) (2 ^ (k + 1)) := by
+      intro n hn
+      obtain ⟨hnJ, hnlog⟩ := Finset.mem_filter.1 hn
+      have hnpos : n ≠ 0 := by have := (Finset.mem_Ico.1 hnJ).1; omega
+      rw [Finset.mem_Ico]
+      constructor
+      · simpa [hnlog] using Nat.pow_log_le_self 2 hnpos
+      · simpa [hnlog] using Nat.lt_pow_succ_log_self (by decide : 1 < 2) n
+    have hcard : (B.card : ℝ) ≤ (2 : ℝ) ^ k := by
+      have hc := Finset.card_le_card hB
+      rw [Nat.card_Ico, pow_succ] at hc
+      have hc' : B.card ≤ 2 ^ k := by omega
+      exact_mod_cast hc'
+    have hpow : (0 : ℝ) < 2 ^ k := by positivity
+    have hentry : ∀ n ∈ B, C n ≤ M / (2 : ℝ) ^ k := by
+      intro n hn
+      have hnJ := (Finset.mem_filter.1 hn).1
+      have hlower : (2 : ℝ) ^ k ≤ n := by exact_mod_cast (Finset.mem_Ico.1 (hB hn)).1
+      apply (le_div_iff₀ hpow).2
+      calc
+        C n * 2 ^ k ≤ (n : ℝ) * C n := by nlinarith [hC n]
+        _ ≤ M := hmax n hnJ
+    calc
+      _ ≤ ∑ _n ∈ B, M / (2 : ℝ) ^ k := Finset.sum_le_sum hentry
+      _ = (B.card : ℝ) * (M / (2 : ℝ) ^ k) := by simp
+      _ ≤ (2 : ℝ) ^ k * (M / (2 : ℝ) ^ k) :=
+        mul_le_mul_of_nonneg_right hcard (div_nonneg hM hpow.le)
+      _ = M := by field_simp
+  have hfiber := Finset.sum_fiberwise_of_maps_to
+    (s := J) (t := Finset.range (Nat.log 2 H + 1)) (g := Nat.log 2)
+    (fun n hn ↦ Finset.mem_range.2 (by
+      exact Nat.lt_succ_of_le (Nat.log_mono_right (Finset.mem_Ico.1 hn).2.le))) C
+  refine ⟨j, (Finset.mem_Ico.1 hj).1, (Finset.mem_Ico.1 hj).2.le, ?_⟩
+  calc
+    _ = ∑ k ∈ Finset.range (Nat.log 2 H + 1), ∑ n ∈ J with Nat.log 2 n = k, C n :=
+      hfiber.symm
+    _ ≤ ∑ _k ∈ Finset.range (Nat.log 2 H + 1), M :=
+      Finset.sum_le_sum fun k _ ↦ hbin k
+    _ = _ := by simp [M]
 
 end
 

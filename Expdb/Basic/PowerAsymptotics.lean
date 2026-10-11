@@ -689,6 +689,33 @@ theorem isPowerBounded_finset_sum {ι : Type*} (s : Finset ι) {X : ι → Varia
       (ih fun k hk ↦ hX k (Finset.mem_insert_of_mem hk)) hT
     rw [max_self] at h
     exact h
+/-- The logarithm of a quantity between one and a fixed power of the height has
+power exponent zero. -/
+theorem isPowerBounded_log_of_le_const_rpow {X T : VariableObject ℝ} {C p : ℝ}
+    (hC : 1 ≤ C) (hp : 0 ≤ p) (hT : ∀ i, 1 ≤ T i) (hTunb : T.IsUnbounded)
+    (hX1 : ∀ᶠ i in atTop, 1 ≤ X i) (hXle : ∀ᶠ i in atTop, X i ≤ C * T i ^ p) :
+    IsPowerBounded (fun i ↦ Real.log (X i)) T 0 := by
+  apply (isPowerBounded_iff_forall_pos _ T 0 hT hTunb).2
+  intro ε hε
+  apply Asymptotics.IsBigO.of_bound (Real.log C + p / ε)
+  filter_upwards [hX1, hXle] with i h1 h2
+  have hTpos : 0 < T i := zero_lt_one.trans_le (hT i)
+  have hCpos : 0 < C := zero_lt_one.trans_le hC
+  have hlog : Real.log (X i) ≤ Real.log C + p * Real.log (T i) := by
+    calc Real.log (X i) ≤ Real.log (C * T i ^ p) :=
+          Real.log_le_log (zero_lt_one.trans_le h1) h2
+      _ = Real.log C + p * Real.log (T i) := by
+          rw [Real.log_mul hCpos.ne' (Real.rpow_pos_of_pos hTpos _).ne', Real.log_rpow hTpos]
+  have hlogT := Real.log_le_rpow_div hTpos.le hε
+  have hTε := Real.one_le_rpow (hT i) hε.le
+  have hlogC := Real.log_nonneg hC
+  rw [Real.norm_of_nonneg (Real.log_nonneg h1), zero_add,
+    Real.norm_of_nonneg (Real.rpow_nonneg hTpos.le _)]
+  calc Real.log (X i) ≤ Real.log C + p * Real.log (T i) := hlog
+    _ ≤ Real.log C * T i ^ ε + p * (T i ^ ε / ε) :=
+      add_le_add (by nlinarith) (mul_le_mul_of_nonneg_left hlogT hp)
+    _ = _ := by ring
+
 /-- An eventual pointwise norm bound transfers a power bound. -/
 theorem IsPowerBounded.of_norm_le {E : Type*} [SeminormedAddCommGroup E]
     {X : VariableObject E} {Y T : VariableObject ℝ} {β : ℝ}

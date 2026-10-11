@@ -21,6 +21,7 @@ public import Expdb.Mathlib.NonstationaryPhase
 public import Expdb.Mathlib.SmoothExtension
 public import Expdb.Mathlib.StationaryPhase
 public import Expdb.Mathlib.IteratedDeriv
+public import Expdb.Mathlib.PartialSummation
 public import Expdb.Mathlib.InverseFunction
 public import Expdb.Mathlib.QuadraticNormalization
 public import Expdb.LargeValues.Exponents

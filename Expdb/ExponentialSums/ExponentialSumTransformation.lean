@@ -20,54 +20,14 @@ combining Poisson summation with stationary and nonstationary phase estimates.
 
 namespace Expdb.BProcess
 
+open StationaryPhase
+
 open Filter Topology Set MeasureTheory Complex
 open scoped ContDiff FourierTransform SchwartzMap
 
 noncomputable section
 
 section AmplitudeBounds
-
-/-- Apply automatic uniformity to a fixed parameter type. -/
-private theorem exists_eventually_uniform_bound {P : Type*} [Nonempty P] (g : ℕ → P → ℝ)
-    (h : ∀ p : ℕ → P, ∃ C, ∀ᶠ i in atTop, ‖g i (p i)‖ ≤ C) :
-    ∃ C, ∀ᶠ i in atTop, ∀ q, ‖g i q‖ ≤ C := by
-  let E : VariableObject (Set P) := fun _ ↦ Set.univ
-  let f : VariableFunction (fun i ↦ E i) ℝ := fun i q ↦ g i q
-  have hf : f.IsChoicewiseBounded := fun p ↦ h (fun i ↦ (p i).val)
-  obtain ⟨C, hC⟩ :=
-    (f.isChoicewiseBounded_iff_eventually_uniform E (fun _ ↦ Set.univ_nonempty)).1 hf
-  exact ⟨C, hC.mono fun i hi q ↦ hi ⟨q, Set.mem_univ q⟩⟩
-
-/-! ## The inverse quadratic coordinate -/
-
-/-- The inverse of the quadratic normal-form coordinate centred at `v`. -/
-def quadInverse (H : ℝ → ℝ) (v : ℝ) : ℝ → ℝ :=
-  Function.invFun (phaseQuadraticCoordinate H v)
-
-private theorem quadInverse_spec {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ} (hc : 0 < c)
-    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v : ℝ) :
-    ContDiff ℝ ∞ (quadInverse H v) ∧
-      (∀ y, phaseQuadraticCoordinate H v (quadInverse H v y) = y) ∧
-      (∀ x, quadInverse H v (phaseQuadraticCoordinate H v x) = x) := by
-  have hC : 0 < C := by linarith [(hcurv 0).1, (hcurv 0).2]
-  obtain ⟨g, hg, hgY, hYg⟩ := exists_smooth_inverse_of_le_deriv
-    (contDiff_phaseQuadraticCoordinate hH hc hcurv v) (div_pos hc (Real.sqrt_pos.2 hC))
-    (le_deriv_phaseQuadraticCoordinate hH hc hcurv v)
-  have heq : quadInverse H v = g := by
-    funext y
-    have h1 : phaseQuadraticCoordinate H v (quadInverse H v y) = y :=
-      Function.invFun_eq ⟨g y, hYg y⟩
-    rw [← h1, hgY, h1]
-  rw [heq]
-  exact ⟨hg, hYg, hgY⟩
-
-/-- The quadratic coordinate grows at most linearly. -/
-private theorem abs_phaseQuadraticCoordinate_le {H : ℝ → ℝ} (hH : ContDiff ℝ ∞ H) {c C : ℝ}
-    (hcurv : ∀ x, -C ≤ iteratedDeriv 2 H x ∧ iteratedDeriv 2 H x ≤ -c) (v x : ℝ) :
-    |phaseQuadraticCoordinate H v x| ≤ |x - v| * Real.sqrt C := by
-  have hq := phaseQuadraticFactor_mem hH hcurv v x
-  rw [phaseQuadraticCoordinate, abs_mul, abs_of_nonneg (Real.sqrt_nonneg _)]
-  exact mul_le_mul_of_nonneg_left (Real.sqrt_le_sqrt (by linarith)) (abs_nonneg _)
 
 /-! ## Derivative bounds and convergence along sequences -/
 
@@ -88,14 +48,6 @@ private theorem derivativesClose_sub_const {v z : ℕ → ℝ}
   · exact ⟨IsEqUpToInfinitesimal.refl _, hb⟩
   · exact ⟨IsEqUpToInfinitesimal.refl _, VariableObject.IsBounded.const 1⟩
   · exact ⟨IsEqUpToInfinitesimal.refl _, VariableObject.IsBounded.const 0⟩
-
-/-- Uniform derivative bounds give `DerivativesClose` for a family compared with itself. -/
-private theorem derivativesClose_of_uniform_bound {f : ℕ → ℝ → ℝ} {z : ℕ → ℝ} {n : ℕ}
-    (h : ∀ k ≤ n, ∃ K, ∀ᶠ i in atTop, ∀ x, ‖iteratedDeriv k (f i) x‖ ≤ K) :
-    DerivativesClose f f z z n := by
-  intro k hk
-  obtain ⟨K, hK⟩ := h k hk
-  exact ⟨IsEqUpToInfinitesimal.refl _, K, hK.mono fun i hi ↦ hi (z i)⟩
 
 section Sequences
 
@@ -159,7 +111,7 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
         (fun _ _ ↦ Real.sqrt_nonneg _)
         (fun i x ↦ Real.mul_self_sqrt (hc.le.trans (hQlow i x)))
         (fun i x ↦ Real.mul_self_sqrt (hc.le.trans (hQlow i x)))
-        (derivativesClose_of_uniform_bound fun j _ ↦ hQb j) (Real.sqrt_pos.2 hc)
+        (DerivativesClose.of_uniform_bound fun j _ ↦ hQb j) (Real.sqrt_pos.2 hc)
         (Eventually.of_forall fun i ↦ Real.sqrt_le_sqrt (hQlow i (z i)))
     have := DerivativesClose.mul (f := fun i y ↦ y - v i) (g := S)
       (f' := fun i y ↦ y - v i) (g' := S)
@@ -176,7 +128,7 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
     rw [Real.norm_of_nonneg ((div_pos hc (Real.sqrt_pos.2 hC)).le.trans this)]
     exact this
   -- derivative bounds and convergence of the amplitude
-  have hwj : DerivativesClose (fun _ ↦ w) (fun _ ↦ w) z z k := derivativesClose_of_uniform_bound
+  have hwj : DerivativesClose (fun _ ↦ w) (fun _ ↦ w) z z k := DerivativesClose.of_uniform_bound
     fun j _ ↦ by
       obtain ⟨K, hK⟩ := hwb j
       exact ⟨K, Eventually.of_forall fun _ ↦ hK⟩
@@ -214,8 +166,15 @@ theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
   suffices hsuff : ∃ B, ∀ᶠ i in atTop, ∀ r, ‖g i r‖ ≤ B by
     obtain ⟨B, hB⟩ := hsuff
     exact ⟨B, hB.mono fun i hi v hv t ↦ hi (⟨v, hv⟩, t)⟩
-  apply exists_eventually_uniform_bound
-  intro r
+  let E : VariableObject (Set P) := fun _ ↦ Set.univ
+  let f : VariableFunction (fun i ↦ E i) ℝ := fun i q ↦ g i q
+  suffices hf : f.IsChoicewiseBounded by
+    obtain ⟨C, hC⟩ :=
+      (f.isChoicewiseBounded_iff_eventually_uniform E (fun _ ↦ Set.univ_nonempty)).1 hf
+    exact ⟨C, hC.mono fun i hi q ↦ hi ⟨q, Set.mem_univ q⟩⟩
+  intro choice
+  let r : ℕ → P := fun i ↦ (choice i).val
+  change ∃ B, ∀ᶠ i in atTop, ‖g i (r i)‖ ≤ B
   set v : ℕ → ℝ := fun i ↦ (r i).1.1
   set y : ℕ → ℝ := fun i ↦ (r i).2
   -- replace bad points
