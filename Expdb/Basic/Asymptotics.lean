@@ -215,6 +215,22 @@ theorem isEqUpToInfinitesimal_iff_forall_pos
   rw [IsEqUpToInfinitesimal, VariableObject.isInfinitesimal_iff_forall_pos]
   simp only [Pi.sub_apply]
 
+/-- A continuous function on a compact set preserves equality up to an infinitesimal
+for sequences of points in that set. -/
+theorem IsEqUpToInfinitesimal.comp_of_isCompact {s : Set ℝ} {f : ℝ → ℝ}
+    (hs : IsCompact s) (hf : ContinuousOn f s) {x y : VariableObject ℝ}
+    (hxy : x =o y) (hx : ∀ i, x i ∈ s) (hy : ∀ i, y i ∈ s) :
+    (fun i ↦ f (x i)) =o (fun i ↦ f (y i)) := by
+  have hu := hs.uniformContinuousOn_of_continuous hf
+  have hclose := (isEqUpToInfinitesimal_iff_tendsto_sub x y).1 hxy
+  rw [isEqUpToInfinitesimal_iff_tendsto_sub, Metric.tendsto_nhds]
+  rw [Metric.uniformContinuousOn_iff] at hu
+  intro ε hε
+  obtain ⟨δ, hδ, hdist⟩ := hu ε hε
+  filter_upwards [(Metric.tendsto_nhds.1 hclose) δ hδ] with i hi
+  simpa [dist_eq_norm] using hdist (x i) (hx i) (y i) (hy i)
+    (by simpa [Real.dist_eq] using hi)
+
 end InfinitesimalRelations
 
 /-! ## Bounded variable objects -/
@@ -392,5 +408,6 @@ theorem underspill (X Y : VariableObject ℝ) :
       X (fun i => Y i + ε / 2)).1 (h (ε / 2) hε2) (ε / 2) hε2
     filter_upwards [hbound] with i hi
     linarith
+
 
 end Expdb

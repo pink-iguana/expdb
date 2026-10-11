@@ -39,16 +39,7 @@ theorem norm_exponentialSumAt_sq_le_correlations
   · have hHa : H ≤ a := by exact_mod_cast hHN.trans hNa
     have hraw := VanDerCorput.norm_sum_Icc_sq_le_correlations
       (φ := fun n ↦ T * F ((n : ℝ) / N)) hH hHa hab
-    have hcorrelation : ∀ j,
-        (∑ n ∈ Finset.Ico a (b + 1 - j),
-          (𝐞 (T * F (((n + j : ℕ) : ℝ) / N) - T * F ((n : ℝ) / N)) : ℂ)) =
-        correlationSumAt F T N a b j := by
-      intro j
-      apply Finset.sum_congr rfl
-      intro n hn
-      congr 2
-      ring
-    simp only [hcorrelation] at hraw
+    simp only [← mul_sub] at hraw
     change ‖exponentialSumAt F T N a b‖ ^ 2 ≤ _ at hraw
     let L : ℝ := ((b + 1 - a : ℕ) : ℝ)
     let C : ℝ := ∑ j ∈ Finset.Ico 1 H, ‖correlationSumAt F T N a b j‖

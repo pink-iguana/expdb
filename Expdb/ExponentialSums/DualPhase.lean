@@ -79,8 +79,7 @@ private theorem iteratedDeriv_two_secondPrimitive {h : ℝ → ℝ} (hh : Contin
 private theorem iteratedDeriv_add_two_secondPrimitive {h : ℝ → ℝ} (hh : Continuous h)
     (x₀ y₀ y₁ : ℝ) (k : ℕ) :
     iteratedDeriv (k + 2) (secondPrimitive h x₀ y₀ y₁) = iteratedDeriv k h := by
-  rw [iteratedDeriv_eq_iterate, Function.iterate_add_apply, ← iteratedDeriv_eq_iterate,
-    ← iteratedDeriv_eq_iterate, iteratedDeriv_two_secondPrimitive hh]
+  rw [← iteratedDeriv_iteratedDeriv, iteratedDeriv_two_secondPrimitive hh]
 
 /-! ## Plateau cutoffs -/
 
@@ -192,11 +191,6 @@ private theorem regSecond_bounds {χ g : ℝ → ℝ} {c C x : ℝ} (hcC : c ≤
   · obtain ⟨hl, hu⟩ := hg hχ
     constructor <;> nlinarith
 
-private theorem iteratedDeriv_iteratedDeriv_two (f : ℝ → ℝ) (n : ℕ) :
-    iteratedDeriv n (iteratedDeriv 2 f) = iteratedDeriv (n + 2) f := by
-  rw [iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate,
-    ← Function.iterate_add_apply]
-
 /-- Phases whose derivatives converge to those of the reference phase on a neighbourhood
 of `[a, b]` admit global concave regularizations. -/
 theorem exists_regularizedPhases {σ : ℝ} (hσ : 0 < σ) {a b : ℝ} (ha : 0 < a) (hab : a < b)
@@ -259,6 +253,16 @@ theorem exists_regularizedPhases {σ : ℝ} (hσ : 0 < σ) {a b : ℝ} (ha : 0 <
     rw [hC₁_def]
     have : 0 ≤ σ * (a / 2) ^ (-σ - 1) := by positivity
     linarith
+  have hr₀bounds : ∀ x, -C₁ ≤ regSecond χ c₁ g₀ x ∧ regSecond χ c₁ g₀ x ≤ -c₁ := by
+    intro x
+    apply regSecond_bounds hcC (hχ0 x) (hχ1 x)
+    intro hx
+    have hxI : x ∈ Icc (a / 2) (b + 1) := by
+      by_contra h
+      exact hx (hχzero x h)
+    have h2 := hg₀bounds x hxI
+    rw [hC₁_def]
+    constructor <;> linarith [h2.1, h2.2]
   -- Good indices.
   let good : ℕ → Prop := fun i ↦ ∀ x ∈ Icc (a / 2) (b + 1),
     ‖iteratedDeriv 2 (G i) x - g₀ x‖ ≤ c₁
@@ -318,23 +322,9 @@ theorem exists_regularizedPhases {σ : ℝ} (hσ : 0 < σ) {a b : ℝ} (ha : 0 <
         rw [hC₁_def]
         constructor <;> linarith [h1.1, h1.2, h2.1, h2.2]
       · rw [hHbad i hi, hH₀2]
-        apply regSecond_bounds hcC (hχ0 x) (hχ1 x)
-        intro hx
-        have hxI : x ∈ Icc (a / 2) (b + 1) := by
-          by_contra h
-          exact hx (hχzero x h)
-        have h2 := hg₀bounds x hxI
-        rw [hC₁_def]
-        constructor <;> linarith [h2.1, h2.2]
+        exact hr₀bounds x
     · rw [hH₀2]
-      apply regSecond_bounds hcC (hχ0 x) (hχ1 x)
-      intro hx
-      have hxI : x ∈ Icc (a / 2) (b + 1) := by
-        by_contra h
-        exact hx (hχzero x h)
-      have h2 := hg₀bounds x hxI
-      rw [hC₁_def]
-      constructor <;> linarith [h2.1, h2.2]
+      exact hr₀bounds x
   · -- Convergence of the derivatives.
     intro k hk ε hε
     rcases Nat.lt_or_ge k 2 with hk2 | hk2
@@ -398,44 +388,28 @@ theorem exists_regularizedPhases {σ : ℝ} (hσ : 0 < σ) {a b : ℝ} (ha : 0 <
             iteratedDeriv j (fun y ↦ χ y * g y) x -
               iteratedDeriv j (fun y ↦ c₁ * (1 - χ y)) x := by
         intro g hg
-        have := iteratedDeriv_sub (n := j) (x := x) (f := fun y ↦ χ y * g y)
-          (g := fun y ↦ c₁ * (1 - χ y))
+        exact iteratedDeriv_fun_sub
           (hg.contDiffAt.of_le (by exact_mod_cast le_top))
           ((contDiff_const.mul (contDiff_const.sub hχs)).contDiffAt.of_le
             (by exact_mod_cast le_top))
-        exact this
       have hr_eq : r i = regSecond χ c₁ (iteratedDeriv 2 (G i)) := rfl
       rw [hr_eq, hsplit _ (hχs.mul (hG2 i)), hsplit _ hχg₀, sub_sub_sub_cancel_right]
       by_cases hx : x ∈ Icc (a / 2) (b + 1)
       · have hx0 : 0 < x := lt_of_lt_of_le (by linarith) hx.1
         have hg₀at : ContDiffAt ℝ ∞ g₀ x := hg₀smooth.contDiffAt (isOpen_Ioi.mem_nhds hx0)
-        rw [iteratedDeriv_fun_mul ((hχs).contDiffAt.of_le (by exact_mod_cast le_top))
-          ((hG2 i).contDiffAt.of_le (by exact_mod_cast le_top))]
-        have hmul₀ := iteratedDeriv_fun_mul (n := j) (x := x) (f := χ) (g := g₀)
+        have hbound := norm_iteratedDeriv_mul_sub_le (n := j) (x := x)
           (hχs.contDiffAt.of_le (by exact_mod_cast le_top))
+          ((hG2 i).contDiffAt.of_le (by exact_mod_cast le_top))
           (hg₀at.of_le (by exact_mod_cast le_top))
-        change iteratedDeriv j (χ * g₀) x = _ at hmul₀
-        rw [show (fun y ↦ χ y * g₀ y) = χ * g₀ from rfl, hmul₀, ← Finset.sum_sub_distrib]
-        calc ‖∑ m ∈ Finset.range (j + 1), ((j.choose m : ℝ) * iteratedDeriv m χ x *
-                iteratedDeriv (j - m) (iteratedDeriv 2 (G i)) x -
-              (j.choose m : ℝ) * iteratedDeriv m χ x * iteratedDeriv (j - m) g₀ x)‖
-            ≤ ∑ m ∈ Finset.range (j + 1), (j.choose m : ℝ) * Kχ m * δ := by
-              refine (norm_sum_le _ _).trans (Finset.sum_le_sum fun m hm ↦ ?_)
-              have hgder : iteratedDeriv (j - m) g₀ = iteratedDeriv (j - m + 1) φ := by
-                rw [iteratedDeriv_succ']
-              rw [iteratedDeriv_iteratedDeriv_two, hgder, ← mul_sub, norm_mul, norm_mul]
-              have h1 := hconvi m hm x hx
-              rw [show j - m + 1 + 1 = j - m + 2 by ring] at h1
-              have hc : ‖(j.choose m : ℝ)‖ = (j.choose m : ℝ) :=
-                Real.norm_of_nonneg (Nat.cast_nonneg _)
-              rw [hc]
-              exact mul_le_mul (mul_le_mul_of_nonneg_left (hKχ m x) (Nat.cast_nonneg _))
-                h1 (norm_nonneg _) (mul_nonneg (Nat.cast_nonneg _) (hKχ0 m))
-          _ = L * δ := by rw [hL_def, Finset.sum_mul]
+          (A := Kχ) (ε := δ) (fun m _ ↦ hKχ m x) (fun m hm ↦ by
+            rw [iteratedDeriv_iteratedDeriv, show iteratedDeriv m g₀ =
+              iteratedDeriv (m + 1) φ from (by rw [iteratedDeriv_succ'])]
+            simpa only [show j - (j - m) = m by omega, Nat.add_assoc] using
+              hconvi (j - m) (Finset.mem_range.2 (by omega)) x hx)
+        calc _ ≤ L * δ := hbound
           _ ≤ ε := by
-              rw [hδ_def, mul_div_assoc']
-              rw [div_le_iff₀ (by linarith)]
-              nlinarith
+            rw [hδ_def, mul_div_assoc', div_le_iff₀ (by linarith)]
+            nlinarith
       · rw [iteratedDeriv_mul_eq_zero_of_notMem_tsupport (hnotsupp x hx),
           iteratedDeriv_mul_eq_zero_of_notMem_tsupport (hnotsupp x hx), sub_zero, norm_zero]
         exact hε.le
@@ -564,7 +538,7 @@ end Extension
 
 section DualPhase
 
-/-! ## Derivative convergence at moving points -/
+/-! ## Normalized dual phases -/
 
 /-- The normalized dual phase on the block `[κ, 2κ]`. -/
 def dualPhase (H : ℝ → ℝ) (κ S : ℝ) (u : ℝ) : ℝ := -legendre H (κ * u) / S
@@ -675,7 +649,7 @@ private theorem derivativesClose_phaseInverse (hR : RegularizedPhases σ a b G H
           exact div_le_div_of_nonneg_right (by simpa [Real.norm_eq_abs] using hi) hc.le
       _ = _ := by ring
   -- Derivative bounds and convergence of the curvature at the stationary points.
-  have hcurvjet : DerivativesClose (fun i ↦ deriv (deriv (H i))) (fun _ ↦ deriv (deriv H₀))
+  have hcurvature : DerivativesClose (fun i ↦ deriv (deriv (H i))) (fun _ ↦ deriv (deriv H₀))
       (fun i ↦ phaseInverse (H i) (ν i)) (fun i ↦ phaseInverse H₀ (ν i)) n := by
     have h2 : ∀ (F : ℝ → ℝ), deriv (deriv F) = iteratedDeriv 2 F := fun F ↦ by
       rw [iteratedDeriv_succ, iteratedDeriv_one]
@@ -685,22 +659,11 @@ private theorem derivativesClose_phaseInverse (hR : RegularizedPhases σ a b G H
       exact ((hR.smooth_lim.deriv' (n := ∞))).deriv' (n := ∞)
     · intro k ε hε
       filter_upwards [hR.conv (k + 2) (by omega) ε hε] with i hi x
-      have e1 : iteratedDeriv k (iteratedDeriv 2 (H i)) = iteratedDeriv (k + 2) (H i) := by
-        rw [iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate,
-          ← Function.iterate_add_apply]
-      have e2 : iteratedDeriv k (iteratedDeriv 2 H₀) = iteratedDeriv (k + 2) H₀ := by
-        rw [iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate,
-          ← Function.iterate_add_apply]
-      rw [e1, e2]
-      exact hi x
+      simpa only [iteratedDeriv_iteratedDeriv] using hi x
     · intro k
       obtain ⟨K, hK⟩ := hR.bdd (k + 2) (by omega)
       refine ⟨K, fun x ↦ ?_⟩
-      have e2 : iteratedDeriv k (iteratedDeriv 2 H₀) = iteratedDeriv (k + 2) H₀ := by
-        rw [iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate, iteratedDeriv_eq_iterate,
-          ← Function.iterate_add_apply]
-      rw [e2]
-      exact hK x
+      simpa only [iteratedDeriv_iteratedDeriv] using hK x
     · exact hR.tendsto_phaseInverse_sub ν
   have hinv := DerivativesClose.inverse (X := fun i ↦ phaseInverse (H i))
     (X' := fun _ ↦ phaseInverse H₀) (Y := fun i ↦ deriv (H i)) (Y' := fun _ ↦ deriv H₀)
@@ -708,7 +671,7 @@ private theorem derivativesClose_phaseInverse (hR : RegularizedPhases σ a b G H
     (fun i ↦ (hspec i).1) (fun _ ↦ hspec₀.1)
     (fun i ↦ (hR.smooth i).deriv' (n := ∞))
     (fun _ ↦ hR.smooth_lim.deriv' (n := ∞))
-    (fun i y ↦ (hspec i).2.2 y) (fun _ y ↦ hspec₀.2.2 y) hcurvjet h0.1 h0.2 hc
+    (fun i y ↦ (hspec i).2.2 y) (fun _ y ↦ hspec₀.2.2 y) hcurvature h0.1 h0.2 hc
     (Eventually.of_forall fun i ↦ by
       rw [Real.norm_eq_abs]
       have := hd₀ (phaseInverse H₀ (ν i))
@@ -783,8 +746,8 @@ theorem isModelPhaseFunctionWith_dualPhase (hR : RegularizedPhases σ a b G H H�
         positivity)]
       simp only [hx_def]
       nlinarith [(u i).2.2]
-  have hjet := (hR.derivativesClose_phaseInverse hxb p) p le_rfl
-  have hlim := ((isEqUpToInfinitesimal_iff_tendsto_sub _ _).1 hjet.1).const_mul
+  have hderivatives := (hR.derivativesClose_phaseInverse hxb p) p le_rfl
+  have hlim := ((isEqUpToInfinitesimal_iff_tendsto_sub _ _).1 hderivatives.1).const_mul
     (κ / S * κ ^ p)
   rw [mul_zero] at hlim
   have hlim' := hlim.norm

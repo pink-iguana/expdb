@@ -90,7 +90,6 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
   set S : ℕ → ℝ → ℝ := fun i x ↦ Real.sqrt (Q i x) with hSdef
   have hSs : ∀ i, ContDiff ℝ ∞ (S i) := fun i ↦
     (hQs i).sqrt fun x ↦ (lt_of_lt_of_le hc (hQlow i x)).ne'
-  have hYeq : ∀ i, Y i = fun x ↦ (x - v i) * S i x := fun i ↦ rfl
   -- boundedness of the preimage points
   have hzb : VariableObject.IsBounded z :=
     ⟨M,
@@ -113,11 +112,10 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
         (fun i x ↦ Real.mul_self_sqrt (hc.le.trans (hQlow i x)))
         (DerivativesClose.of_uniform_bound fun j _ ↦ hQb j) (Real.sqrt_pos.2 hc)
         (Eventually.of_forall fun i ↦ Real.sqrt_le_sqrt (hQlow i (z i)))
-    have := DerivativesClose.mul (f := fun i y ↦ y - v i) (g := S)
+    exact DerivativesClose.mul (f := fun i y ↦ y - v i) (g := S)
       (f' := fun i y ↦ y - v i) (g' := S)
       (fun _ ↦ contDiff_id.sub contDiff_const) hSs (fun _ ↦ contDiff_id.sub contDiff_const)
       hSs (derivativesClose_sub_const hzv n) hSj
-    exact this
   -- derivative bounds and convergence of the inverse
   have hXj : ∀ n, DerivativesClose X X y y (n + 1) := by
     intro n
@@ -139,7 +137,7 @@ private theorem amplitude_seq_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0
     (f' := fun i ↦ w ∘ X i) (g' := fun i ↦ deriv (X i))
     (fun i ↦ hw.comp (hX i)) (fun i ↦ (hX i).deriv' (n := ∞))
     (fun i ↦ hw.comp (hX i)) (fun i ↦ (hX i).deriv' (n := ∞)) hcomp (hXj k).shift
-  exact (hamp k le_rfl).1.isBounded_left (hamp k le_rfl).2
+  exact (hamp k le_rfl).2
 
 /-- Uniform bounds on the derivatives of the stationary-phase amplitude. -/
 theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
@@ -318,14 +316,12 @@ theorem exists_phaseCutoff_bound (n : ℕ) :
   classical
   choose B hB using fun k : ℕ ↦ exists_bound_iteratedDeriv_of_hasCompactSupport
     phaseCutoff.contDiff phaseCutoff.hasCompactSupport k
-  refine ⟨∑ k ∈ Finset.range (n + 1), |B k|, fun k hk x ↦ ?_⟩
+  refine ⟨∑ k ∈ Finset.range (n + 1), B k, fun k hk x ↦ ?_⟩
   calc
     |iteratedDeriv k (phaseCutoff : ℝ → ℝ) x| ≤ B k := by
       simpa only [Real.norm_eq_abs] using hB k x
-    _ ≤ |B k| := le_abs_self _
-    _ ≤ ∑ j ∈ Finset.range (n + 1), |B j| :=
-      Finset.single_le_sum (fun j _ ↦ abs_nonneg (B j))
-        (Finset.mem_range.2 (show k < n + 1 by omega))
+    _ ≤ _ := Finset.single_le_sum (fun j _ ↦ (norm_nonneg _).trans (hB j 0))
+      (Finset.mem_range.2 (by omega))
 
 
 section
@@ -486,9 +482,8 @@ theorem norm_smooth_sum_sub_main_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
   have hIf : ∀ m, I m = f m + E m := fun m ↦ by simp [E]
   have hsumf : ∑' m, f m = ∑ m ∈ Finset.Ico P₀ P₁, mainTerm H T (N * m / T) := by
     rw [tsum_eq_sum (s := S) (fun m hm ↦ by simp [f, hm])]
-    have hc : ∑ m ∈ S, f m = ∑ m ∈ S, mainTerm H T (N * m / T) :=
-      Finset.sum_congr rfl (fun m hm ↦ by simp only [f, if_pos hm])
-    rw [hc, hS, Finset.sum_image (fun a _ b _ h ↦ by exact_mod_cast h)]
+    simp only [f, Finset.sum_ite_mem, Finset.inter_self]
+    rw [hS, Finset.sum_image (fun a _ b _ h ↦ by exact_mod_cast h)]
     simp only [Int.cast_natCast]
   have htsum : ∑' m, I m = ∑ m ∈ Finset.Ico P₀ P₁, mainTerm H T (N * m / T) + ∑' m, E m := by
     rw [tsum_congr hIf, hfs.tsum_add hEs', hsumf]
@@ -498,13 +493,10 @@ theorem norm_smooth_sum_sub_main_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
     rw [(summable_of_ne_finset_zero (s := S) (fun m hm ↦ by simp [hm])).tsum_add
       (summable_inv_one_add_abs_sq.mul_left _), tsum_mul_left,
       tsum_eq_sum (s := S) (fun m hm ↦ by simp [hm])]
-    have hc : ∑ m ∈ S, (if m ∈ S then Es else 0) = ∑ m ∈ S, Es :=
-      Finset.sum_congr rfl (fun m hm ↦ by simp only [if_pos hm])
-    rw [hc, Finset.sum_const, hcard, nsmul_eq_mul]
+    simp only [Finset.sum_ite_mem, Finset.inter_self, Finset.sum_const, hcard, nsmul_eq_mul, S0]
   have hnormE : ‖∑' m, E m‖ ≤ ((P₁ - P₀ : ℕ) : ℝ) * Es + Kn / (δ ^ 2 * N ^ 2) * S0 := by
     rw [← hsumg]
-    exact (norm_tsum_le_tsum_norm (hEs'.norm)).trans
-      (hEs'.norm.tsum_le_tsum hbound hgs)
+    exact tsum_of_norm_bounded hgs.hasSum hbound
   rw [htsum, mul_add, add_sub_cancel_left, norm_mul, Complex.norm_real, Real.norm_of_nonneg hN.le]
   calc N * ‖∑' m, E m‖ ≤ N * (((P₁ - P₀ : ℕ) : ℝ) * Es + Kn / (δ ^ 2 * N ^ 2) * S0) :=
         mul_le_mul_of_nonneg_left hnormE hN.le
