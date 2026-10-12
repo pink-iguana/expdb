@@ -78,19 +78,6 @@ theorem exponentSumGrowthExponent_le_huxley_1993 (α : ℝ≥0) :
       exponentSumGrowthExponent α ≤ 89 / 570 + (α : ℝ) / 2) := by
   sorry
 
-/-- The first range of the 1993 Huxley bound. -/
-theorem exponentSumGrowthExponent_le_huxley_1993_low
-    (α : ℝ≥0) (hα : α ≤ 49 / 114) :
-    exponentSumGrowthExponent α ≤
-      max (13 / 60 + 7 / 20 * (α : ℝ)) (11 / 120 + 13 / 20 * (α : ℝ)) :=
-  (exponentSumGrowthExponent_le_huxley_1993 α).1 hα
-
-/-- The second range of the 1993 Huxley bound. -/
-theorem exponentSumGrowthExponent_le_huxley_1993_high
-    (α : ℝ≥0) (hα : 49 / 114 ≤ α) (hα' : α ≤ 1 / 2) :
-    exponentSumGrowthExponent α ≤ 89 / 570 + (α : ℝ) / 2 :=
-  (exponentSumGrowthExponent_le_huxley_1993 α).2 hα hα'
-
 /-- The second 1993 Huxley bound (blueprint Theorem `beta-Huxley-4a`). -/
 theorem exponentSumGrowthExponent_le_huxley_1993_second
     (α : ℝ≥0) (hα : α ≤ 1) :
