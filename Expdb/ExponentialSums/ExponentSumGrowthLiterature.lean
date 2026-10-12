@@ -210,9 +210,10 @@ theorem exponentSumGrowthExponent_le_bourgain_2017 (α : ℝ≥0) :
       exponentSumGrowthExponent α ≤ 13 / 84 + (α : ℝ) / 2) := by
   sorry
 
-/-- The 2020 Heath--Brown bound (blueprint Theorem `beta-hb-2020`). -/
+/-- The 2020 Heath--Brown bound (blueprint Theorem `beta-hb-2020`).
+The range `1 / 2 ≤ α ≤ 3 / 4` is equivalent to `1 ≤ 4 * α - 1 ≤ 2`. -/
 theorem exponentSumGrowthExponent_le_heathBrown_2020
-    (α : ℝ≥0) (hα : 1 ≤ 4 * (α : ℝ) - 1) (hα' : 4 * (α : ℝ) - 1 ≤ 2) :
+    (α : ℝ≥0) (hα : 1 / 2 ≤ α) (hα' : α ≤ 3 / 4) :
     exponentSumGrowthExponent α ≤
       max ((α : ℝ) * (1 - (4 * α - 1) / (4 * (4 * α - 1) + 8)))
         (8 * α / 9) := by
