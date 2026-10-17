@@ -365,6 +365,31 @@ theorem IsModelPhaseFunctionWith.eventually_isApproximate
   intro p hp' u
   exact (hi p (Finset.mem_range.mpr (by omega)) u).le
 
+/-- Finite-order approximate model phases form a model-phase family when their derivative
+cutoffs tend to infinity and their errors tend to zero, with a fixed positive reference exponent. -/
+theorem isModelPhaseFunction_of_approximations
+    {F : VariableFunction (VariableObject.fixed ℝ) ℝ}
+    {σ : ℝ} {P : VariableObject ℕ} {δ : VariableObject ℝ}
+    (hσ : 0 < σ)
+    (hP : ∀ p : ℕ, ∀ᶠ i in atTop, p ≤ P i)
+    (hδ : δ.IsInfinitesimal)
+    (happrox : ∀ i, IsApproximateModelPhaseFunction (F i) σ (P i) (δ i)) :
+    IsModelPhaseFunction F := by
+  refine ⟨fun i ↦ (happrox i).1, σ, hσ, ?_⟩
+  intro p
+  apply (VariableFunction.isChoicewiseInfinitesimal_iff_forall_pos_uniform
+    (VariableObject.fixed phaseInterval)
+    (fun _ ↦ ⟨1, by simp [phaseInterval]⟩)
+    (modelPhaseError F σ p)).2
+  intro ε hε
+  have hδsmall :=
+    (VariableObject.isInfinitesimal_iff_forall_pos δ).1 hδ ε hε
+  filter_upwards [hP p, hδsmall] with i hip hiδ
+  intro u
+  have herror := (happrox i).2 p hip u
+  rw [Real.norm_eq_abs] at hiδ
+  exact lt_of_le_of_lt herror ((le_abs_self (δ i)).trans_lt hiδ)
+
 private theorem modelPhaseError_sum_isChoicewiseInfinitesimal
     {F : VariableFunction (VariableObject.fixed ℝ) ℝ} {σ : ℝ}
     (herror : ∀ p : ℕ, (modelPhaseError F σ p).IsChoicewiseInfinitesimal)

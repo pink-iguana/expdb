@@ -148,29 +148,6 @@ theorem isApproximateModelPhaseFunction_log (P : ℕ) :
 
 /-! ## Building asymptotic counterexamples -/
 
-private theorem isModelPhaseFunction_of_approximations
-    {F : VariableFunction (VariableObject.fixed ℝ) ℝ}
-    {σ : ℝ} {P : VariableObject ℕ} {δ : VariableObject ℝ}
-    (hσ : 0 < σ)
-    (hP : ∀ p : ℕ, ∀ᶠ i in atTop, p ≤ P i)
-    (hδ : δ.IsInfinitesimal)
-    (happrox : ∀ i, IsApproximateModelPhaseFunction (F i) σ (P i) (δ i)) :
-    IsModelPhaseFunction F := by
-  refine ⟨fun i ↦ (happrox i).1, σ, hσ, ?_⟩
-  intro p
-  apply (VariableFunction.isChoicewiseInfinitesimal_iff_forall_pos_uniform
-    (VariableObject.fixed phaseInterval)
-    (fun _ ↦ ⟨1, by simp [phaseInterval]⟩)
-    (modelPhaseError F σ p)).2
-  intro ε hε
-  have hδsmall :=
-    (VariableObject.isInfinitesimal_iff_forall_pos δ).1 hδ ε hε
-  filter_upwards [hP p, hδsmall] with i hip hiδ
-  intro u
-  have herror := (happrox i).2 p hip u
-  rw [Real.norm_eq_abs] at hiδ
-  exact lt_of_le_of_lt herror ((le_abs_self (δ i)).trans_lt hiδ)
-
 private theorem nonAsymptotic_of_isExponentSumBound
     {α : ℝ≥0} {β : ℝ} (hbound : IsExponentSumBound α β) :
     IsExponentSumBoundNonAsymptotic α β := by
