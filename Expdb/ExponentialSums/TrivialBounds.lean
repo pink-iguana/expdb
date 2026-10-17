@@ -157,8 +157,7 @@ private theorem exponentSumGrowthExponent_le_sub_one
   let C : ℝ := max 1 (max (2 * M) (K ^ params.exponent⁻¹))
   have hC : 1 ≤ C := le_max_left _ _
   refine ⟨η, hη, params.order, params.one_le_order, C, hC, ?_⟩
-  intro T N F a b hsetup
-  obtain ⟨hTC, hNlower, hNupper, hF, ha, hb⟩ := hsetup
+  intro T N F a b hTC hNlower hNupper hF ⟨ha, hb⟩
   have hTone : 1 ≤ T := hC.trans hTC
   have hTpos : 0 < T := zero_lt_one.trans_le hTone
   have hNone : 1 ≤ N := by
