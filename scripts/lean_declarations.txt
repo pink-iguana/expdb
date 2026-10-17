@@ -249,10 +249,7 @@ Expdb.isZetaGrowthBound_of_forall_gt
 Expdb.isZetaGrowthBound_zetaGrowthExponent
 Expdb.zetaGrowthExponent_le_iff
 Expdb.isLeast_zetaGrowthExponent
-Expdb.IsZetaGrowthBoundSequential
-Expdb.IsZetaGrowthBound.toSequential
-Expdb.IsZetaGrowthBoundSequential.toExplicit
-Expdb.isZetaGrowthBound_iff_sequential
+Expdb.isZetaGrowthBound_iff_forall_pos
 Expdb.zetaAt_bounds_of_one_lt
 Expdb.isZetaGrowthBound_zero_of_one_lt
 Expdb.IsZetaGrowthBound.nonneg_of_one_lt

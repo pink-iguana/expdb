@@ -74,6 +74,7 @@ theorem zetaAt_bounds_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
 theorem isZetaGrowthBound_zero_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
     IsZetaGrowthBound σ 0 := by
   obtain ⟨B, hB, hb⟩ := zetaAt_bounds_of_one_lt hσ
+  apply isZetaGrowthBound_iff_forall_pos.mpr
   intro ε hε
   refine ⟨B, zero_lt_one.trans_le hB, fun t ht => ?_⟩
   simpa only [zero_add] using (hb t).2.trans
@@ -99,7 +100,7 @@ theorem IsZetaGrowthBound.nonneg_of_one_lt {σ b : ℝ} (h : IsZetaGrowthBound �
   have habstop : VariableObject.IsUnbounded (fun i => |t i|) := by
     simpa [VariableObject.IsUnbounded, Real.norm_eq_abs] using htop
   apply exponent_le_of_isPowerBounded_of_eventually_norm_ge_rpow
-    ht habstop (h.toSequential t ht htop) (one_div_pos.mpr (zero_lt_one.trans_le hB))
+    ht habstop (h t ht htop) (one_div_pos.mpr (zero_lt_one.trans_le hB))
   exact Eventually.of_forall fun i => by simpa using (hb (t i)).1
 
 /-- The set of admissible zeta growth exponents is nonempty for `σ > 1`. -/
