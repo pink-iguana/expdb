@@ -208,62 +208,17 @@ theorem norm_integral_le_two_ibp_budgets
     have h0 := hQ0 w hw
     have h1 := hQ1 w hw
     have h2 := hQ2 w hw
-    have ha2q : ‖amplitude'' w * q w‖ ≤ ‖amplitude'' w‖ * Q0 := by
-      rw [norm_mul]
-      exact mul_le_mul_of_nonneg_left h0 (norm_nonneg _)
-    have ha1qd : ‖amplitude' w * qd w‖ ≤ ‖amplitude' w‖ * Q1 := by
-      rw [norm_mul]
-      exact mul_le_mul_of_nonneg_left h1 (norm_nonneg _)
-    have ha0qdd : ‖amplitude w * qdd w‖ ≤ ‖amplitude w‖ * Q2 := by
-      rw [norm_mul]
-      exact mul_le_mul_of_nonneg_left h2 (norm_nonneg _)
-    have ha1q : ‖amplitude' w * q w‖ ≤ ‖amplitude' w‖ * Q0 := by
-      rw [norm_mul]
-      exact mul_le_mul_of_nonneg_left h0 (norm_nonneg _)
-    have ha0qd : ‖amplitude w * qd w‖ ≤ ‖amplitude w‖ * Q1 := by
-      rw [norm_mul]
-      exact mul_le_mul_of_nonneg_left h1 (norm_nonneg _)
-    have hblock1 :
-        ‖(amplitude'' w * q w + amplitude' w * qd w) +
-            (amplitude' w * qd w + amplitude w * qdd w)‖ ≤
-          (‖amplitude'' w‖ * Q0 + ‖amplitude' w‖ * Q1) +
-            (‖amplitude' w‖ * Q1 + ‖amplitude w‖ * Q2) := by
-      exact (norm_add_le _ _).trans (add_le_add
-        ((norm_add_le _ _).trans (add_le_add ha2q ha1qd))
-        ((norm_add_le _ _).trans (add_le_add ha1qd ha0qdd)))
-    have hblock2 :
-        ‖amplitude' w * q w + amplitude w * qd w‖ ≤
-          ‖amplitude' w‖ * Q0 + ‖amplitude w‖ * Q1 := by
-      exact (norm_add_le _ _).trans (add_le_add ha1q ha0qd)
-    have hraw :
-        ‖vd w‖ ≤
+    calc
+      ‖vd w‖ ≤
           ((‖amplitude'' w‖ * Q0 + ‖amplitude' w‖ * Q1) +
             (‖amplitude' w‖ * Q1 + ‖amplitude w‖ * Q2)) * Q0 +
           (‖amplitude' w‖ * Q0 + ‖amplitude w‖ * Q1) * Q1 := by
-      unfold vd
-      rw [norm_mul, hEUnit w hw, mul_one]
-      calc
-        ‖(((amplitude'' w * q w + amplitude' w * qd w) +
-              (amplitude' w * qd w + amplitude w * qdd w)) * q w +
-            (amplitude' w * q w + amplitude w * qd w) * qd w)‖ ≤
-            ‖((amplitude'' w * q w + amplitude' w * qd w) +
-              (amplitude' w * qd w + amplitude w * qdd w)) * q w‖ +
-              ‖(amplitude' w * q w + amplitude w * qd w) * qd w‖ :=
-          norm_add_le _ _
-        _ = ‖(amplitude'' w * q w + amplitude' w * qd w +
-                (amplitude' w * qd w + amplitude w * qdd w))‖ * ‖q w‖ +
-              ‖amplitude' w * q w + amplitude w * qd w‖ * ‖qd w‖ := by
-          rw [norm_mul, norm_mul]
-        _ ≤ ((‖amplitude'' w‖ * Q0 + ‖amplitude' w‖ * Q1) +
-              (‖amplitude' w‖ * Q1 + ‖amplitude w‖ * Q2)) * Q0 +
-            (‖amplitude' w‖ * Q0 + ‖amplitude w‖ * Q1) * Q1 := by
-          apply add_le_add
-          · exact mul_le_mul hblock1 h0 (norm_nonneg _)
-              (by positivity)
-          · exact mul_le_mul hblock2 h1 (norm_nonneg _)
-              (by positivity)
-    calc
-      ‖vd w‖ ≤ _ := hraw
+        dsimp [vd]
+        rw [norm_mul, hEUnit w hw, mul_one]
+        grw [norm_add_le, norm_mul, norm_mul, norm_add_le,
+          norm_add_le, norm_add_le, norm_add_le]
+        simp only [norm_mul]
+        gcongr
       _ = Q0 ^ 2 * ‖amplitude'' w‖ +
           3 * Q0 * Q1 * ‖amplitude' w‖ +
             (Q0 * Q2 + Q1 ^ 2) * ‖amplitude w‖ := by ring

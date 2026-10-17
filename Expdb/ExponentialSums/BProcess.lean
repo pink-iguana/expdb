@@ -177,9 +177,10 @@ private theorem norm_sum_mainTerm_block_le {T N : ℝ} (hT : 0 < T) (hN : 0 < N)
     refine Finset.sum_congr rfl fun m _ ↦ ?_
     rw [mainTerm, hν m]
     ring
-  rw [hsum, norm_mul, norm_div, Complex.norm_exp]
-  have hre : (-(Real.pi : ℂ) / 4 * I).re = 0 := by simp
-  rw [hre, Real.exp_zero, Complex.norm_real, Real.norm_of_nonneg (Real.sqrt_nonneg _)]
+  have hphase : ‖Complex.exp (-(Real.pi : ℂ) / 4 * I)‖ = 1 := by
+    simp [Complex.norm_exp_mul_I]
+  rw [hsum, norm_mul, norm_div, hphase, Complex.norm_real,
+    Real.norm_of_nonneg (Real.sqrt_nonneg _)]
   have hb := norm_sum_Ico_lipschitz_mul_le (mainAmplitude H) hM hA hLip
     (fun m ↦ (𝐞 (T * legendre H (N * m / T)) : ℂ)) hPQ hD
   rw [one_div_mul_eq_div]

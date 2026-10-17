@@ -88,17 +88,9 @@ private theorem borelBumpMono_deriv_bound (n : ℕ) :
     ∃ G : ℝ, 0 ≤ G ∧ ∀ k ≤ n, ∀ s : ℝ,
       ‖iteratedDeriv k (borelBumpMono n) s‖ ≤ G := by
   have hbnd : ∀ k, ∃ C : ℝ, ∀ s : ℝ,
-      ‖iteratedDeriv k (borelBumpMono n) s‖ ≤ C := by
-    intro k
-    have hcs : HasCompactSupport (iteratedFDeriv ℝ k (borelBumpMono n)) :=
-      (borelBumpMono_hasCompactSupport n).iteratedFDeriv k
-    have hcont : Continuous (iteratedFDeriv ℝ k (borelBumpMono n)) :=
-      (borelBumpMono_contDiff (N := (⊤ : ℕ∞)) n).continuous_iteratedFDeriv
-        (by exact_mod_cast le_top : (k : WithTop ℕ∞) ≤ ((⊤ : ℕ∞) : WithTop ℕ∞))
-    obtain ⟨C, hC⟩ := hcs.exists_bound_of_continuous hcont
-    refine ⟨C, fun s => ?_⟩
-    rw [← norm_iteratedFDeriv_eq_norm_iteratedDeriv]
-    exact hC s
+      ‖iteratedDeriv k (borelBumpMono n) s‖ ≤ C :=
+    fun k ↦ exists_bound_iteratedDeriv_of_hasCompactSupport
+      (borelBumpMono_contDiff n) (borelBumpMono_hasCompactSupport n) k
   choose C hC using hbnd
   refine ⟨(Finset.range (n + 1)).sup' (by simp) (fun k => max (C k) 0), ?_, ?_⟩
   · exact le_trans (le_max_right _ _)
@@ -131,71 +123,27 @@ private theorem borelTerm_contDiff {N : ℕ∞} (c : ℕ → F) (n : ℕ) :
 
 private theorem borelTerm_hasCompactSupport (c : ℕ → F) (n : ℕ) :
     HasCompactSupport (borelTerm c n) := by
-  apply HasCompactSupport.smul_right
-    (f := fun t => (borelScale c n)⁻¹ ^ n * borelBumpMono n (borelScale c n * t))
-  apply HasCompactSupport.of_support_subset_isCompact
-    (K := Icc (-(2 / borelScale c n)) (2 / borelScale c n)) isCompact_Icc
-  intro t ht
-  by_contra hmem
-  apply ht
-  have hL0 : 0 < borelScale c n := borelScale_pos c n
-  have h2 : 2 ≤ (borelScale c n * t) ^ 2 := by
-    rcases not_and_or.1 hmem with h | h
-    · have ht' : t < -(2 / borelScale c n) := lt_of_not_ge h
-      have hlt : borelScale c n * t < borelScale c n * (-(2 / borelScale c n)) :=
-        mul_lt_mul_of_pos_left ht' hL0
-      rw [mul_neg, mul_div_cancel₀ _ hL0.ne'] at hlt
-      nlinarith
-    · have ht' : 2 / borelScale c n < t := lt_of_not_ge h
-      have hlt : borelScale c n * (2 / borelScale c n) < borelScale c n * t :=
-        mul_lt_mul_of_pos_left ht' hL0
-      rw [mul_div_cancel₀ _ hL0.ne'] at hlt
-      nlinarith
-  simp only [borelBumpMono, borelCutoff_eq_zero h2, zero_mul, zero_div, mul_zero]
+  have h := (borelBumpMono_hasCompactSupport n).comp_smul (borelScale_pos c n).ne'
+  exact (h.mul_left (f := fun _ : ℝ ↦ (borelScale c n)⁻¹ ^ n)).smul_right
 
 private theorem borelTerm_iteratedDeriv_global_bound (c : ℕ → F) (n k : ℕ) :
-    ∃ B : ℝ, ∀ t : ℝ, ‖iteratedDeriv k (borelTerm c n) t‖ ≤ B := by
-  have hcs : HasCompactSupport (iteratedFDeriv ℝ k (borelTerm c n)) :=
-    (borelTerm_hasCompactSupport c n).iteratedFDeriv k
-  have hcont : Continuous (iteratedFDeriv ℝ k (borelTerm c n)) :=
-    (borelTerm_contDiff (N := (⊤ : ℕ∞)) c n).continuous_iteratedFDeriv
-      (by exact_mod_cast le_top : (k : WithTop ℕ∞) ≤ ((⊤ : ℕ∞) : WithTop ℕ∞))
-  obtain ⟨B, hB⟩ := hcs.exists_bound_of_continuous hcont
-  refine ⟨B, fun t => ?_⟩
-  rw [← norm_iteratedFDeriv_eq_norm_iteratedDeriv]
-  exact hB t
+    ∃ B : ℝ, ∀ t : ℝ, ‖iteratedDeriv k (borelTerm c n) t‖ ≤ B :=
+  exists_bound_iteratedDeriv_of_hasCompactSupport
+    (borelTerm_contDiff c n) (borelTerm_hasCompactSupport c n) k
 
 private theorem borelTerm_iteratedDeriv (c : ℕ → F) (n k : ℕ) (t : ℝ) :
     iteratedDeriv k (borelTerm c n) t =
       ((borelScale c n)⁻¹ ^ n *
         (borelScale c n) ^ k * iteratedDeriv k (borelBumpMono n) (borelScale c n * t))
         • c n := by
-  have hcd : ContDiffAt ℝ k (fun s => borelBumpMono n (borelScale c n * s)) t :=
+  have hcd : ContDiffAt ℝ k (fun s ↦ borelBumpMono n (borelScale c n * s)) t :=
     (borelBumpMono_comp_smul_contDiff (N := (k : ℕ∞)) n (borelScale c n)).contDiffAt
-  have hsmul : iteratedDeriv k (borelTerm c n) t =
-      (iteratedDeriv k (fun s => (borelScale c n)⁻¹ ^ n *
-        borelBumpMono n (borelScale c n * s)) t) • c n :=
-    iteratedDeriv_smul_const (contDiff_const.contDiffAt.mul hcd) _
-  rw [hsmul]
-  congr 1
-  have hconst : iteratedDeriv k (fun s => (borelScale c n)⁻¹ ^ n *
-      borelBumpMono n (borelScale c n * s)) t =
-      (borelScale c n)⁻¹ ^ n •
-        iteratedDeriv k (fun s => borelBumpMono n (borelScale c n * s)) t := by
-    have := iteratedDeriv_const_smul
-      (𝕜 := ℝ) (R := ℝ) (n := k) (x := t)
-      (f := fun s => borelBumpMono n (borelScale c n * s)) hcd ((borelScale c n)⁻¹ ^ n)
-    simpa only [Pi.smul_apply, smul_eq_mul] using! this
-  rw [hconst]
-  have hcomp : iteratedDeriv k (fun s => borelBumpMono n (borelScale c n * s)) t =
-      (borelScale c n) ^ k • iteratedDeriv k (borelBumpMono n) (borelScale c n * t) := by
-    have h := iteratedDeriv_comp_const_smul
-      (n := k) (f := borelBumpMono n)
-      (borelBumpMono_contDiff (N := (k : ℕ∞)) n) (borelScale c n)
-    exact congrFun h t
-  rw [hcomp]
-  simp only [smul_eq_mul]
-  ring
+  change iteratedDeriv k (fun s ↦
+    ((borelScale c n)⁻¹ ^ n * borelBumpMono n (borelScale c n * s)) • c n) t = _
+  rw [iteratedDeriv_smul_const (contDiff_const.contDiffAt.mul hcd),
+    iteratedDeriv_const_mul_field, iteratedDeriv_comp_const_smul
+      (borelBumpMono_contDiff (N := (k : ℕ∞)) n)]
+  simp only [smul_eq_mul, mul_assoc]
 
 private theorem borelTerm_iteratedDeriv_bound (c : ℕ → F) {n k : ℕ} (hkn : k < n) (t : ℝ) :
     ‖iteratedDeriv k (borelTerm c n) t‖ ≤ (2 : ℝ)⁻¹ ^ n := by
@@ -446,15 +394,9 @@ theorem contDiffOn_Icc_ite_of_jet_match {fL fR : ℝ → F} {a b x₀ : ℝ} (ha
     hR.ftaylorSeriesWithin (uniqueDiffOn_Icc hb)
   have hjetF : ∀ n : ℕ, pL x₀ n = pR x₀ n := by
     intro n
-    have heL := congrFun (iteratedFDerivWithin_eq_equiv_comp (𝕜 := ℝ) (n := n) (f := fL)
-      (s := Icc a x₀)) x₀
-    have heR := congrFun (iteratedFDerivWithin_eq_equiv_comp (𝕜 := ℝ) (n := n) (f := fR)
-      (s := Icc x₀ b)) x₀
-    simp only [Function.comp_apply] at heL heR
-    have hLR : iteratedFDerivWithin ℝ n fL (Icc a x₀) x₀
-        = iteratedFDerivWithin ℝ n fR (Icc x₀ b) x₀ := by
-      rw [heL, heR, hjet n]
-    simpa only [hpL_def, hpR_def, ftaylorSeriesWithin] using hLR
+    change iteratedFDerivWithin ℝ n fL (Icc a x₀) x₀ =
+      iteratedFDerivWithin ℝ n fR (Icc x₀ b) x₀
+    simp only [iteratedFDerivWithin_eq_equiv_comp, Function.comp_apply, hjet n]
   have hEqL : ∀ m : ℕ, Set.EqOn (fun y => p y m) (fun y => pL y m) (Icc a x₀) := by
     intro m y hy
     simp only [hp_def, ite_eq_left hy.2]
@@ -477,58 +419,19 @@ theorem contDiffOn_Icc_ite_of_jet_match {fL fR : ℝ → F} {a b x₀ : ℝ} (ha
   have hderiv : ∀ m : ℕ, ∀ x ∈ Icc a b,
       HasFDerivWithinAt (fun y => p y m) (p x m.succ).curryLeft (Icc a b) x := by
     intro m x hx
-    have hpL_succ : ∀ y : ℝ, y ≤ x₀ → p y m.succ = pL y m.succ := fun y hy => by
-      simp only [hp_def, ite_eq_left hy]
-    have hpR_succ : ∀ y : ℝ, x₀ ≤ y → p y m.succ = pR y m.succ := by
-      intro y hy
-      rcases eq_or_lt_of_le hy with hy0 | hy0
-      · subst hy0; simp only [hp_def, ite_eq_left (le_refl x₀), hjetF]
-      · simp only [hp_def, ite_eq_right (not_le.mpr hy0)]
-    rcases lt_trichotomy x x₀ with hlt | heq | hgt
-    · have hdL : HasFDerivWithinAt (fun y => pL y m) (pL x m.succ).curryLeft (Icc a x₀) x :=
-        hTL.fderivWithin m (hm_lt m) x ⟨hx.1, hlt.le⟩
-      have hmem : Icc a x₀ ∈ 𝓝[Icc a b] x :=
-        mem_of_superset
-          (inter_mem (nhdsWithin_le_nhds (isOpen_Iio.mem_nhds hlt)) self_mem_nhdsWithin)
-          (fun y hy => ⟨hy.2.1, hy.1.le⟩)
-      have hdL' : HasFDerivWithinAt (fun y => pL y m) (pL x m.succ).curryLeft (Icc a b) x :=
-        hdL.mono_of_mem_nhdsWithin hmem
-      have hee : (fun y => p y m) =ᶠ[𝓝[Icc a b] x] (fun y => pL y m) :=
-        eventuallyEq_iff_exists_mem.mpr ⟨Icc a x₀, hmem, fun y hy => hEqL m hy⟩
-      have hfd : HasFDerivWithinAt (fun y => p y m) (pL x m.succ).curryLeft (Icc a b) x :=
-        hdL'.congr_of_eventuallyEq hee (hEqL m ⟨hx.1, hlt.le⟩)
-      rw [hpL_succ x hlt.le]
-      exact hfd
-    · subst x
-      have hdL0 : HasFDerivWithinAt (fun y => pL y m) (pL x₀ m.succ).curryLeft (Icc a x₀) x₀ :=
-        hTL.fderivWithin m (hm_lt m) x₀ ⟨ha.le, le_refl x₀⟩
-      have hdL0' : HasFDerivWithinAt (fun y => p y m) (pL x₀ m.succ).curryLeft (Icc a x₀) x₀ :=
-        hdL0.congr (hEqL m) (hEqL m ⟨ha.le, le_refl x₀⟩)
-      have hdR0 : HasFDerivWithinAt (fun y => pR y m) (pR x₀ m.succ).curryLeft (Icc x₀ b) x₀ :=
-        hTR.fderivWithin m (hm_lt m) x₀ ⟨le_refl x₀, hb.le⟩
-      have hdR0' : HasFDerivWithinAt (fun y => p y m) (pL x₀ m.succ).curryLeft (Icc x₀ b) x₀ := by
-        have hval : (pR x₀ m.succ).curryLeft = (pL x₀ m.succ).curryLeft := by rw [hjetF]
-        rw [← hval]
-        exact hdR0.congr (hEqR m) (hEqR m ⟨le_refl x₀, hb.le⟩)
-      have hunion : HasFDerivWithinAt (fun y => p y m) (pL x₀ m.succ).curryLeft
-          (Icc a x₀ ∪ Icc x₀ b) x₀ := hdL0'.union hdR0'
-      rw [Set.Icc_union_Icc_eq_Icc ha.le hb.le] at hunion
-      rw [hpL_succ x₀ (le_refl x₀)]
-      exact hunion
-    · have hdR : HasFDerivWithinAt (fun y => pR y m) (pR x m.succ).curryLeft (Icc x₀ b) x :=
-        hTR.fderivWithin m (hm_lt m) x ⟨hgt.le, hx.2⟩
-      have hmem : Icc x₀ b ∈ 𝓝[Icc a b] x :=
-        mem_of_superset
-          (inter_mem (nhdsWithin_le_nhds (isOpen_Ioi.mem_nhds hgt)) self_mem_nhdsWithin)
-          (fun y hy => ⟨hy.1.le, hy.2.2⟩)
-      have hdR' : HasFDerivWithinAt (fun y => pR y m) (pR x m.succ).curryLeft (Icc a b) x :=
-        hdR.mono_of_mem_nhdsWithin hmem
-      have hee : (fun y => p y m) =ᶠ[𝓝[Icc a b] x] (fun y => pR y m) :=
-        eventuallyEq_iff_exists_mem.mpr ⟨Icc x₀ b, hmem, fun y hy => hEqR m hy⟩
-      have hfd : HasFDerivWithinAt (fun y => p y m) (pR x m.succ).curryLeft (Icc a b) x :=
-        hdR'.congr_of_eventuallyEq hee (hEqR m ⟨hgt.le, hx.2⟩)
-      rw [hpR_succ x hgt.le]
-      exact hfd
+    have hdL : HasFDerivWithinAt (fun y => p y m) (p x m.succ).curryLeft (Icc a x₀) x := by
+      by_cases hxL : x ∈ Icc a x₀
+      · have hval : p x m.succ = pL x m.succ := hEqL m.succ hxL
+        rw [hval]
+        exact (hTL.fderivWithin m (hm_lt m) x hxL).congr (hEqL m) (hEqL m hxL)
+      · exact .of_notMem_closure (by simpa only [isClosed_Icc.closure_eq] using hxL)
+    have hdR : HasFDerivWithinAt (fun y => p y m) (p x m.succ).curryLeft (Icc x₀ b) x := by
+      by_cases hxR : x ∈ Icc x₀ b
+      · have hval : p x m.succ = pR x m.succ := hEqR m.succ hxR
+        rw [hval]
+        exact (hTR.fderivWithin m (hm_lt m) x hxR).congr (hEqR m) (hEqR m hxR)
+      · exact .of_notMem_closure (by simpa only [isClosed_Icc.closure_eq] using hxR)
+    simpa only [Set.Icc_union_Icc_eq_Icc ha.le hb.le] using hdL.union hdR
   have hTaylor : HasFTaylorSeriesUpToOn ∞ f p (Icc a b) :=
     (hasFTaylorSeriesUpToOn_top_iff' (le_refl _)).mpr ⟨hzero, hderiv⟩
   exact hTaylor.contDiffOn

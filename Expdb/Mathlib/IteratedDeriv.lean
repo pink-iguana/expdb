@@ -88,7 +88,8 @@ theorem iteratedDerivWithin_eq_of_restriction
   exact iteratedDerivWithin_congr heq hx
 
 /-- Every derivative of a compactly supported smooth function is bounded. -/
-theorem exists_bound_iteratedDeriv_of_hasCompactSupport {f : ℝ → ℝ}
+theorem exists_bound_iteratedDeriv_of_hasCompactSupport
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F] {f : ℝ → F}
     (hf : ContDiff ℝ ∞ f) (hc : HasCompactSupport f) (k : ℕ) :
     ∃ C, ∀ x, ‖iteratedDeriv k f x‖ ≤ C := by
   obtain ⟨C, hC⟩ := Continuous.bounded_above_of_compact_support

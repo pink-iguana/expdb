@@ -411,33 +411,24 @@ private theorem norm_sum_Icc_int_sub_integral_le [CompleteSpace E]
   exact (norm_add_le _ _).trans (add_le_add (norm_add_le _ _) le_rfl) |>.trans <|
     add_le_add (add_le_add hendpoint hcorrection) hremainder
 
-private theorem map_Icc_natCast_int (a b : ℕ) :
-    (Finset.Icc a b).map
-      ⟨(fun n : ℕ ↦ (n : ℤ)), fun _ _ h ↦ Int.ofNat_inj.mp h⟩ =
-      Finset.Icc (a : ℤ) (b : ℤ) := by
-  ext z
-  simp only [Finset.mem_map, Finset.mem_Icc]
-  constructor
-  · rintro ⟨n, hn, rfl⟩
-    change (a : ℤ) ≤ (n : ℤ) ∧ (n : ℤ) ≤ (b : ℤ)
-    exact_mod_cast hn
-  · intro hz
-    have hz0 : 0 ≤ z := le_trans (Int.natCast_nonneg a) hz.1
-    have hzt : (z.toNat : ℤ) = z := Int.toNat_of_nonneg hz0
-    refine ⟨z.toNat, ?_, hzt⟩
-    constructor
-    · exact_mod_cast (show (a : ℤ) ≤ (z.toNat : ℤ) by simpa [hzt] using hz.1)
-    · exact_mod_cast (show (z.toNat : ℤ) ≤ (b : ℤ) by simpa [hzt] using hz.2)
-
 omit [NormedSpace ℝ E] in
 private theorem sum_Icc_int_eq_sum_Icc_nat
     (f : ℝ → E) (a b : ℕ) :
     ∑ z ∈ Finset.Icc (a : ℤ) (b : ℤ), f z =
       ∑ n ∈ Finset.Icc a b, f n := by
-  rw [← map_Icc_natCast_int]
-  simp only [Finset.sum_map]
-  change (∑ n ∈ Finset.Icc a b, f ((n : ℤ) : ℝ)) = _
-  simp only [Int.cast_natCast]
+  refine Finset.sum_bij (fun z _ ↦ z.toNat) ?_ ?_ ?_ ?_
+  · intro z hz
+    simp only [Finset.mem_Icc] at hz ⊢
+    omega
+  · intro z hz w hw hzw
+    simp only [Finset.mem_Icc] at hz hw
+    omega
+  · intro n hn
+    exact ⟨n, by simpa using hn, by simp⟩
+  · intro z hz
+    have hz0 : 0 ≤ z := (Int.natCast_nonneg a).trans (Finset.mem_Icc.1 hz).1
+    congr 1
+    exact_mod_cast (Int.toNat_of_nonneg hz0).symm
 
 /-- A convenient norm form of Euler–Maclaurin for natural endpoints. Uniform bounds on the
 function and its derivatives control the difference between the inclusive sum and its integral;
