@@ -41,38 +41,39 @@ private theorem one_le_majorant {σ : ℝ} (hσ : 1 < σ) : 1 ≤ majorant σ :=
   have h := hsum.le_tsum 1 (fun n _ => norm_nonneg _)
   simpa [majorant, LSeries.term] using h
 
-/-- Absolute convergence gives uniform upper and positive lower bounds on a vertical line. -/
-theorem zetaOnVertical_bounds_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
+/-- For each `σ > 1`, the norm of zeta is bounded above and bounded away from zero,
+uniformly in the height `t`. -/
+theorem zetaAt_bounds_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
     ∃ B : ℝ, 1 ≤ B ∧ ∀ t : ℝ,
-      1 / B ≤ ‖zetaOnVertical σ t‖ ∧ ‖zetaOnVertical σ t‖ ≤ B := by
+      1 / B ≤ ‖zetaAt σ t‖ ∧ ‖zetaAt σ t‖ ≤ B := by
   refine ⟨majorant σ, one_le_majorant hσ, fun t => ?_⟩
   let s : ℂ := (σ : ℂ) + (t : ℂ) * Complex.I
   have hs : s.re = σ := by simp [s]
   have hsr : 1 < s.re := hs ▸ hσ
-  have hu : ‖zetaOnVertical σ t‖ ≤ majorant σ := by
-    rw [zetaOnVertical, ← LSeries_one_eq_riemannZeta hsr]
+  have hu : ‖zetaAt σ t‖ ≤ majorant σ := by
+    rw [zetaAt, ← LSeries_one_eq_riemannZeta hsr]
     exact norm_lSeries_le_majorant hσ (by simp) hs
   have hm : ‖LSeries (fun n => (ArithmeticFunction.moebius n : ℂ)) s‖ ≤ majorant σ := by
     apply norm_lSeries_le_majorant hσ _ hs
     intro n _
     norm_cast
     exact ArithmeticFunction.abs_moebius_le_one
-  have hmul : zetaOnVertical σ t *
+  have hmul : zetaAt σ t *
       LSeries (fun n => (ArithmeticFunction.moebius n : ℂ)) s = 1 := by
-    simpa [zetaOnVertical, LSeries_one_eq_riemannZeta hsr] using
+    simpa [zetaAt, LSeries_one_eq_riemannZeta hsr] using
       LSeries_one_mul_Lseries_moebius hsr
-  have hnorm : ‖zetaOnVertical σ t‖ *
+  have hnorm : ‖zetaAt σ t‖ *
       ‖LSeries (fun n => (ArithmeticFunction.moebius n : ℂ)) s‖ = 1 := by
     simpa only [norm_mul, norm_one] using congrArg norm hmul
   refine ⟨?_, hu⟩
   apply (div_le_iff₀ (zero_lt_one.trans_le (one_le_majorant hσ))).mpr
-  have hh := mul_le_mul_of_nonneg_left hm (norm_nonneg (zetaOnVertical σ t))
+  have hh := mul_le_mul_of_nonneg_left hm (norm_nonneg (zetaAt σ t))
   linarith
 
 /-- Zero is an admissible exponent on every line with `σ > 1`. -/
 theorem isZetaGrowthBound_zero_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
     IsZetaGrowthBound σ 0 := by
-  obtain ⟨B, hB, hb⟩ := zetaOnVertical_bounds_of_one_lt hσ
+  obtain ⟨B, hB, hb⟩ := zetaAt_bounds_of_one_lt hσ
   intro ε hε
   refine ⟨B, zero_lt_one.trans_le hB, fun t ht => ?_⟩
   simpa only [zero_add] using (hb t).2.trans
@@ -81,7 +82,7 @@ theorem isZetaGrowthBound_zero_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
 /-- Positive uniform lower bounds exclude negative admissible exponents for `σ > 1`. -/
 theorem IsZetaGrowthBound.nonneg_of_one_lt {σ b : ℝ} (h : IsZetaGrowthBound σ b)
     (hσ : 1 < σ) : 0 ≤ b := by
-  obtain ⟨B, hB, hb⟩ := zetaOnVertical_bounds_of_one_lt hσ
+  obtain ⟨B, hB, hb⟩ := zetaAt_bounds_of_one_lt hσ
   let t : VariableObject ℝ := fun i => (i : ℝ) + 1
   have ht : ∀ i, 1 ≤ |t i| := by
     intro i
@@ -101,11 +102,11 @@ theorem IsZetaGrowthBound.nonneg_of_one_lt {σ b : ℝ} (h : IsZetaGrowthBound �
     ht habstop (h.toSequential t ht htop) (one_div_pos.mpr (zero_lt_one.trans_le hB))
   exact Eventually.of_forall fun i => by simpa using (hb (t i)).1
 
-/-- Analytic certification of candidate nonemptiness for `σ > 1`. -/
+/-- The set of admissible zeta growth exponents is nonempty for `σ > 1`. -/
 theorem zetaGrowthBounds_nonempty_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
     (zetaGrowthBounds σ).Nonempty := ⟨0, isZetaGrowthBound_zero_of_one_lt hσ⟩
 
-/-- Analytic certification of candidate boundedness below for `σ > 1`. -/
+/-- The set of admissible zeta growth exponents is bounded below by zero for `σ > 1`. -/
 theorem zetaGrowthBounds_bddBelow_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
     BddBelow (zetaGrowthBounds σ) := ⟨0, fun _ hb => hb.nonneg_of_one_lt hσ⟩
 
@@ -118,7 +119,7 @@ theorem zetaGrowthExponent_eq_zero_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
   · exact (isZetaGrowthBound_zetaGrowthExponent
       (zetaGrowthBounds_nonempty_of_one_lt hσ)).nonneg_of_one_lt hσ
 
-/-- On the right half-plane, the admissible exponents are exactly the nonnegative ones. -/
+/-- For `σ > 1`, the admissible zeta growth exponents are exactly the nonnegative ones. -/
 theorem isZetaGrowthBound_iff_nonneg_of_one_lt {σ b : ℝ} (hσ : 1 < σ) :
     IsZetaGrowthBound σ b ↔ 0 ≤ b :=
   ⟨fun h => h.nonneg_of_one_lt hσ,
@@ -130,13 +131,13 @@ theorem zetaGrowthBounds_eq_Ici_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
   ext b
   exact isZetaGrowthBound_iff_nonneg_of_one_lt hσ
 
-/-- The right-half-plane least-bound API has no additional analytic hypotheses. -/
+/-- For `σ > 1`, `μ(σ) ≤ b` if and only if `b` is an admissible growth exponent. -/
 theorem zetaGrowthExponent_le_iff_of_one_lt {σ b : ℝ} (hσ : 1 < σ) :
     zetaGrowthExponent σ ≤ b ↔ IsZetaGrowthBound σ b :=
   zetaGrowthExponent_le_iff (zetaGrowthBounds_nonempty_of_one_lt hσ)
     (zetaGrowthBounds_bddBelow_of_one_lt hσ)
 
-/-- The growth exponent is unconditionally the least candidate for `σ > 1`. -/
+/-- For `σ > 1`, the growth exponent is the least admissible exponent. -/
 theorem isLeast_zetaGrowthExponent_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
     IsLeast (zetaGrowthBounds σ) (zetaGrowthExponent σ) :=
   isLeast_zetaGrowthExponent (zetaGrowthBounds_nonempty_of_one_lt hσ)

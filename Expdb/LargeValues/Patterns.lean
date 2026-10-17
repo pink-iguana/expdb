@@ -18,7 +18,8 @@ noncomputable section
 
 namespace Expdb
 
-/-- Natural-number indices in the real interval `[N, 2N]`. -/
+/-- The natural-number interval from `⌈N⌉₊` to `⌊2 * N⌋₊`. For `N ≥ 0`, these are
+exactly the natural numbers in the real interval `[N, 2N]`. -/
 def dyadicIndices (N : ℝ) : Finset ℕ := Finset.Icc ⌈N⌉₊ ⌊2 * N⌋₊
 
 @[simp] theorem mem_dyadicIndices {N : ℝ} (hN : 0 ≤ N) {n : ℕ} :
@@ -26,12 +27,13 @@ def dyadicIndices (N : ℝ) : Finset ℕ := Finset.Icc ⌈N⌉₊ ⌊2 * N⌋₊
   have h2N : 0 ≤ 2 * N := by positivity
   simp only [dyadicIndices, Finset.mem_Icc, Nat.ceil_le, Nat.le_floor_iff h2N]
 
-/-- The Dirichlet polynomial `∑ n ∈ [N,2N], a n * n^(-it)`. -/
+/-- The Dirichlet polynomial `∑ n ∈ dyadicIndices N, a n * n^(-it)`. -/
 def dirichletPolynomial (N : ℝ) (a : ℕ → ℂ) (t : ℝ) : ℂ :=
   ∑ n ∈ dyadicIndices N, a n * (n : ℂ) ^ (-(t : ℂ) * Complex.I)
 
-/-- A finite large value pattern with observation interval `[u,u+T]`
-(blueprint `large-pattern-def`). Coefficients outside the dyadic interval are irrelevant. -/
+/-- A large value pattern from `large-pattern-def`: `N > 1`, `T, V > 0`, the coefficients
+are bounded by one on `[N, 2N]`, and `W` is a finite one-separated subset of `[u, u + T]`
+where the Dirichlet polynomial has norm at least `V`. -/
 def IsLargeValuePattern (N T V : ℝ) (a : ℕ → ℂ) (u : ℝ) (W : Finset ℝ) : Prop :=
   1 < N ∧ 0 < T ∧ 0 < V ∧
     (∀ n ∈ dyadicIndices N, ‖a n‖ ≤ 1) ∧
@@ -39,8 +41,9 @@ def IsLargeValuePattern (N T V : ℝ) (a : ℕ → ℂ) (u : ℝ) (W : Finset �
     IsOneSeparated W ∧
     ∀ t ∈ W, V ≤ ‖dirichletPolynomial N a t‖
 
-/-- A zeta pattern is observed in `[T,2T]` and has interval-indicator coefficients
-(blueprint `large-pattern-def`). Empty coefficient intervals are allowed. -/
+/-- A zeta large value pattern from `large-pattern-def`: a large value pattern with
+`u = T` and coefficients equal on `[N, 2N]` to the indicator of a closed subinterval.
+The coefficient interval may be empty. -/
 def IsZetaLargeValuePattern (N T V : ℝ) (a : ℕ → ℂ) (u : ℝ)
     (W : Finset ℝ) : Prop :=
   IsLargeValuePattern N T V a u W ∧ u = T ∧

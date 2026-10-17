@@ -239,7 +239,7 @@ Expdb.isLeast_largeValueExponent
 Expdb.largeValueExponent_le_tau
 Expdb.largeValueExponent_nonneg
 Expdb.zetaLargeValueExponent_le_largeValueExponent
-Expdb.zetaOnVertical
+Expdb.zetaAt
 Expdb.IsZetaGrowthBound
 Expdb.zetaGrowthBounds
 Expdb.zetaGrowthExponent
@@ -254,15 +254,15 @@ Expdb.IsZetaGrowthBoundSequential
 Expdb.IsZetaGrowthBound.toSequential
 Expdb.IsZetaGrowthBoundSequential.toExplicit
 Expdb.isZetaGrowthBound_iff_sequential
-Expdb.zetaOnVertical_bounds_of_one_lt
+Expdb.zetaAt_bounds_of_one_lt
 Expdb.isZetaGrowthBound_zero_of_one_lt
 Expdb.IsZetaGrowthBound.nonneg_of_one_lt
 Expdb.zetaGrowthBounds_nonempty_of_one_lt
 Expdb.zetaGrowthBounds_bddBelow_of_one_lt
 Expdb.zetaGrowthExponent_eq_zero_of_one_lt
 Expdb.IsZetaGrowthBound.isPowerBounded
-Expdb.zetaOnVertical_neg
-Expdb.norm_zetaOnVertical_neg
+Expdb.zetaAt_neg
+Expdb.norm_zetaAt_neg
 Expdb.isClosed_zetaGrowthBounds
 Expdb.isZetaGrowthBound_iff_positive_height
 Expdb.isZetaGrowthBound_of_isBigO

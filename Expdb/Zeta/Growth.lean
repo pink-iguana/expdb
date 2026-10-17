@@ -7,12 +7,12 @@ public import Mathlib.NumberTheory.Harmonic.ZetaAsymp
 /-!
 # Zeta growth exponents
 
-Admissibility from `zeta-grow-def`, using the blueprint's explicit epsilon formulation.
-The sequence formulation uses the project's power-asymptotic machinery.
+This module defines admissible zeta growth exponents and their infimum `μ(σ)` from the
+blueprint definition `zeta-grow-def`. It proves that the explicit epsilon bounds are
+equivalent to bounds along every unbounded sequence of heights.
 
-The least-bound API for the real infimum requires nonemptiness and boundedness below
-of the candidate set. Those analytic prerequisites are stated explicitly, never supplied
-by the default value of `sInf` on an empty or unbounded-below set.
+The infimum is admissible when the candidate set is nonempty. When the set is also
+bounded below, the infimum is its least element.
 -/
 
 @[expose] public section
@@ -24,31 +24,31 @@ noncomputable section
 
 namespace Expdb
 
-/-- Zeta restricted to a vertical line. -/
-def zetaOnVertical (σ t : ℝ) : ℂ := riemannZeta ((σ : ℂ) + (t : ℂ) * Complex.I)
+/-- The Riemann zeta function evaluated at `σ + it`. -/
+def zetaAt (σ t : ℝ) : ℂ := riemannZeta ((σ : ℂ) + (t : ℂ) * Complex.I)
 
 /-- Reflection of the height conjugates zeta, by its real Dirichlet coefficients. -/
-theorem zetaOnVertical_neg (σ t : ℝ) :
-    zetaOnVertical σ (-t) = star (zetaOnVertical σ t) := by
-  simpa [zetaOnVertical, map_add, map_mul] using
+theorem zetaAt_neg (σ t : ℝ) :
+    zetaAt σ (-t) = star (zetaAt σ t) := by
+  simpa [zetaAt, map_add, map_mul] using
     riemannZeta_conj ((σ : ℂ) + (t : ℂ) * Complex.I)
 
 /-- Zeta has the same norm at positive and negative heights. -/
-@[simp] theorem norm_zetaOnVertical_neg (σ t : ℝ) :
-    ‖zetaOnVertical σ (-t)‖ = ‖zetaOnVertical σ t‖ := by
-  rw [zetaOnVertical_neg, norm_star]
+@[simp] theorem norm_zetaAt_neg (σ t : ℝ) :
+    ‖zetaAt σ (-t)‖ = ‖zetaAt σ t‖ := by
+  rw [zetaAt_neg, norm_star]
 
 /-- Admissible zeta growth exponent (`zeta-grow-def`): for each positive epsilon,
 one constant controls both the threshold and the bound, for both signs of the height. -/
 def IsZetaGrowthBound (σ b : ℝ) : Prop :=
   ∀ ε : ℝ, 0 < ε → ∃ C : ℝ, 0 < C ∧
-    ∀ t : ℝ, C ≤ |t| → ‖zetaOnVertical σ t‖ ≤ C * |t| ^ (b + ε)
+    ∀ t : ℝ, C ≤ |t| → ‖zetaAt σ t‖ ≤ C * |t| ^ (b + ε)
 
 /-- The candidate set for the zeta growth exponent. -/
 def zetaGrowthBounds (σ : ℝ) : Set ℝ := {b | IsZetaGrowthBound σ b}
 
-/-- The real infimum `μ(σ)` from `zeta-grow-def`. The least-bound theorems below
-require analytic nonemptiness and boundedness-below hypotheses. -/
+/-- The real infimum `μ(σ)` from `zeta-grow-def`. It is the least admissible exponent
+when the candidate set is nonempty and bounded below. -/
 def zetaGrowthExponent (σ : ℝ) : ℝ := sInf (zetaGrowthBounds σ)
 
 @[simp] theorem mem_zetaGrowthBounds {σ b : ℝ} :
@@ -58,7 +58,7 @@ def zetaGrowthExponent (σ : ℝ) : ℝ := sInf (zetaGrowthBounds σ)
 theorem IsZetaGrowthBound.exists_constant_ge_one {σ b : ℝ} (h : IsZetaGrowthBound σ b)
     {ε : ℝ} (hε : 0 < ε) :
     ∃ C : ℝ, 1 ≤ C ∧ ∀ t : ℝ, C ≤ |t| →
-      ‖zetaOnVertical σ t‖ ≤ C * |t| ^ (b + ε) := by
+      ‖zetaAt σ t‖ ≤ C * |t| ^ (b + ε) := by
   obtain ⟨C, _, hC⟩ := h ε hε
   refine ⟨max C 1, le_max_right _ _, fun t ht => ?_⟩
   exact (hC t ((le_max_left _ _).trans ht)).trans
@@ -81,8 +81,8 @@ theorem isZetaGrowthBound_of_forall_gt {σ b : ℝ}
   refine ⟨C, hC, ?_⟩
   simpa only [show b + ε / 2 + ε / 2 = b + ε by ring] using hb
 
-/-- The candidate set is closed even before its nonemptiness or finiteness is known.
-This formalizes the underspill assertion following `zeta-grow-def`. -/
+/-- The set of admissible zeta growth exponents is closed, as asserted after
+`zeta-grow-def`. -/
 theorem isClosed_zetaGrowthBounds (σ : ℝ) : IsClosed (zetaGrowthBounds σ) := by
   rw [← isOpen_compl_iff, isOpen_iff_mem_nhds]
   intro b hb
@@ -101,7 +101,7 @@ symmetry supplies the negative heights, including the line `σ = 1`. -/
 theorem isZetaGrowthBound_iff_positive_height {σ b : ℝ} :
     IsZetaGrowthBound σ b ↔
       ∀ ε : ℝ, 0 < ε → ∃ C : ℝ, 0 < C ∧
-        ∀ t : ℝ, C ≤ t → ‖zetaOnVertical σ t‖ ≤ C * t ^ (b + ε) := by
+        ∀ t : ℝ, C ≤ t → ‖zetaAt σ t‖ ≤ C * t ^ (b + ε) := by
   constructor
   · intro h ε hε
     obtain ⟨C, hC, hb⟩ := h ε hε
@@ -116,7 +116,7 @@ theorem isZetaGrowthBound_iff_positive_height {σ b : ℝ} :
     · have htneg : t < 0 := lt_of_not_ge ht0
       simpa [abs_of_neg htneg] using hb (-t) (by simpa [abs_of_neg htneg] using ht)
 
-/-- When the analytic prerequisites hold, the infimum is itself admissible. -/
+/-- The infimum is admissible when the candidate set is nonempty. -/
 theorem isZetaGrowthBound_zetaGrowthExponent {σ : ℝ}
     (hne : (zetaGrowthBounds σ).Nonempty) :
     IsZetaGrowthBound σ (zetaGrowthExponent σ) := by
@@ -125,7 +125,7 @@ theorem isZetaGrowthBound_zetaGrowthExponent {σ : ℝ}
   obtain ⟨b, hb, hbc⟩ := exists_lt_of_csInf_lt hne hc
   exact hb.mono hbc.le
 
-/-- The universal property of `μ`, with analytic prerequisites explicit. -/
+/-- For a nonempty candidate set bounded below, `μ(σ) ≤ b` if and only if `b` is admissible. -/
 theorem zetaGrowthExponent_le_iff {σ b : ℝ}
     (hne : (zetaGrowthBounds σ).Nonempty) (hbd : BddBelow (zetaGrowthBounds σ)) :
     zetaGrowthExponent σ ≤ b ↔ IsZetaGrowthBound σ b := by
@@ -133,7 +133,8 @@ theorem zetaGrowthExponent_le_iff {σ b : ℝ}
   · exact fun h => (isZetaGrowthBound_zetaGrowthExponent hne).mono h
   · exact fun h => csInf_le hbd h
 
-/-- The candidate infimum is a least element whenever its analytic prerequisites hold. -/
+/-- The infimum is the least admissible exponent when the candidate set is nonempty
+and bounded below. -/
 theorem isLeast_zetaGrowthExponent {σ : ℝ}
     (hne : (zetaGrowthBounds σ).Nonempty) (hbd : BddBelow (zetaGrowthBounds σ)) :
     IsLeast (zetaGrowthBounds σ) (zetaGrowthExponent σ) :=
@@ -143,7 +144,7 @@ theorem isLeast_zetaGrowthExponent {σ : ℝ}
 /-- Sequence formulation of the blueprint's unbounded-height growth bound. -/
 def IsZetaGrowthBoundSequential (σ b : ℝ) : Prop :=
   ∀ t : VariableObject ℝ, (∀ i, 1 ≤ |t i|) → t.IsUnbounded →
-    IsPowerBounded (fun i => zetaOnVertical σ (t i)) (fun i => |t i|) b
+    IsPowerBounded (fun i => zetaAt σ (t i)) (fun i => |t i|) b
 
 /-- Explicit bounds imply bounds along every unbounded sequence of heights. -/
 theorem IsZetaGrowthBound.toSequential {σ b : ℝ} (h : IsZetaGrowthBound σ b) :
@@ -170,7 +171,7 @@ theorem IsZetaGrowthBoundSequential.toExplicit {σ b : ℝ}
     refine ⟨(i : ℝ) + 1, ?_⟩
     simp [E, abs_of_nonneg (by positivity : 0 ≤ (i : ℝ) + 1)]
   let f : VariableFunction (fun i => E i) ℝ := fun _ t =>
-    ‖zetaOnVertical σ t‖ / |(t : ℝ)| ^ (b + ε)
+    ‖zetaAt σ t‖ / |(t : ℝ)| ^ (b + ε)
   have hf : f.IsChoicewiseBounded := by
     intro t
     have ht : ∀ i, 1 ≤ |(t i : ℝ)| := fun i => by
@@ -203,7 +204,7 @@ theorem IsZetaGrowthBoundSequential.toExplicit {σ b : ℝ}
   have hti : t ∈ E i := (le_max_right _ _).trans ht
   have hbound := hi i le_rfl ⟨t, hti⟩
   have hpos : 0 < |t| ^ (b + ε) := Real.rpow_pos_of_pos (zero_lt_one.trans_le (hD1.trans ht)) _
-  have hratio : ‖zetaOnVertical σ t‖ / |t| ^ (b + ε) ≤ C := by
+  have hratio : ‖zetaAt σ t‖ / |t| ^ (b + ε) ≤ C := by
     simpa [f, Real.norm_eq_abs, abs_div, abs_of_nonneg (norm_nonneg _),
       abs_of_pos hpos] using hbound
   exact ((div_le_iff₀ hpos).mp hratio).trans
@@ -218,7 +219,7 @@ theorem isZetaGrowthBound_iff_sequential {σ b : ℝ} :
 on its initial values (in particular, the sequence may initially meet the pole). -/
 theorem IsZetaGrowthBound.isPowerBounded {σ b : ℝ} (h : IsZetaGrowthBound σ b)
     (t : VariableObject ℝ) (ht : t.IsUnbounded) :
-    IsPowerBounded (fun i => zetaOnVertical σ (t i)) (fun i => |t i|) b := by
+    IsPowerBounded (fun i => zetaAt σ (t i)) (fun i => |t i|) b := by
   let t' : VariableObject ℝ := fun i => if 1 ≤ |t i| then t i else 1
   have ht' : ∀ i, 1 ≤ |t' i| := by
     intro i
@@ -241,7 +242,7 @@ theorem IsZetaGrowthBound.isPowerBounded {σ b : ℝ} (h : IsZetaGrowthBound σ 
 /-- An ordinary polynomial upper bound at positive heights supplies an admissible
 growth exponent. Conjugation then covers negative heights as well. -/
 theorem isZetaGrowthBound_of_isBigO {σ b : ℝ}
-    (h : (fun t : ℝ => zetaOnVertical σ t) =O[atTop] (fun t => t ^ b)) :
+    (h : (fun t : ℝ => zetaAt σ t) =O[atTop] (fun t => t ^ b)) :
     IsZetaGrowthBound σ b := by
   apply isZetaGrowthBound_iff_positive_height.mpr
   intro ε hε
@@ -254,7 +255,7 @@ theorem isZetaGrowthBound_of_isBigO {σ b : ℝ}
   have hb := hR t ((le_max_right _ _).trans ht)
   rw [Real.norm_eq_abs, abs_of_nonneg (Real.rpow_nonneg (zero_le_one.trans ht1) _)] at hb
   calc
-    ‖zetaOnVertical σ t‖ ≤ C * t ^ b := hb
+    ‖zetaAt σ t‖ ≤ C * t ^ b := hb
     _ ≤ D * t ^ b := mul_le_mul_of_nonneg_right
       ((le_max_left C 1).trans (le_max_left _ _))
       (Real.rpow_nonneg (zero_le_one.trans ht1) _)
@@ -262,12 +263,11 @@ theorem isZetaGrowthBound_of_isBigO {σ b : ℝ}
       (Real.rpow_le_rpow_of_exponent_le ht1 (by linarith)) (zero_le_one.trans hD1)
 
 /-- A polynomial lower bound along just one unbounded height sequence bounds every
-candidate exponent from below. This allows future finiteness proofs to use sequences
-without requiring a global pointwise lower bound for zeta. -/
+candidate exponent from below. -/
 theorem IsZetaGrowthBound.exponent_ge_of_lower_bound {σ b a c : ℝ}
     (h : IsZetaGrowthBound σ b) (t : VariableObject ℝ)
     (ht : ∀ i, 1 ≤ |t i|) (htop : t.IsUnbounded) (hc : 0 < c)
-    (hlower : ∀ᶠ i in atTop, c * |t i| ^ a ≤ ‖zetaOnVertical σ (t i)‖) : a ≤ b := by
+    (hlower : ∀ᶠ i in atTop, c * |t i| ^ a ≤ ‖zetaAt σ (t i)‖) : a ≤ b := by
   have habstop : VariableObject.IsUnbounded (fun i => |t i|) := by
     simpa [VariableObject.IsUnbounded, Real.norm_eq_abs] using htop
   exact exponent_le_of_isPowerBounded_of_eventually_norm_ge_rpow ht habstop

@@ -20,7 +20,9 @@ noncomputable section
 
 namespace Expdb
 
-/-- The universal cardinality bound for general patterns (`lv-def`). -/
+/-- The admissible large value bound from `lv-def`: every sequence of large value
+patterns with unbounded `N`, `T = N^(τ + o(1))`, and `V = N^(σ + o(1))` satisfies
+`|W| ≪ N^(ρ + o(1))`. -/
 def IsLargeValueBound (σ τ ρ : ℝ) : Prop :=
   ∀ (N T V : VariableObject ℝ) (a : VariableObject (ℕ → ℂ))
     (u : VariableObject ℝ) (W : VariableObject (Finset ℝ)),
@@ -28,7 +30,9 @@ def IsLargeValueBound (σ τ ρ : ℝ) : Prop :=
     N.IsUnbounded → IsPowerAsymptotic T N τ → IsPowerAsymptotic V N σ →
     IsPowerBounded (fun i => ((W i).card : ℝ)) N ρ
 
-/-- The universal cardinality bound for zeta patterns (`lvz-def`). -/
+/-- The admissible zeta large value bound from `lvz-def`: every sequence of zeta large
+value patterns with unbounded `N`, `T = N^(τ + o(1))`, and `V = N^(σ + o(1))` satisfies
+`|W| ≪ N^(ρ + o(1))`. -/
 def IsZetaLargeValueBound (σ τ ρ : ℝ) : Prop :=
   ∀ (N T V : VariableObject ℝ) (a : VariableObject (ℕ → ℂ))
     (u : VariableObject ℝ) (W : VariableObject (Finset ℝ)),
@@ -92,14 +96,15 @@ theorem isLargeValueBound_tau (σ : ℝ) {τ : ℝ} (hτ : 0 ≤ τ) :
     Real.norm_eq_abs, abs_of_nonneg (Real.rpow_nonneg (by linarith [hN1 i]) _)]
   linarith [hi.2]
 
-/-- Candidates approach any limiting admissible exponent from above. -/
+/-- If every exponent greater than `ρ` is admissible, then `ρ` is admissible. -/
 theorem isLargeValueBound_of_forall_gt {σ τ ρ : ℝ}
     (h : ∀ ρ', ρ < ρ' → IsLargeValueBound σ τ ρ') : IsLargeValueBound σ τ ρ := by
   intro N T V a u W hp hN hT hV
   exact IsPowerBounded.of_forall_gt (fun i => (hp i).1.le) hN
     (fun ρ' hρ' => h ρ' hρ' N T V a u W hp hN hT hV)
 
-/-- Underspill for zeta cardinality exponents. -/
+/-- If every exponent greater than `ρ` is admissible for zeta patterns, then `ρ` is
+admissible for zeta patterns. -/
 theorem isZetaLargeValueBound_of_forall_gt {σ τ ρ : ℝ}
     (h : ∀ ρ', ρ < ρ' → IsZetaLargeValueBound σ τ ρ') : IsZetaLargeValueBound σ τ ρ := by
   intro N T V a u W hp hN hT hV
@@ -154,7 +159,7 @@ theorem zetaLargeValueExponent_le_iff {σ τ ρ : ℝ} :
     exact hβ.mono (EReal.coe_lt_coe_iff.mp hblt).le
   · exact zetaLargeValueExponent_le_of_bound
 
-/-- Zeta large value exponents are finite above on the intended domain. -/
+/-- For `τ ≥ 0`, the zeta large value exponent is at most `τ`. -/
 theorem zetaLargeValueExponent_le_tau (σ : ℝ) {τ : ℝ} (hτ : 0 ≤ τ) :
     zetaLargeValueExponent σ τ ≤ (τ : EReal) :=
   zetaLargeValueExponent_le_of_bound (isLargeValueBound_tau σ hτ).toZeta
@@ -236,7 +241,7 @@ theorem IsLargeValueBound.nonneg {σ τ ρ : ℝ} (hσ : σ ≤ 1)
 theorem largeValueBounds_nonempty (σ : ℝ) {τ : ℝ} (hτ : 0 ≤ τ) :
     (largeValueBounds σ τ).Nonempty := ⟨τ, isLargeValueBound_tau σ hτ⟩
 
-/-- General candidate exponents have a lower bound on the blueprint domain. -/
+/-- For `σ ≤ 1`, the set of admissible large value exponents is bounded below by zero. -/
 theorem largeValueBounds_bddBelow {σ : ℝ} (hσ : σ ≤ 1) (τ : ℝ) :
     BddBelow (largeValueBounds σ τ) := ⟨0, fun _ h => h.nonneg hσ⟩
 

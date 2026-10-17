@@ -6,11 +6,12 @@ public import Mathlib.Analysis.MellinTransform
 public import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 
 /-!
-# Bounds for the Euler–Maclaurin power remainder
+# Bounds and analyticity for the Euler–Maclaurin power remainder
 
 The arbitrary-order summation formula produces a periodic Bernoulli function times
 a derivative of `x ↦ x^(-s)`. This module bounds the resulting power integral on
-`(1,∞)` using the existing Bernoulli bound and the elementary improper power integral.
+`(1,∞)` using the Bernoulli bound and the improper power integral. For `k ≠ 1`, it
+also proves analyticity on the half-plane `1 < s.re + k` using the Mellin transform.
 
 The integral has not yet been identified with the remainder in a continuation formula
 for `riemannZeta`; that identification is a separate analytic prerequisite.
@@ -41,8 +42,8 @@ private theorem norm_powerRemainderIntegrand_le (k : ℕ) (s : ℂ) {x : ℝ} (h
   simp only [Complex.sub_re, Complex.neg_re, Complex.natCast_re]
   exact mul_le_mul_of_nonneg_right (abs_saw_le k x) (Real.rpow_nonneg (by linarith) _)
 
-/-- The remainder integrand is genuinely integrable when `re(s)+k>1`.
-Orders other than one have a continuous periodic Bernoulli function. -/
+/-- For `k ≠ 1` and `1 < s.re + k`, the power remainder integrand is integrable on
+`(1, ∞)`. -/
 theorem integrableOn_zetaPowerRemainder {k : ℕ} (hk : k ≠ 1) {s : ℂ}
     (hs : 1 < s.re + (k : ℝ)) :
     IntegrableOn (fun x : ℝ => (saw k x : ℂ) * (x : ℂ) ^ (-s - (k : ℂ))) (Ioi 1) := by
@@ -91,8 +92,8 @@ private theorem zetaPowerRemainder_eq_mellin (k : ℕ) (s : ℂ) :
   rw [hfun, setIntegral_indicator measurableSet_Ioi, Ioi_inter_Ioi]
   norm_num [zetaPowerRemainder]
 
-/-- The power remainder is holomorphic on its half-plane of convergence. This uses
-Mathlib's dominated differentiation theorem for Mellin transforms. -/
+/-- For `k ≠ 1`, the power remainder is complex differentiable at every `s` with
+`1 < s.re + k`. -/
 theorem differentiableAt_zetaPowerRemainder {k : ℕ} (hk : k ≠ 1) {s : ℂ}
     (hs : 1 < s.re + (k : ℝ)) : DifferentiableAt ℂ (zetaPowerRemainder k) s := by
   let z : ℂ := 1 - s - (k : ℂ)
@@ -126,8 +127,7 @@ theorem differentiableAt_zetaPowerRemainder {k : ℕ} (hk : k ≠ 1) {s : ℂ}
     ((mellin (truncatedSaw k)) ∘ fun w : ℂ => 1 - w - (k : ℂ)) s
   exact hdiff.comp s ((differentiableAt_id.const_sub (1 : ℂ)).sub_const (k : ℂ))
 
-/-- The Euler–Maclaurin power remainder is analytic throughout its open half-plane
-of absolute convergence. -/
+/-- For `k ≠ 1`, the power remainder is analytic on the half-plane `1 < s.re + k`. -/
 theorem analyticOn_zetaPowerRemainder {k : ℕ} (hk : k ≠ 1) :
     AnalyticOnNhd ℂ (zetaPowerRemainder k) {s : ℂ | 1 < s.re + (k : ℝ)} := by
   apply DifferentiableOn.analyticOnNhd
