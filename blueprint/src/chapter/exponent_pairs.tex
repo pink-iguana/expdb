@@ -101,7 +101,7 @@ The exponent pair conjecture is equivalent to $\beta(\alpha)=\alpha/2$ holding t
 \end{proof}
 
 \begin{proposition}[Van der Corput $A$-process]\label{vdc-a}
-\lean{Expdb.vanDerCorputA}
+\lean{Expdb.vanDerCorputA, Expdb.IsExponentPair.vanDerCorputA}\leanok
 If $(k,\ell)$ is an exponent pair, then so is
     $$A(k,\ell) := \left(\frac{k}{2k+2}, \frac{\ell}{2k+2} + \frac{1}{2}\right).$$
 \end{proposition}
@@ -109,11 +109,11 @@ If $(k,\ell)$ is an exponent pair, then so is
 \literature
 \code{A_transform_hypothesis}
 
-\begin{proof}\uses{vdca-beta, beta-duality} See \cite[Lemma 2.8]{ivic}. It can also be deduced from Lemma \ref{vdca-beta} and Lemma \ref{beta-duality}.
+\begin{proof}\uses{vdca-beta, beta-duality}\leanok See \cite[Lemma 2.8]{ivic}. It can also be deduced from Lemma \ref{vdca-beta} and Lemma \ref{beta-duality}.
 \end{proof}
 
 \begin{proposition}[Van der Corput $B$-process]\label{vdc-b}
-\lean{Expdb.vanDerCorputB}
+\lean{Expdb.vanDerCorputB, Expdb.IsExponentPair.vanDerCorputB}\leanok
 If $(k,\ell)$ is an exponent pair, then so is
     $$B(k,\ell) := \left(\ell-\frac{1}{2}, k+\frac{1}{2}\right).$$
 \end{proposition}
@@ -121,7 +121,7 @@ If $(k,\ell)$ is an exponent pair, then so is
 \literature
 \code{B_transform_hypothesis}
 
-\begin{proof}\uses{beta-reflect, beta-duality}  See \cite[Lemma 2.9]{ivic}.  Alternatively, this can be derived from Lemma \ref{beta-reflect} and Lemma \ref{beta-duality}.
+\begin{proof}\uses{beta-reflect, beta-duality}\leanok See \cite[Lemma 2.9]{ivic}.  Alternatively, this can be derived from Lemma \ref{beta-reflect} and Lemma \ref{beta-duality}.
 \end{proof}
 
 

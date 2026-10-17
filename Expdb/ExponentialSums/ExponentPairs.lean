@@ -730,14 +730,6 @@ theorem exponentPairConjecture_iff_beta :
 def vanDerCorputA (p : ℝ × ℝ) : ℝ × ℝ :=
   (p.1 / (2 * p.1 + 2), p.2 / (2 * p.1 + 2) + 1 / 2)
 
-/-- The first coordinate of the van der Corput `A`-transform. -/
-@[simp] theorem vanDerCorputA_fst (k l : ℝ) :
-    (vanDerCorputA (k, l)).1 = k / (2 * k + 2) := rfl
-
-/-- The second coordinate of the van der Corput `A`-transform. -/
-@[simp] theorem vanDerCorputA_snd (k l : ℝ) :
-    (vanDerCorputA (k, l)).2 = l / (2 * k + 2) + 1 / 2 := rfl
-
 /-- The van der Corput `A`-transform maps the exponent pair triangle into itself. -/
 theorem vanDerCorputA_mem_triangle {k l : ℝ}
     (htriangle : 0 ≤ k ∧ k ≤ 1 / 2 ∧ 1 / 2 ≤ l ∧ l ≤ 1 ∧ k + l ≤ 1) :
@@ -752,22 +744,94 @@ theorem vanDerCorputA_mem_triangle {k l : ℝ}
   have hsum : k / (2 * k + 2) + l / (2 * k + 2) = (k + l) / (2 * k + 2) := by ring
   have hsum' : (k + l) / (2 * k + 2) ≤ 1 / 2 := by
     rw [div_le_iff₀ hpos]; linarith
-  simp only [vanDerCorputA_fst, vanDerCorputA_snd]
+  dsimp [vanDerCorputA]
   have hl0' : (0 : ℝ) ≤ l / (2 * k + 2) := by positivity
   refine ⟨by positivity, ?_, by linarith, by linarith, by linarith⟩
   rw [div_le_iff₀ hpos]; linarith
+
+/-- The van der Corput `A`-process preserves exponent pairs (blueprint Proposition `vdc-a`). -/
+theorem IsExponentPair.vanDerCorputA {k l : ℝ} (hp : IsExponentPair k l) :
+    IsExponentPair (vanDerCorputA (k, l)).1 (vanDerCorputA (k, l)).2 := by
+  apply (isExponentPair_iff_forall_exponentSumGrowthExponent_le
+    (vanDerCorputA_mem_triangle hp.1)).mpr
+  intro α hα
+  let L : ℝ := (k + (l + 1) * (α : ℝ)) / (2 * k + 2)
+  have hd : 0 < 2 * k + 2 := by linarith [hp.k_nonneg]
+  have hL : (2 * k + 2) * L = k + (l + 1) * (α : ℝ) := by
+    dsimp [L]
+    exact mul_div_cancel₀ _ hd.ne'
+  have htarget : (Expdb.vanDerCorputA (k, l)).1 +
+      ((Expdb.vanDerCorputA (k, l)).2 - (Expdb.vanDerCorputA (k, l)).1) * (α : ℝ) = L := by
+    dsimp [Expdb.vanDerCorputA, L]
+    ring_nf
+    field_simp [show 1 + k ≠ 0 by linarith [hp.k_nonneg]]
+    ring
+  rw [htarget]
+  by_cases htrivial : (α : ℝ) ≤ L
+  · exact (exponentSumGrowthExponent_le_self α).trans htrivial
+  by_cases hhalf : 1 / 2 ≤ L
+  · have hb := isExponentPair_half_half.exponentSumGrowthExponent_le hα
+    simp only [sub_self, zero_mul, add_zero] at hb
+    exact hb.trans hhalf
+  have hLα : L < (α : ℝ) := lt_of_not_ge htrivial
+  have hLhalf : L < 1 / 2 := lt_of_not_ge hhalf
+  have hLnonneg : 0 ≤ L := by
+    dsimp [L]
+    exact div_nonneg (by nlinarith [hp.k_nonneg, hp.half_le_l, α.coe_nonneg]) hd.le
+  have hαpos : 0 < (α : ℝ) := hLnonneg.trans_lt hLα
+  have hsmall : (l + 1) * (α : ℝ) < 1 := by
+    nlinarith [mul_pos hd (sub_pos.mpr hLhalf)]
+  have hαtwo : (α : ℝ) ≤ 2 / 3 := by
+    nlinarith [hp.half_le_l]
+  have hLlower : 3 * (α : ℝ) / 4 ≤ L := by
+    dsimp [L]
+    rw [le_div_iff₀ hd]
+    nlinarith [mul_nonneg hp.k_nonneg (show 0 ≤ 1 - 3 * (α : ℝ) / 2 by linarith),
+      mul_nonneg (sub_nonneg.mpr hp.half_le_l) α.coe_nonneg]
+  let h : ℝ := 2 * (α : ℝ) - 2 * L
+  have hh : 0 ≤ h := by dsimp [h]; linarith
+  have hinterval : 2 * (α : ℝ) - 1 ≤ h := by dsimp [h]; linarith
+  have hdiag : 2 * (α : ℝ) - h = 2 * L := by dsimp [h]; ring
+  have hshort : 2 * h ≤ 2 * L := by dsimp [h]; linarith
+  let g : ℝ → ℝ := fun t ↦ (t + 1 - α) *
+    exponentSumGrowthExponentReal ((α : ℝ) / (t + 1 - α)) + t
+  have hsup : sSup (g '' Set.Icc (2 * (α : ℝ) - 1) h) ≤
+      k + (l - 2 * k) * (α : ℝ) + (k + 1) * h := by
+    apply csSup_le ((show (Set.Icc (2 * (α : ℝ) - 1) h).Nonempty from
+      ⟨h, hinterval, le_rfl⟩).image g)
+    rintro _ ⟨t, ht, rfl⟩
+    have hD : 0 < t + 1 - (α : ℝ) := by linarith [ht.1]
+    have hx : 0 ≤ (α : ℝ) / (t + 1 - α) := div_nonneg α.coe_nonneg hD.le
+    have hxone : ((α : ℝ) / (t + 1 - α)).toNNReal ≤ 1 := by
+      rw [← NNReal.coe_le_coe, Real.coe_toNNReal _ hx, NNReal.coe_one]
+      exact (div_le_one hD).mpr (by linarith [ht.1])
+    have hb := hp.exponentSumGrowthExponent_le hxone
+    rw [Real.coe_toNNReal _ hx] at hb
+    have hmul := mul_le_mul_of_nonneg_left hb hD.le
+    rw [mul_add, mul_comm (l - k), ← mul_assoc, mul_div_cancel₀ _ hD.ne'] at hmul
+    dsimp [g, exponentSumGrowthExponentReal]
+    nlinarith [mul_nonneg (show 0 ≤ k + 1 by linarith [hp.k_nonneg])
+      (sub_nonneg.mpr ht.2)]
+  have hthird : (α : ℝ) - h +
+      (k + (l - 2 * k) * (α : ℝ) + (k + 1) * h) = 2 * L := by
+    dsimp [h]
+    nlinarith [hL]
+  have hb := vanDerCorputA_exponentSumGrowthExponent α h
+    (by exact_mod_cast hαtwo) hh
+  change 2 * exponentSumGrowthExponent α ≤
+    max (max (2 * (α : ℝ) - h) (2 * h))
+      ((α : ℝ) - h + sSup (g '' Set.Icc (2 * (α : ℝ) - 1) h)) at hb
+  have hmax : max (max (2 * (α : ℝ) - h) (2 * h))
+      ((α : ℝ) - h + sSup (g '' Set.Icc (2 * (α : ℝ) - 1) h)) ≤ 2 * L := by
+    apply max_le (max_le hdiag.le hshort)
+    linarith [hsup, hthird]
+  linarith
 
 /-! ## The van der Corput B-transform -/
 
 /-- The van der Corput `B`-transform `B(k, ℓ) = (ℓ - 1/2, k + 1/2)`. -/
 def vanDerCorputB (p : ℝ × ℝ) : ℝ × ℝ :=
   (p.2 - 1 / 2, p.1 + 1 / 2)
-
-/-- The first coordinate of the van der Corput `B`-transform. -/
-@[simp] theorem vanDerCorputB_fst (k l : ℝ) : (vanDerCorputB (k, l)).1 = l - 1 / 2 := rfl
-
-/-- The second coordinate of the van der Corput `B`-transform. -/
-@[simp] theorem vanDerCorputB_snd (k l : ℝ) : (vanDerCorputB (k, l)).2 = k + 1 / 2 := rfl
 
 /-- The van der Corput `B`-transform maps the exponent pair triangle into itself. -/
 theorem vanDerCorputB_mem_triangle {k l : ℝ}
@@ -776,8 +840,29 @@ theorem vanDerCorputB_mem_triangle {k l : ℝ}
       1 / 2 ≤ (vanDerCorputB (k, l)).2 ∧ (vanDerCorputB (k, l)).2 ≤ 1 ∧
       (vanDerCorputB (k, l)).1 + (vanDerCorputB (k, l)).2 ≤ 1 := by
   obtain ⟨hk, hk2, hl2, hl1, hkl⟩ := htriangle
-  refine ⟨by simp; linarith, by simp; linarith, by simp; linarith, by simp; linarith, ?_⟩
-  simp only [vanDerCorputB_fst, vanDerCorputB_snd]
-  linarith
+  dsimp [vanDerCorputB]
+  refine ⟨by linarith, by linarith, by linarith, by linarith, by linarith⟩
+
+/-- The van der Corput `B`-process preserves exponent pairs (blueprint Proposition `vdc-b`). -/
+theorem IsExponentPair.vanDerCorputB {k l : ℝ} (hp : IsExponentPair k l) :
+    IsExponentPair (vanDerCorputB (k, l)).1 (vanDerCorputB (k, l)).2 := by
+  apply (isExponentPair_iff_forall_exponentSumGrowthExponent_le
+    (vanDerCorputB_mem_triangle hp.1)).mpr
+  intro α hα
+  dsimp [Expdb.vanDerCorputB]
+  by_cases hzero : α = 0
+  · subst α
+    simp only [exponentSumGrowthExponent_zero, NNReal.coe_zero, mul_zero, add_zero]
+    linarith [hp.half_le_l]
+  by_cases hone : α = 1
+  · subst α
+    simp only [exponentSumGrowthExponent_one, NNReal.coe_one, mul_one]
+    linarith [hp.k_nonneg]
+  have hαpos : 0 < α := pos_iff_ne_zero.mpr hzero
+  have hαlt : α < 1 := lt_of_le_of_ne hα hone
+  have hb := hp.exponentSumGrowthExponent_le (α := 1 - α) (tsub_le_self)
+  rw [NNReal.coe_sub hα, NNReal.coe_one] at hb
+  have href := exponentSumGrowthExponent_reflection α hαpos hαlt
+  nlinarith
 
 end Expdb
