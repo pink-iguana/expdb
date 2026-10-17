@@ -627,60 +627,6 @@ theorem convex_exponentPairs : Convex ℝ exponentPairs := by
       (convex_halfSpace_le hadd 1)
   · exact convex_halfSpace_ge (hlin ((α : ℝ≥0) : ℝ)) (exponentSumGrowthExponent α)
 
-/-! ## The van der Corput transforms -/
-
-/-- The van der Corput `A`-transform `A(k, ℓ) = (k / (2k + 2), ℓ / (2k + 2) + 1/2)`. -/
-def vanDerCorputA (p : ℝ × ℝ) : ℝ × ℝ :=
-  (p.1 / (2 * p.1 + 2), p.2 / (2 * p.1 + 2) + 1 / 2)
-
-/-- The van der Corput `B`-transform `B(k, ℓ) = (ℓ - 1/2, k + 1/2)`. -/
-def vanDerCorputB (p : ℝ × ℝ) : ℝ × ℝ :=
-  (p.2 - 1 / 2, p.1 + 1 / 2)
-
-/-- The first coordinate of the van der Corput `A`-transform. -/
-@[simp] theorem vanDerCorputA_fst (k l : ℝ) :
-    (vanDerCorputA (k, l)).1 = k / (2 * k + 2) := rfl
-
-/-- The second coordinate of the van der Corput `A`-transform. -/
-@[simp] theorem vanDerCorputA_snd (k l : ℝ) :
-    (vanDerCorputA (k, l)).2 = l / (2 * k + 2) + 1 / 2 := rfl
-
-/-- The first coordinate of the van der Corput `B`-transform. -/
-@[simp] theorem vanDerCorputB_fst (k l : ℝ) : (vanDerCorputB (k, l)).1 = l - 1 / 2 := rfl
-
-/-- The second coordinate of the van der Corput `B`-transform. -/
-@[simp] theorem vanDerCorputB_snd (k l : ℝ) : (vanDerCorputB (k, l)).2 = k + 1 / 2 := rfl
-
-/-- The van der Corput `A`-transform maps the exponent pair triangle into itself. -/
-theorem vanDerCorputA_mem_triangle {k l : ℝ}
-    (htriangle : 0 ≤ k ∧ k ≤ 1 / 2 ∧ 1 / 2 ≤ l ∧ l ≤ 1 ∧ k + l ≤ 1) :
-    0 ≤ (vanDerCorputA (k, l)).1 ∧ (vanDerCorputA (k, l)).1 ≤ 1 / 2 ∧
-      1 / 2 ≤ (vanDerCorputA (k, l)).2 ∧ (vanDerCorputA (k, l)).2 ≤ 1 ∧
-      (vanDerCorputA (k, l)).1 + (vanDerCorputA (k, l)).2 ≤ 1 := by
-  obtain ⟨hk, hk2, hl2, hl1, hkl⟩ := htriangle
-  have hpos : (0 : ℝ) < 2 * k + 2 := by linarith
-  have hl0 : (0 : ℝ) ≤ l := by linarith
-  have hhalf : l / (2 * k + 2) ≤ 1 / 2 := by
-    rw [div_le_iff₀ hpos]; linarith
-  have hsum : k / (2 * k + 2) + l / (2 * k + 2) = (k + l) / (2 * k + 2) := by ring
-  have hsum' : (k + l) / (2 * k + 2) ≤ 1 / 2 := by
-    rw [div_le_iff₀ hpos]; linarith
-  simp only [vanDerCorputA_fst, vanDerCorputA_snd]
-  have hl0' : (0 : ℝ) ≤ l / (2 * k + 2) := by positivity
-  refine ⟨by positivity, ?_, by linarith, by linarith, by linarith⟩
-  rw [div_le_iff₀ hpos]; linarith
-
-/-- The van der Corput `B`-transform maps the exponent pair triangle into itself. -/
-theorem vanDerCorputB_mem_triangle {k l : ℝ}
-    (htriangle : 0 ≤ k ∧ k ≤ 1 / 2 ∧ 1 / 2 ≤ l ∧ l ≤ 1 ∧ k + l ≤ 1) :
-    0 ≤ (vanDerCorputB (k, l)).1 ∧ (vanDerCorputB (k, l)).1 ≤ 1 / 2 ∧
-      1 / 2 ≤ (vanDerCorputB (k, l)).2 ∧ (vanDerCorputB (k, l)).2 ≤ 1 ∧
-      (vanDerCorputB (k, l)).1 + (vanDerCorputB (k, l)).2 ≤ 1 := by
-  obtain ⟨hk, hk2, hl2, hl1, hkl⟩ := htriangle
-  refine ⟨by simp; linarith, by simp; linarith, by simp; linarith, by simp; linarith, ?_⟩
-  simp only [vanDerCorputB_fst, vanDerCorputB_snd]
-  linarith
-
 /-! ## Trivial exponent pairs -/
 
 /-- `(0, 1)` is an exponent pair (blueprint Proposition `exp-pair-trivial`). -/
@@ -719,5 +665,61 @@ theorem isExponentPair_half_half : IsExponentPair (1 / 2) (1 / 2) := by
   rw [hγα] at href
   rw [href]
   linarith [exponentSumGrowthExponent_le_self γ]
+
+/-! ## The van der Corput A-transform -/
+
+/-- The van der Corput `A`-transform `A(k, ℓ) = (k / (2k + 2), ℓ / (2k + 2) + 1/2)`. -/
+def vanDerCorputA (p : ℝ × ℝ) : ℝ × ℝ :=
+  (p.1 / (2 * p.1 + 2), p.2 / (2 * p.1 + 2) + 1 / 2)
+
+/-- The first coordinate of the van der Corput `A`-transform. -/
+@[simp] theorem vanDerCorputA_fst (k l : ℝ) :
+    (vanDerCorputA (k, l)).1 = k / (2 * k + 2) := rfl
+
+/-- The second coordinate of the van der Corput `A`-transform. -/
+@[simp] theorem vanDerCorputA_snd (k l : ℝ) :
+    (vanDerCorputA (k, l)).2 = l / (2 * k + 2) + 1 / 2 := rfl
+
+/-- The van der Corput `A`-transform maps the exponent pair triangle into itself. -/
+theorem vanDerCorputA_mem_triangle {k l : ℝ}
+    (htriangle : 0 ≤ k ∧ k ≤ 1 / 2 ∧ 1 / 2 ≤ l ∧ l ≤ 1 ∧ k + l ≤ 1) :
+    0 ≤ (vanDerCorputA (k, l)).1 ∧ (vanDerCorputA (k, l)).1 ≤ 1 / 2 ∧
+      1 / 2 ≤ (vanDerCorputA (k, l)).2 ∧ (vanDerCorputA (k, l)).2 ≤ 1 ∧
+      (vanDerCorputA (k, l)).1 + (vanDerCorputA (k, l)).2 ≤ 1 := by
+  obtain ⟨hk, hk2, hl2, hl1, hkl⟩ := htriangle
+  have hpos : (0 : ℝ) < 2 * k + 2 := by linarith
+  have hl0 : (0 : ℝ) ≤ l := by linarith
+  have hhalf : l / (2 * k + 2) ≤ 1 / 2 := by
+    rw [div_le_iff₀ hpos]; linarith
+  have hsum : k / (2 * k + 2) + l / (2 * k + 2) = (k + l) / (2 * k + 2) := by ring
+  have hsum' : (k + l) / (2 * k + 2) ≤ 1 / 2 := by
+    rw [div_le_iff₀ hpos]; linarith
+  simp only [vanDerCorputA_fst, vanDerCorputA_snd]
+  have hl0' : (0 : ℝ) ≤ l / (2 * k + 2) := by positivity
+  refine ⟨by positivity, ?_, by linarith, by linarith, by linarith⟩
+  rw [div_le_iff₀ hpos]; linarith
+
+/-! ## The van der Corput B-transform -/
+
+/-- The van der Corput `B`-transform `B(k, ℓ) = (ℓ - 1/2, k + 1/2)`. -/
+def vanDerCorputB (p : ℝ × ℝ) : ℝ × ℝ :=
+  (p.2 - 1 / 2, p.1 + 1 / 2)
+
+/-- The first coordinate of the van der Corput `B`-transform. -/
+@[simp] theorem vanDerCorputB_fst (k l : ℝ) : (vanDerCorputB (k, l)).1 = l - 1 / 2 := rfl
+
+/-- The second coordinate of the van der Corput `B`-transform. -/
+@[simp] theorem vanDerCorputB_snd (k l : ℝ) : (vanDerCorputB (k, l)).2 = k + 1 / 2 := rfl
+
+/-- The van der Corput `B`-transform maps the exponent pair triangle into itself. -/
+theorem vanDerCorputB_mem_triangle {k l : ℝ}
+    (htriangle : 0 ≤ k ∧ k ≤ 1 / 2 ∧ 1 / 2 ≤ l ∧ l ≤ 1 ∧ k + l ≤ 1) :
+    0 ≤ (vanDerCorputB (k, l)).1 ∧ (vanDerCorputB (k, l)).1 ≤ 1 / 2 ∧
+      1 / 2 ≤ (vanDerCorputB (k, l)).2 ∧ (vanDerCorputB (k, l)).2 ≤ 1 ∧
+      (vanDerCorputB (k, l)).1 + (vanDerCorputB (k, l)).2 ≤ 1 := by
+  obtain ⟨hk, hk2, hl2, hl1, hkl⟩ := htriangle
+  refine ⟨by simp; linarith, by simp; linarith, by simp; linarith, by simp; linarith, ?_⟩
+  simp only [vanDerCorputB_fst, vanDerCorputB_snd]
+  linarith
 
 end Expdb
