@@ -28,7 +28,7 @@ namespace Expdb
 def zetaAt (σ t : ℝ) : ℂ := riemannZeta ((σ : ℂ) + (t : ℂ) * Complex.I)
 
 /-- Reflection of the height conjugates zeta, by its real Dirichlet coefficients. -/
-theorem zetaAt_neg (σ t : ℝ) :
+private theorem zetaAt_neg (σ t : ℝ) :
     zetaAt σ (-t) = star (zetaAt σ t) := by
   simpa [zetaAt, map_add, map_mul] using
     riemannZeta_conj ((σ : ℂ) + (t : ℂ) * Complex.I)
@@ -138,8 +138,7 @@ and bounded below. -/
 theorem isLeast_zetaGrowthExponent {σ : ℝ}
     (hne : (zetaGrowthBounds σ).Nonempty) (hbd : BddBelow (zetaGrowthBounds σ)) :
     IsLeast (zetaGrowthBounds σ) (zetaGrowthExponent σ) :=
-  ⟨isZetaGrowthBound_zetaGrowthExponent hne,
-    fun _ h => (zetaGrowthExponent_le_iff hne hbd).mpr h⟩
+  (isClosed_zetaGrowthBounds σ).isLeast_csInf hne hbd
 
 /-- Sequence formulation of the blueprint's unbounded-height growth bound. -/
 def IsZetaGrowthBoundSequential (σ b : ℝ) : Prop :=
