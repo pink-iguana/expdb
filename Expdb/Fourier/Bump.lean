@@ -4,6 +4,7 @@ public import Expdb.Basic.Definitions
 
 public import Mathlib.Analysis.Calculus.BumpFunction.InnerProduct
 public import Mathlib.Analysis.Distribution.SchwartzSpace.Fourier
+import Mathlib.Analysis.Asymptotics.Lemmas
 
 /-!
 # A normalized smooth bump and its Fourier transform
@@ -72,13 +73,8 @@ lemma bump_smooth : ContDiff ℝ ∞ bump := by
 
 /-- The normalized bump has compact support. -/
 lemma bump_hasCompactSupport : HasCompactSupport bump := by
-  apply HasCompactSupport.of_support_subset_isCompact rawBump.hasCompactSupport.isCompact
-  intro x hx
-  apply subset_tsupport rawBump
-  simp only [Function.mem_support] at hx ⊢
-  intro hzero
-  apply hx
-  simp [bump, hzero]
+  convert! rawBump.hasCompactSupport.mul_right
+    (f' := fun _ : ℝ ↦ (Real.sqrt rawL2)⁻¹) using 1
 
 /-- Every point in the support of `bump` lies in `[-1 / 4, 1 / 4]`. -/
 lemma bump_supp (x : ℝ) (hx : bump x ≠ 0) : |x| ≤ 1 / 4 := by
@@ -135,13 +131,7 @@ private theorem bump_integral_pos : 0 < ∫ x : ℝ, bump x := by
 /-! ## Plancherel and decay of the bump's Fourier transform -/
 
 private theorem bump_complex_hasCompactSupport : HasCompactSupport (fun x : ℝ => (bump x : ℂ)) :=
-  HasCompactSupport.of_support_subset_isCompact
-    (isCompact_Icc (a := -1 / 4) (b := 1 / 4)) (by
-      intro x hx
-      simp only [Function.mem_support] at hx
-      have h := bump_supp x (by exact_mod_cast hx)
-      simp only [Set.mem_Icc, abs_le] at h ⊢
-      simpa only [neg_div] using h)
+  bump_hasCompactSupport.comp_left (g := Complex.ofReal) (by simp)
 
 private theorem bump_complex_smooth : ContDiff ℝ ∞ (fun x : ℝ => (bump x : ℂ)) := by
   change ContDiff ℝ ∞ (Complex.ofRealCLM ∘ bump)
@@ -224,39 +214,26 @@ lemma bumpFourier_lower_bound :
     intro hzero
     have : (bumpFourier 0).re = 0 := by rw [hzero]; rfl
     linarith
-  set v₀ := ‖bumpFourier 0‖
-  obtain ⟨δ, hδ, hball⟩ :=
-    (Metric.continuousAt_iff.mp hcts.continuousAt) (v₀ / 2) (by linarith)
-  refine ⟨(v₀ / 2) ^ 2, δ / 2, by positivity, by positivity, ?_⟩
+  have htheta : bumpFourier =Θ[𝓝 0] (fun _ : ℝ ↦ (1 : ℝ)) :=
+    hcts.continuousAt.isTheta (norm_pos_iff.mp hpos)
+  obtain ⟨c, hc, hbound⟩ :=
+    (Asymptotics.isBigO_const_left_iff_pos_le_norm (by norm_num : (1 : ℝ) ≠ 0)).mp htheta.2
+  obtain ⟨δ, hδ, hball⟩ := Metric.mem_nhds_iff.mp hbound
+  refine ⟨c ^ 2, δ / 2, by positivity, by positivity, ?_⟩
   intro u hu
-  have hdist : dist (bumpFourier u) (bumpFourier 0) < v₀ / 2 := by
-    apply hball
-    rw [Real.dist_eq]
-    simp only [sub_zero]
-    exact lt_of_le_of_lt hu (by linarith)
-  have hbound : v₀ - ‖bumpFourier u‖ < v₀ / 2 := by
-    calc
-      v₀ - ‖bumpFourier u‖ = ‖bumpFourier 0‖ - ‖bumpFourier u‖ := rfl
-      _ ≤ ‖bumpFourier 0 - bumpFourier u‖ := norm_sub_norm_le _ _
-      _ = dist (bumpFourier u) (bumpFourier 0) := by
-        rw [dist_eq_norm_sub, norm_sub_rev]
-      _ < v₀ / 2 := hdist
-  have hball' : v₀ / 2 < ‖bumpFourier u‖ := by linarith
-  nlinarith [norm_nonneg (bumpFourier u)]
+  have hu' : u ∈ Metric.ball 0 δ := by
+    rw [Metric.mem_ball, Real.dist_eq, sub_zero]
+    linarith
+  exact pow_le_pow_left₀ hc.le (hball hu') 2
 
 /-! ## Weighted Plancherel identity -/
 
 /-- A translate of `bump`, packaged as a Schwartz function. -/
 def bumpShift (w : ℝ) : 𝓢(ℝ, ℂ) := by
   let f : ℝ → ℂ := fun x => (bump (x + w) : ℂ)
-  have hcomp : HasCompactSupport f := by
-    apply HasCompactSupport.of_support_subset_isCompact
-      (isCompact_Icc (a := -w - 1 / 4) (b := -w + 1 / 4))
-    intro x hx
-    change (bump (x + w) : ℂ) ≠ 0 at hx
-    have hx' : bump (x + w) ≠ 0 := by exact_mod_cast hx
-    have h := abs_le.mp (bump_supp (x + w) hx')
-    constructor <;> linarith
+  have hcomp : HasCompactSupport f :=
+    (bump_hasCompactSupport.comp_left (g := Complex.ofReal) (by simp)).comp_homeomorph
+      (Homeomorph.addRight w)
   have hsmooth : ContDiff ℝ ∞ f := by
     change ContDiff ℝ ∞ ((fun x : ℝ => (bump x : ℂ)) ∘ fun x => x + w)
     exact

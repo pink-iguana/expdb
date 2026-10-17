@@ -279,14 +279,9 @@ end VariableObject
 /-- Infinitesimal equality transfers boundedness from the comparison object. -/
 theorem IsEqUpToInfinitesimal.isBounded_left {E : Type*} [SeminormedAddCommGroup E]
     {X Y : VariableObject E} (h : X =o Y) (hY : Y.IsBounded) : X.IsBounded := by
-  obtain ⟨C, hC⟩ := hY
-  have hsmall := (isEqUpToInfinitesimal_iff_forall_pos X Y).1 h 1 zero_lt_one
-  refine ⟨1 + C, ?_⟩
-  filter_upwards [hsmall, hC] with i hi hYi
-  calc
-    ‖X i‖ = ‖X i - Y i + Y i‖ := by rw [sub_add_cancel]
-    _ ≤ ‖X i - Y i‖ + ‖Y i‖ := norm_add_le _ _
-    _ ≤ 1 + C := add_le_add hi.le hYi
+  rw [VariableObject.isBounded_iff_isBigO_one] at hY ⊢
+  exact ((Asymptotics.isLittleO_one_iff ℝ).mpr
+    ((isEqUpToInfinitesimal_iff_tendsto_sub X Y).mp h)).isBigO.congr_of_sub.mpr hY
 
 /-- Infinitesimal equality respects eventual equality on either side. -/
 theorem IsEqUpToInfinitesimal.congr {E : Type*} [SeminormedAddCommGroup E]

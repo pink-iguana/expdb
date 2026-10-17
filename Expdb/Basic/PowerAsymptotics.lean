@@ -54,14 +54,8 @@ theorem IsPowerAsymptotic.comp_tendsto
 
 private theorem isEqUpToInfinitesimal_fixed_iff_tendsto {e : VariableObject ℝ} {α : ℝ} :
     e =o VariableObject.fixed α ↔ Tendsto e atTop (𝓝 α) := by
-  rw [IsEqUpToInfinitesimal, VariableObject.IsInfinitesimal]
-  constructor
-  · intro he
-    have hzero : Tendsto (fun i ↦ e i - α) atTop (𝓝 0) :=
-      tendsto_zero_iff_norm_tendsto_zero.mpr he
-    simpa using hzero.add (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))
-  · intro he
-    simpa using (he.sub (tendsto_const_nhds : Tendsto (fun _ : ℕ ↦ α) atTop (𝓝 α))).norm
+  rw [isEqUpToInfinitesimal_iff_tendsto_sub]
+  exact tendsto_sub_nhds_zero_iff
 
 /-- Changing to a height of positive growth divides the scale exponent. -/
 theorem IsPowerAsymptotic.change_base {N S T : VariableObject ℝ} {α κ : ℝ}

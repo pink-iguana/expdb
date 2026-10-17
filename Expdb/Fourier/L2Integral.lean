@@ -45,12 +45,9 @@ private theorem expSumSq_nonneg {ι : Type*} [Fintype ι]
 private theorem coeff_eq_zero_of_sum_norm_sq_eq_zero
     {ι : Type*} [Fintype ι] {a : ι → ℂ}
     (h : ∑ r, ‖a r‖ ^ 2 = 0) : ∀ r, a r = 0 := by
-  intro r
-  apply norm_eq_zero.mp
-  have hr : ‖a r‖ ^ 2 = 0 :=
-    ((Finset.sum_eq_zero_iff_of_nonneg
-      (fun i (_ : i ∈ Finset.univ) ↦ sq_nonneg ‖a i‖)).1 h) r (Finset.mem_univ r)
-  nlinarith [norm_nonneg (a r)]
+  simpa only [sq_eq_zero_iff, norm_eq_zero, Finset.mem_univ, true_implies] using
+    (Finset.sum_eq_zero_iff_of_nonneg
+      (fun i (_ : i ∈ Finset.univ) ↦ sq_nonneg ‖a i‖)).mp h
 
 /-- An exponential sum is continuous in its evaluation point. -/
 @[fun_prop]
@@ -79,13 +76,7 @@ private theorem weighted_l2_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) 
       (∑ r, c r • bumpShift (N * ξ r))) u = _
     rw [map_sum]
     simp_rw [map_smul]
-    have hsum_apply (s : Finset ι) (f : ι → 𝓢(ℝ, ℂ)) :
-        (∑ r ∈ s, f r) u = ∑ r ∈ s, f r u := by
-      induction s using Finset.induction_on with
-      | empty => simp
-      | @insert r s hrs ih =>
-          simp [Finset.sum_insert, hrs, ih]
-    rw [hsum_apply Finset.univ]
+    rw [sum_apply]
     simp_rw [smul_apply, smul_eq_mul]
     have hshift (r : ι) :
         SchwartzMap.fourierTransformCLM ℂ (bumpShift (N * ξ r)) u =
@@ -118,26 +109,11 @@ private theorem weighted_l2_identity {ι : Type*} [Fintype ι] (a : ι → ℂ) 
     change SchwartzMap.toLpCLM ℂ ℂ 2 volume G = _
     simp [G]
   have hG_norm : ‖G.toLp 2‖ ^ 2 = ∑ r, ‖a r‖ ^ 2 := by
-    have horth := (bumpShift_orthonormal ξ N hN hsep).inner_sum c c Finset.univ
-    have hc_norm : ∑ r, ‖c r‖ ^ 2 = ∑ r, ‖a r‖ ^ 2 := by
-      simp only [c, norm_mul, Circle.norm_coe, mul_one]
-    have hsum_norm :
-        ‖∑ r, c r • (bumpShift (N * ξ r)).toLp 2‖ ^ 2 = ∑ r, ‖c r‖ ^ 2 := by
-      calc
-        ‖∑ r, c r • (bumpShift (N * ξ r)).toLp 2‖ ^ 2 =
-            (inner ℂ (∑ r, c r • (bumpShift (N * ξ r)).toLp 2)
-              (∑ r, c r • (bumpShift (N * ξ r)).toLp 2)).re :=
-                by
-                  exact norm_sq_eq_re_inner (𝕜 := ℂ)
-                    (∑ r, c r • (bumpShift (N * ξ r)).toLp 2)
-        _ = (∑ r, (starRingEnd ℂ) (c r) * c r).re := congrArg Complex.re horth
-        _ = ∑ r, ‖c r‖ ^ 2 := by
-          rw [Complex.re_sum]
-          apply Finset.sum_congr rfl
-          intro r _
-          rw [Complex.conj_mul']
-          rw [← Complex.ofReal_pow, Complex.ofReal_re]
-    rw [hG_toLp, hsum_norm, hc_norm]
+    rw [hG_toLp, norm_sq_eq_re_inner (𝕜 := ℂ),
+      (bumpShift_orthonormal ξ N hN hsep).inner_sum c c Finset.univ]
+    change (∑ r, (starRingEnd ℂ) (c r) * c r).re = _
+    simp only [Complex.re_sum, Complex.conj_mul', ← Complex.ofReal_pow, Complex.ofReal_re]
+    simp only [c, norm_mul, Circle.norm_coe, mul_one]
   have hG_inner : inner ℂ (G.toLp 2) (G.toLp 2) =
       ((∑ r, ‖a r‖ ^ 2 : ℝ) : ℂ) := by
     rw [inner_self_eq_norm_sq_to_K]

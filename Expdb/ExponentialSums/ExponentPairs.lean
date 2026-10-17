@@ -82,23 +82,8 @@ theorem IsModelPhaseFunction.comp_strictMono
     {F : VariableFunction (VariableObject.fixed ℝ) ℝ}
     (hF : IsModelPhaseFunction F) {φ : ℕ → ℕ} (hφ : StrictMono φ) :
     IsModelPhaseFunction (fun i ↦ F (φ i)) := by
-  classical
-  obtain ⟨hphase, σ, hσ, herror⟩ := hF
-  refine ⟨fun i ↦ hphase (φ i), σ, hσ, ?_⟩
-  intro p y
-  set x : ∀ i, (VariableObject.fixed phaseInterval) i := fun j ↦
-    if h : ∃ i, φ i = j then y h.choose
-      else ⟨1, by simp [phaseInterval]⟩ with hxdef
-  have hx : ∀ i, x (φ i) = y i := by
-    intro i
-    have h : ∃ i', φ i' = φ i := ⟨i, rfl⟩
-    simp only [hxdef, dite_eq_left h]
-    congr 1
-    exact hφ.injective h.choose_spec
-  have hlimit := (herror p x).comp hφ.tendsto_atTop
-  refine hlimit.congr fun i ↦ ?_
-  simp only [Function.comp_apply, hx i]
-  rfl
+  obtain ⟨σ, hσ, h⟩ := hF.exists_with
+  exact (h.comp_tendsto hφ.tendsto_atTop).isModelPhaseFunction hσ
 
 /-- An exponential sum over an interval inside `[N, 2N]` has at most `3N` unit-sized terms. -/
 theorem norm_exponentialSum_le_three_mul

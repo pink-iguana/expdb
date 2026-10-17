@@ -21,19 +21,6 @@ variable {ι α : Type*} [SeminormedAddCommGroup α]
 
 /-! ## Auxiliary lemmas for subsequence extraction -/
 
-/-- From a property holding arbitrarily late, extract a strictly
-    increasing sequence on which it holds. -/
-private theorem extract_strictMono_subseq {P : ℕ → Prop}
-    (h : ∀ j, ∃ i ≥ j, P i) :
-    ∃ φ : ℕ → ℕ, StrictMono φ ∧ ∀ n, P (φ n) := by
-  have step : ∀ prev, ∃ i > prev, P i :=
-    fun prev => let ⟨i, hi, hP⟩ := h (prev + 1); ⟨i, by omega, hP⟩
-  let φ : ℕ → ℕ :=
-    fun n => n.rec (h 0).choose (fun _ prev => (step prev).choose)
-  exact ⟨φ, strictMono_nat_of_lt_succ fun n => (step (φ n)).choose_spec.1,
-         fun n => n.casesOn (h 0).choose_spec.2
-                             (fun _ => (step (φ _)).choose_spec.2)⟩
-
 /-- Extract a strictly increasing φ and bad elements x(n) ∈ E(φ n)
     with |f(φ n)(x n)| > n. Used in the proof of the Automatic uniformity result (`auto`),
     case (i). -/
@@ -65,8 +52,8 @@ private theorem extract_bad_seq_ii
     (bad : ∀ j, ∃ i ≥ j, ∃ x : E i, ε < ‖f i x‖) :
     ∃ φ : ℕ → ℕ, StrictMono φ ∧
     ∃ x : ∀ n, E (φ n), ∀ n, ε < ‖f (φ n) (x n)‖ := by
-  obtain ⟨φ, hφ, hbad⟩ := extract_strictMono_subseq
-    (P := fun i => ∃ x : E i, ε < ‖f i x‖) bad
+  obtain ⟨φ, hφ, hbad⟩ :=
+    extraction_of_frequently_atTop (frequently_atTop.mpr bad)
   choose x hx using hbad
   exact ⟨φ, hφ, x, hx⟩
 
