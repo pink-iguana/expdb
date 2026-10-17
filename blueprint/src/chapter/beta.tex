@@ -134,9 +134,7 @@ Applying \cite[(2.54)]{ivic} with $H := T^h$, as well as the ensuing computation
 $$ T^{2\beta(\alpha)+o(1)} \ll N^2 H^{-1} + H^2 + N H^{-1} \sum_{N^2/T \ll j \ll H} |\sum_{n \in I \cap (I-j)} e(T (F((n+j)/N) - F(n/N)))|$$
 and hence by the pigeonhole principle
 $$ T^{2\beta(\alpha)+o(1)} \ll N^2 H^{-1} + H^2 + T^{o(1)} N H^{-1} \sum_{j = T^{h'+o(1)}} |\sum_{n \in I \cap (I-j)} e(T (F((n+j)/N) - F(n/N)))|$$
-for some $2\alpha-1 \leq h' \leq h$ (one can delete this term if $h < 2\alpha-1$).  Writing $r=j/N=o(1)$, one can verify that
-$$G_j(u)=-\frac{1}{\sigma r}\left(F((1-r)u+2r)-F((1-r)u+r)\right)$$
-is a model phase function of exponent $\sigma+1$. The affine contraction keeps both arguments in $[1,2]$. Reindexing $m=n-j$ identifies the correlation, up to conjugation, with a sum of scale $N-j$ and height $\sigma Tj/N$.  Thus, by Definition \ref{beta-def}, one has
+for some $2\alpha-1 \leq h' \leq h$ (one can delete this term if $h < 2\alpha-1$).  One can verify that $-\frac{1}{\sigma r}(F((1-r)u+2r)-F((1-r)u+r))$, where $r=j/N=o(1)$, is a model phase function.  Thus, reindexing by $m=n-j$ and applying Definition \ref{beta-def} at scale $N-j$ and height $\sigma Tj/N$, one has
 $$ \left|\sum_{n \in I \cap (I-j)} e(T (F((n+j)/N) - F(n/N)))\right| \ll (T^{1+h'+o(1)}/N)^{\beta(\alpha/(h'+1-\alpha))+o(1)},$$
 and the claim follows after evaluating all terms as powers of $T$.
 \end{proof}
@@ -196,7 +194,7 @@ We can remove the role of $I$ in the definition of $\beta$:
 \end{equation}
 Our task is then to show that
 $$ \sum_{n \in I} e(T F(n/N)) \ll T^{\overline{\beta}+o(1)}$$
-under the same hypotheses. For $\alpha>1$, the logarithmic full-interval sums in the proof of Lemma \ref{beta-triv} give $\overline{\beta} \geq \alpha-1$, and the claim follows from that lemma. With $\alpha=1$, its $L^2$ argument gives $\overline{\beta} \geq 1/2$, and Proposition \ref{beta-vdc} finishes this case.  Thus we may assume that $\alpha < 1$.
+under the same hypotheses. For $\alpha>1$, the proof of Lemma \ref{beta-triv} gives $\overline{\beta} \geq \alpha-1$, and we are done by that lemma. Similarly with $\alpha=1$ we can use the $L^2$ argument in the proof of Lemma \ref{beta-triv} to obtain $\overline{\beta} \geq 1/2$, and we are again done by Proposition \ref{beta-vdc}.  Thus we may assume that $\alpha < 1$.
 
     For $n \in [N,2N]$, the constraint $n \in I$ is equivalent to restricting $F(n/N)$ to an interval $J$ of length $O(1)$, which we can also smooth out by $O(1/N)$ without affecting the sum.  Applying a Fourier expansion and the triangle inequality, we can thus bound the left-hand side by
 $$ \ll T^{o(1)} + \int_{-N^{1+o(1)}}^{N^{1+o(1)}} \left|\sum_{n \in [N,2N]} e(T F(n/N) - t F(n/N)) \right| \frac{dt}{1+|t|}.$$
