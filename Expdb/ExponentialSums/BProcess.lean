@@ -534,7 +534,7 @@ private theorem isPowerBounded_dual {α : ℝ≥0} (hα1 : α < 1) {B σ' κ S :
     {N T : VariableObject ℝ} (hT : ∀ i, 1 ≤ T i)
     (hTunb : T.IsUnbounded) (hNT : IsPowerAsymptotic N T α)
     {a' b' : ℕ → ℕ}
-    (hab : ∀ᶠ i in atTop, κ * (T i / N i) ≤ a' i ∧ (b' i : ℝ) ≤ 2 * (κ * (T i / N i))) :
+    (hab : ∀ᶠ i in atTop, IsDyadicSubinterval (κ * (T i / N i)) (a' i) (b' i)) :
     IsPowerBounded
       (fun i ↦ exponentialSumAt (Hd i) (T i * S) (κ * (T i / N i)) (a' i) (b' i)) T B := by
   set T' : VariableObject ℝ := fun i ↦ T i * S with hT'
@@ -560,7 +560,7 @@ private theorem isPowerBounded_dual {α : ℝ≥0} (hα1 : α < 1) {B σ' κ S :
   have hN'top : Tendsto N' atTop atTop :=
     hN'T.tendsto_atTop_of_pos (by linarith) hT hTunb
   have hsetup : ∀ᶠ i in atTop, 1 ≤ N' i ∧ 1 ≤ T' i ∧
-      N' i ≤ (a' i : ℝ) ∧ (b' i : ℝ) ≤ 2 * N' i := by
+      IsDyadicSubinterval (N' i) (a' i) (b' i) := by
     filter_upwards [hN'top.eventually (eventually_ge_atTop 1),
       hT'top.eventually (eventually_ge_atTop 1), hab] with i h1 h2 h3
     exact ⟨h1, h2, h3⟩

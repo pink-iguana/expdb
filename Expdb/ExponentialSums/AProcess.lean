@@ -53,7 +53,7 @@ private theorem correlation_isPowerBounded
     (hNT : IsPowerAsymptotic N T α)
     (hjT : IsPowerAsymptotic (fun i ↦ (j i : ℝ)) T h') (hj : ∀ i, 0 < j i)
     (hF : IsModelPhaseFunctionWith F σ)
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i ∧ a i ≤ b i) :
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i) ∧ a i ≤ b i) :
     IsPowerBounded (fun i ↦ correlationSumAt (F i) (T i) (N i) (a i) (b i) (j i)) T
       ((1 + h' - α) * exponentSumGrowthExponent (α / (1 + h' - α)).toNNReal) := by
   let J : VariableObject ℝ := fun i ↦ (j i : ℝ)
@@ -109,12 +109,12 @@ private theorem correlation_isPowerBounded
       have := (div_lt_iff₀ (hNpos i)).1 hi
       linarith
     have hja : j i ≤ a i := by
-      have : J i ≤ (a i : ℝ) := by linarith [hJpos i, (hab i).1]
+      have : J i ≤ (a i : ℝ) := by linarith [hJpos i, (hab i).1.1]
       dsimp [J] at this
       exact_mod_cast this
     have hjb : 2 * j i ≤ b i := by
       have : 2 * J i ≤ (b i : ℝ) := hjN.le.trans
-        ((hab i).1.trans (by exact_mod_cast (hab i).2.2))
+        ((hab i).1.1.trans (by exact_mod_cast (hab i).2))
       dsimp [J] at this
       exact_mod_cast this
     exact ⟨hja, hjb⟩
@@ -129,7 +129,7 @@ private theorem correlation_isPowerBounded
     have hjb := hiIndices.2
     dsimp [M]
     rw [Nat.cast_sub hja, Nat.cast_sub hjb, Nat.cast_mul, Nat.cast_ofNat]
-    exact ⟨by linarith, hiS, by linarith [(hab i).1], by linarith [(hab i).2.1]⟩
+    exact ⟨by linarith, hiS, by linarith [(hab i).1.1], by linarith [(hab i).1.2]⟩
   have hbound := IsExponentSumBound.isPowerBounded_of_eventually_setup
     (isExponentSumBound_exponentSumGrowthExponent (α / κ).toNNReal)
     (by linarith : 0 < σ + 1) hStop
@@ -157,7 +157,7 @@ private theorem weighted_correlation_isPowerBounded
     (hHT : IsPowerAsymptotic (fun i ↦ (H i : ℝ)) T h)
     (hj : ∀ i, 0 < j i) (hjH : ∀ i, j i ≤ H i)
     (hF : IsModelPhaseFunctionWith F σ)
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i ∧ a i ≤ b i)
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i) ∧ a i ≤ b i)
     (hγ : ∀ h' ∈ Set.Icc 0 h,
       h' + (1 + h' - α) * exponentSumGrowthExponent (α / (1 + h' - α)).toNNReal ≤ γ) :
     IsPowerBounded (fun i ↦ (j i : ℝ) *
@@ -216,7 +216,7 @@ private theorem exponentialSum_A_bound
     {a b : VariableObject ℕ}
     (hN : ∀ i, 1 ≤ N i) (hT : ∀ i, 1 ≤ T i) (hTunbounded : T.IsUnbounded)
     (hNT : IsPowerAsymptotic N T α) (hF : IsModelPhaseFunctionWith F σ)
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i ∧ a i ≤ b i) :
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i) ∧ a i ≤ b i) :
     IsPowerBounded (exponentialSum F T N a b) T B := by
   let H := floorRpow T h
   have hHpos : ∀ i, 0 < H i := floorRpow_pos T h
@@ -276,8 +276,8 @@ private theorem exponentialSum_A_bound
     calc
       _ ≤ 6 * N i / H i * (N i +
           ∑ k ∈ Finset.Ico 1 (H i), ‖correlationSumAt (F i) (T i) (N i) (a i) (b i) k‖) :=
-        norm_exponentialSumAt_sq_le_correlations (F i) (T i) (hN i) (hab i).1
-          (hab i).2.1 (hj i |>.trans (hjH i)) hi
+        norm_exponentialSumAt_sq_le_correlations (F i) (T i) (hN i) (hab i).1.1
+          (hab i).1.2 (hj i |>.trans (hjH i)) hi
       _ ≤ Y i := by
         dsimp [Y, K, W]
         exact mul_le_mul_of_nonneg_left (add_le_add le_rfl (hdyadic i))
@@ -299,12 +299,12 @@ theorem isExponentSumBound_of_vanDerCorputA {α : ℝ≥0} {h B : ℝ}
   obtain ⟨σ, hσ, hFσ⟩ := hF.exists_with
   let a' : VariableObject ℕ := fun i ↦ if a i ≤ b i then a i else ⌈N i⌉₊
   let b' : VariableObject ℕ := fun i ↦ if a i ≤ b i then b i else ⌈N i⌉₊
-  have hab' : ∀ i, N i ≤ (a' i : ℝ) ∧ (b' i : ℝ) ≤ 2 * N i ∧ a' i ≤ b' i := by
+  have hab' : ∀ i, IsDyadicSubinterval (N i) (a' i) (b' i) ∧ a' i ≤ b' i := by
     intro i
     dsimp [a', b']
     split_ifs with hi
-    · exact ⟨(hab i).1, (hab i).2, hi⟩
-    · refine ⟨Nat.le_ceil _, ?_, le_rfl⟩
+    · exact ⟨hab i, hi⟩
+    · refine ⟨⟨Nat.le_ceil _, ?_⟩, le_rfl⟩
       exact (Nat.ceil_lt_add_one (zero_le_one.trans (hN i))).le.trans (by linarith [hN i])
   have hbound := exponentialSum_A_bound (by exact_mod_cast hα) (by exact_mod_cast hα1)
     hh hhα hσ hdiag hcorr hN hT hTunbounded hNT hFσ hab'

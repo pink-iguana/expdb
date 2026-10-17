@@ -22,6 +22,10 @@ noncomputable section
 
 namespace Expdb
 
+/-- The endpoint conditions for a possibly empty integer interval inside `[N, 2N]`. -/
+abbrev IsDyadicSubinterval (N : ℝ) (a b : ℕ) : Prop :=
+  N ≤ (a : ℝ) ∧ (b : ℝ) ≤ 2 * N
+
 /-- The oscillatory factor `x ↦ e(T F(x / N))`. -/
 def oscillatory (F : ℝ → ℝ) (T N : ℝ) (x : ℝ) : ℂ :=
   𝐞 (T * F (x / N))

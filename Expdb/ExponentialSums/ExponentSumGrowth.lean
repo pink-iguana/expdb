@@ -55,7 +55,7 @@ def IsExponentSumBound (α : ℝ≥0) (β : ℝ) : Prop :=
     T.IsUnbounded →
     IsPowerAsymptotic N T (α : ℝ) →
     IsModelPhaseFunction F →
-    (∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i) →
+    (∀ i, IsDyadicSubinterval (N i) (a i) (b i)) →
     IsPowerBounded (exponentialSum F T N a b) T β
 
 /-- An exponential-sum bound applies when its setup conditions hold only eventually. -/
@@ -65,7 +65,7 @@ theorem IsExponentSumBound.isPowerBounded_of_eventually_setup
     {a b : VariableObject ℕ} (hTtop : Tendsto T atTop atTop)
     (hNT : IsPowerAsymptotic N T α) (hF : IsModelPhaseFunctionWith F σ)
     (hsetup : ∀ᶠ i in atTop, 1 ≤ N i ∧ 1 ≤ T i ∧
-      N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i) :
+      IsDyadicSubinterval (N i) (a i) (b i)) :
     IsPowerBounded (exponentialSum F T N a b) T β := by
   obtain ⟨i₀, hi₀⟩ := eventually_atTop.1 hsetup
   let φ : ℕ → ℕ := fun i ↦ i + i₀
@@ -162,7 +162,7 @@ private theorem norm_exponentialSum_le_three_mul
     (F : VariableFunction (VariableObject.fixed ℝ) ℝ)
     (T N : VariableObject ℝ) (a b : VariableObject ℕ)
     (hN : ∀ i, 1 ≤ N i)
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i)
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i))
     (i : ℕ) :
     ‖exponentialSum F T N a b i‖ ≤ 3 * N i := by
   calc
@@ -276,7 +276,7 @@ theorem isPowerBounded_logPhase
     (hT : ∀ i, 1 ≤ T i)
     (hTunbounded : T.IsUnbounded)
     (hNT : IsPowerAsymptotic N T (α : ℝ))
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i) :
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i)) :
     IsPowerBounded (exponentialSum logPhase T N a b) T
       (exponentSumGrowthExponent α) :=
   isExponentSumBound_exponentSumGrowthExponent α
@@ -291,7 +291,7 @@ theorem le_exponentSumGrowthExponent_of_logPhase_lower_bound
     (hT : ∀ i, 1 ≤ T i)
     (hTunbounded : T.IsUnbounded)
     (hNT : IsPowerAsymptotic N T (α : ℝ))
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i)
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i))
     (hc : 0 < c)
     (hlower : ∀ᶠ i in atTop, c * T i ^ γ ≤ ‖exponentialSum logPhase T N a b i‖) :
     γ ≤ exponentSumGrowthExponent α :=

@@ -22,11 +22,10 @@ namespace Expdb
 
 /-! ## Definition -/
 
-/-- The analytic content of the definition of an exponent pair: for all model phase functions
-`F`, all scales `T ≥ N ≥ 1` and all intervals `[a, b] ⊆ [N, 2N]`, the exponential sum
-`∑ n ∈ [a, b], e(T F(n / N))` is `≪ (T / N) ^ (k + o(1)) N ^ (ℓ + o(1))`. As in
-`isPowerBounded_iff_forall_pos`, the two `o(1)` losses are expressed by an arbitrary fixed
-`ε > 0`. -/
+/-- The analytic exponent-pair bound with the blueprint's subsequence convention made
+explicit: every subsequence has a further subsequence on which the variable exponents
+converge to the fixed parameters `k` and `ℓ`. All data use the same composed index map.
+`isExponentPairBound_iff_forall_pos` recovers the epsilon estimates on arbitrary scales. -/
 def IsExponentPairBound (k l : ℝ) : Prop :=
   ∀ (N T : VariableObject ℝ)
     (F : VariableFunction (VariableObject.fixed ℝ) ℝ)
@@ -34,10 +33,14 @@ def IsExponentPairBound (k l : ℝ) : Prop :=
     (∀ i, 1 ≤ N i) →
     (∀ i, N i ≤ T i) →
     IsModelPhaseFunction F →
-    (∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i) →
-    ∀ ε : ℝ, 0 < ε →
-      Asymptotics.IsBigO atTop (exponentialSum F T N a b)
-        (fun i ↦ (T i / N i) ^ (k + ε) * N i ^ (l + ε))
+    (∀ i, IsDyadicSubinterval (N i) (a i) (b i)) →
+    ∀ φ : ℕ → ℕ, StrictMono φ →
+      ∃ ψ : ℕ → ℕ, StrictMono ψ ∧
+        ∃ k' l' : VariableObject ℝ,
+          k' =o VariableObject.fixed k ∧ l' =o VariableObject.fixed l ∧
+          Asymptotics.IsBigO atTop
+            (fun j ↦ exponentialSum F T N a b (φ (ψ j)))
+            (fun j ↦ (T (φ (ψ j)) / N (φ (ψ j))) ^ k' j * N (φ (ψ j)) ^ l' j)
 
 /-- The blueprint's Definition `exp-pair-def`: `(k, ℓ)` is an exponent pair if it lies in the
 triangle `{0 ≤ k ≤ 1/2 ≤ ℓ ≤ 1, k + ℓ ≤ 1}` and satisfies the exponential sum bound
@@ -96,6 +99,232 @@ theorem IsModelPhaseFunction.comp_strictMono
   simp only [Function.comp_apply, hx i]
   rfl
 
+/-- An exponential sum over an interval inside `[N, 2N]` has at most `3N` unit-sized terms. -/
+theorem norm_exponentialSum_le_three_mul
+    (F : VariableFunction (VariableObject.fixed ℝ) ℝ)
+    (T N : VariableObject ℝ) (a b : VariableObject ℕ)
+    (hN : ∀ i, 1 ≤ N i)
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i))
+    (i : ℕ) :
+    ‖exponentialSum F T N a b i‖ ≤ 3 * N i := by
+  have h := norm_exponentialSumAt_le_add_one (F i) (T i) (N i) (a i) (b i)
+  have h2 := (hab i).2
+  have h3 := hN i
+  simpa [exponentialSum] using h.trans (by linarith)
+
+private theorem exponentPairMajorant_shift (N T k l δ : ℝ) (hN : 0 < N) (hT : 0 < T) :
+    (T / N) ^ (k + δ) * N ^ (l + δ) =
+      ((T / N) ^ k * N ^ l) * T ^ δ := by
+  rw [Real.rpow_add (div_pos hT hN), Real.rpow_add hN]
+  calc
+    (T / N) ^ k * (T / N) ^ δ * (N ^ l * N ^ δ) =
+        ((T / N) ^ k * N ^ l) * ((T / N) ^ δ * N ^ δ) := by ring
+    _ = ((T / N) ^ k * N ^ l) * T ^ δ := by
+      rw [← Real.mul_rpow (div_pos hT hN).le hN.le, div_mul_cancel₀ T hN.ne']
+
+/-- Vanishing exponent losses imply every fixed positive loss, without a growth
+assumption on the heights. -/
+private theorem exponentPairBound_isBigO
+    (S : VariableObject ℂ) (N T : VariableObject ℝ) (k l : ℝ)
+    (hN : ∀ i, 1 ≤ N i) (hNT : ∀ i, N i ≤ T i)
+    (hS : ∃ k' l' : VariableObject ℝ,
+      k' =o VariableObject.fixed k ∧ l' =o VariableObject.fixed l ∧
+      Asymptotics.IsBigO atTop S (fun i ↦ (T i / N i) ^ k' i * N i ^ l' i)) :
+    ∀ ε : ℝ, 0 < ε → Asymptotics.IsBigO atTop S
+      (fun i ↦ (T i / N i) ^ (k + ε) * N i ^ (l + ε)) := by
+  have hNpos : ∀ i, 0 < N i := fun i ↦ zero_lt_one.trans_le (hN i)
+  have hT : ∀ i, 1 ≤ T i := fun i ↦ (hN i).trans (hNT i)
+  have hTpos : ∀ i, 0 < T i := fun i ↦ zero_lt_one.trans_le (hT i)
+  have hdiv : ∀ i, 1 ≤ T i / N i := fun i ↦ (le_div_iff₀ (hNpos i)).mpr (by simpa using hNT i)
+  obtain ⟨k', l', hk', hl', hbound⟩ := hS
+  intro ε hε
+  have hk := (isEqUpToInfinitesimal_iff_forall_pos k' (VariableObject.fixed k)).mp hk' ε hε
+  have hl := (isEqUpToInfinitesimal_iff_forall_pos l' (VariableObject.fixed l)).mp hl' ε hε
+  refine hbound.trans (Asymptotics.IsBigO.of_bound 1 ?_)
+  filter_upwards [hk, hl] with i hki hli
+  simp only [Real.norm_eq_abs, abs_of_nonneg (mul_nonneg
+    (Real.rpow_nonneg (div_pos (hTpos i) (hNpos i)).le _) (Real.rpow_nonneg (hNpos i).le _)),
+    one_mul]
+  rw [Real.norm_eq_abs] at hki hli
+  apply mul_le_mul
+    (Real.rpow_le_rpow_of_exponent_le (hdiv i) (by
+      dsimp [VariableObject.fixed] at hki; linarith [le_abs_self (k' i - k)]))
+    (Real.rpow_le_rpow_of_exponent_le (hN i) (by
+      dsimp [VariableObject.fixed] at hli; linarith [le_abs_self (l' i - l)]))
+    (Real.rpow_nonneg (hNpos i).le _) (Real.rpow_nonneg (div_pos (hTpos i) (hNpos i)).le _)
+
+/-- On divergent heights, vanishing exponent losses are equivalent to every fixed
+positive exponent loss. The two variable exponents need not have the same error. -/
+private theorem exponentPairBound_iff_forall_pos
+    (S : VariableObject ℂ) (N T : VariableObject ℝ) (k l : ℝ)
+    (hN : ∀ i, 1 ≤ N i) (hNT : ∀ i, N i ≤ T i) (hTunbounded : T.IsUnbounded) :
+    (∃ k' l' : VariableObject ℝ,
+      k' =o VariableObject.fixed k ∧ l' =o VariableObject.fixed l ∧
+      Asymptotics.IsBigO atTop S (fun i ↦ (T i / N i) ^ k' i * N i ^ l' i)) ↔
+    ∀ ε : ℝ, 0 < ε → Asymptotics.IsBigO atTop S
+      (fun i ↦ (T i / N i) ^ (k + ε) * N i ^ (l + ε)) := by
+  have hNpos : ∀ i, 0 < N i := fun i ↦ zero_lt_one.trans_le (hN i)
+  have hT : ∀ i, 1 ≤ T i := fun i ↦ (hN i).trans (hNT i)
+  have hTpos : ∀ i, 0 < T i := fun i ↦ zero_lt_one.trans_le (hT i)
+  constructor
+  · intro hS
+    exact exponentPairBound_isBigO S N T k l hN hNT hS
+  · intro hS
+    let B : VariableObject ℝ := fun i ↦ (T i / N i) ^ k * N i ^ l
+    have hBpos : ∀ i, 0 < B i := fun i ↦ mul_pos
+      (Real.rpow_pos_of_pos (div_pos (hTpos i) (hNpos i)) _) (Real.rpow_pos_of_pos (hNpos i) _)
+    let X : VariableObject ℝ := fun i ↦ ‖S i‖ / B i
+    have hX : IsPowerBounded X T 0 := by
+      apply (isPowerBounded_iff_forall_pos X T 0 hT hTunbounded).mpr
+      intro ε hε
+      obtain ⟨C, hCpos, hC⟩ := (hS ε hε).exists_pos
+      refine Asymptotics.IsBigO.of_bound C ?_
+      filter_upwards [hC.bound] with i hi
+      have hshift := exponentPairMajorant_shift (N i) (T i) k l ε (hNpos i) (hTpos i)
+      simp only [Real.norm_eq_abs, abs_of_nonneg (mul_nonneg
+        (Real.rpow_nonneg (div_pos (hTpos i) (hNpos i)).le _)
+        (Real.rpow_nonneg (hNpos i).le _))] at hi
+      simp only [X, Real.norm_eq_abs, abs_of_nonneg (div_nonneg (norm_nonneg _) (hBpos i).le),
+        zero_add, abs_of_nonneg (Real.rpow_nonneg (hTpos i).le _)]
+      apply (div_le_iff₀ (hBpos i)).mpr
+      rw [hshift] at hi
+      dsimp [B]
+      nlinarith [hi]
+    obtain ⟨δ, hδ, hbound⟩ := hX
+    refine ⟨fun i ↦ k + δ i, fun i ↦ l + δ i, ?_, ?_, ?_⟩
+    · rw [isEqUpToInfinitesimal_iff_tendsto_sub] at hδ ⊢
+      simpa [VariableObject.fixed] using hδ
+    · rw [isEqUpToInfinitesimal_iff_tendsto_sub] at hδ ⊢
+      simpa [VariableObject.fixed] using hδ
+    · obtain ⟨C, hCpos, hC⟩ := hbound.exists_pos
+      refine Asymptotics.IsBigO.of_bound C ?_
+      filter_upwards [hC.bound] with i hi
+      simp only [X, Real.norm_eq_abs, abs_of_nonneg (div_nonneg (norm_nonneg _) (hBpos i).le),
+        abs_of_nonneg (Real.rpow_nonneg (hTpos i).le _)] at hi
+      simp only [Real.norm_eq_abs, abs_of_nonneg (mul_nonneg
+        (Real.rpow_nonneg (div_pos (hTpos i) (hNpos i)).le _) (Real.rpow_nonneg (hNpos i).le _))]
+      rw [exponentPairMajorant_shift (N i) (T i) k l (δ i) (hNpos i) (hTpos i)]
+      have := (div_le_iff₀ (hBpos i)).mp hi
+      dsimp [B] at this
+      nlinarith [this]
+
+/-- The subsequence formulation of the vanishing-exponent bound is equivalent to epsilon
+bounds on all scale sequences, including bounded or oscillating heights. -/
+theorem isExponentPairBound_iff_forall_pos {k l : ℝ} :
+    IsExponentPairBound k l ↔
+    ∀ (N T : VariableObject ℝ)
+      (F : VariableFunction (VariableObject.fixed ℝ) ℝ) (a b : VariableObject ℕ),
+      (∀ i, 1 ≤ N i) → (∀ i, N i ≤ T i) → IsModelPhaseFunction F →
+      (∀ i, IsDyadicSubinterval (N i) (a i) (b i)) →
+      ∀ ε : ℝ, 0 < ε → Asymptotics.IsBigO atTop (exponentialSum F T N a b)
+        (fun i ↦ (T i / N i) ^ (k + ε) * N i ^ (l + ε)) := by
+  constructor
+  · intro h N T F a b hN hNT hF hab ε hε
+    by_contra hO
+    have hfreq : ∀ n : ℕ, ∃ᶠ i in atTop,
+        (n : ℝ) * ‖(T i / N i) ^ (k + ε) * N i ^ (l + ε)‖ <
+          ‖exponentialSum F T N a b i‖ := by
+      intro n
+      rw [Asymptotics.isBigO_iff] at hO
+      push Not at hO
+      simpa using hO n
+    obtain ⟨φ, hφ, hφprop⟩ := extraction_forall_of_frequently hfreq
+    obtain ⟨ψ, hψ, k', l', hk', hl', hbound⟩ := h N T F a b hN hNT hF hab φ hφ
+    have hsubε := exponentPairBound_isBigO
+      (fun j ↦ exponentialSum F T N a b (φ (ψ j)))
+      (N ∘ φ ∘ ψ) (T ∘ φ ∘ ψ) k l (fun j ↦ hN _) (fun j ↦ hNT _)
+      ⟨k', l', hk', hl', hbound⟩ ε hε
+    obtain ⟨C, hCpos, hC⟩ := hsubε.exists_pos
+    have hcontra : ∀ᶠ j : ℕ in atTop, (ψ j : ℝ) < C := by
+      filter_upwards [hC.bound] with j hj
+      have hf := hφprop (ψ j)
+      have hNpos : 0 < N (φ (ψ j)) := zero_lt_one.trans_le (hN _)
+      have hTpos : 0 < T (φ (ψ j)) := hNpos.trans_le (hNT _)
+      have hRpos : 0 < ‖(T (φ (ψ j)) / N (φ (ψ j))) ^ (k + ε) *
+          N (φ (ψ j)) ^ (l + ε)‖ := by
+        exact norm_pos_iff.mpr (mul_pos
+          (Real.rpow_pos_of_pos (div_pos hTpos hNpos) _)
+          (Real.rpow_pos_of_pos hNpos _)).ne'
+      change ‖exponentialSum F T N a b (φ (ψ j))‖ ≤
+        C * ‖(T (φ (ψ j)) / N (φ (ψ j))) ^ (k + ε) *
+          N (φ (ψ j)) ^ (l + ε)‖ at hj
+      exact lt_of_mul_lt_mul_right (hf.trans_le hj) hRpos.le
+    have hlarge : ∀ᶠ j : ℕ in atTop, C ≤ (ψ j : ℝ) :=
+      (tendsto_natCast_atTop_atTop.comp hψ.tendsto_atTop).eventually (eventually_ge_atTop C)
+    obtain ⟨j, hj, hjC⟩ := (hcontra.and hlarge).exists
+    exact (not_lt_of_ge hjC) hj
+  · intro h N T F a b hN hNT hF hab φ hφ
+    have hNpos : ∀ i, 0 < N i := fun i ↦ zero_lt_one.trans_le (hN i)
+    have hT : ∀ i, 1 ≤ T i := fun i ↦ (hN i).trans (hNT i)
+    have hTpos : ∀ i, 0 < T i := fun i ↦ zero_lt_one.trans_le (hT i)
+    let B : VariableObject ℝ := fun i ↦ (T i / N i) ^ k * N i ^ l
+    have hBpos : ∀ i, 0 < B i := fun i ↦ mul_pos
+      (Real.rpow_pos_of_pos (div_pos (hTpos i) (hNpos i)) _) (Real.rpow_pos_of_pos (hNpos i) _)
+    let X : VariableObject ℝ := fun i ↦ ‖exponentialSum F T N a b i‖ / B i
+    have hXbound : ∀ i, X i ≤ 3 * T i ^ (1 + |k| + |l|) := by
+      intro i
+      have hdiv1 : 1 ≤ T i / N i := (le_div_iff₀ (hNpos i)).mpr (by simpa using hNT i)
+      have hdivT : T i / N i ≤ T i := by
+        apply (div_le_iff₀ (hNpos i)).mpr
+        nlinarith [hN i, hTpos i]
+      have hkbound : (T i / N i) ^ (-k) ≤ T i ^ |k| :=
+        (Real.rpow_le_rpow_of_exponent_le hdiv1 (neg_le_abs k)).trans
+          (Real.rpow_le_rpow (div_pos (hTpos i) (hNpos i)).le hdivT (abs_nonneg k))
+      have hlbound : N i ^ (-l) ≤ T i ^ |l| :=
+        (Real.rpow_le_rpow_of_exponent_le (hN i) (neg_le_abs l)).trans
+          (Real.rpow_le_rpow (hNpos i).le (hNT i) (abs_nonneg l))
+      have hSbound : ‖exponentialSum F T N a b i‖ ≤ 3 * T i :=
+        (norm_exponentialSum_le_three_mul F T N a b hN hab i).trans (by linarith [hNT i])
+      have hinv : (B i)⁻¹ = (T i / N i) ^ (-k) * N i ^ (-l) := by
+        dsimp [B]
+        rw [mul_inv_rev, Real.rpow_neg (div_pos (hTpos i) (hNpos i)).le,
+          Real.rpow_neg (hNpos i).le]
+        ring
+      calc
+        X i = ‖exponentialSum F T N a b i‖ *
+            ((T i / N i) ^ (-k) * N i ^ (-l)) := by
+          dsimp [X]
+          rw [div_eq_mul_inv, hinv]
+        _ ≤ (3 * T i) * (T i ^ |k| * T i ^ |l|) := by
+          exact mul_le_mul hSbound
+            (mul_le_mul hkbound hlbound (Real.rpow_nonneg (hNpos i).le _)
+              (Real.rpow_nonneg (hTpos i).le _))
+            (mul_nonneg (Real.rpow_nonneg (div_pos (hTpos i) (hNpos i)).le _)
+              (Real.rpow_nonneg (hNpos i).le _)) (mul_nonneg (by norm_num) (hTpos i).le)
+        _ = 3 * T i ^ (1 + |k| + |l|) := by
+          rw [Real.rpow_add (hTpos i), Real.rpow_add (hTpos i), Real.rpow_one]
+          ring
+    by_cases htop : Tendsto (T ∘ φ) atTop atTop
+    · refine ⟨id, strictMono_id, ?_⟩
+      have hTunbounded : VariableObject.IsUnbounded (T ∘ φ) :=
+        (VariableObject.isUnbounded_iff_tendsto_atTop
+          (fun j ↦ (hTpos (φ j)).le)).mpr htop
+      apply (exponentPairBound_iff_forall_pos
+        (fun j ↦ exponentialSum F T N a b (φ j)) (N ∘ φ) (T ∘ φ) k l
+        (fun j ↦ hN _) (fun j ↦ hNT _) hTunbounded).mpr
+      intro ε hε
+      exact (h N T F a b hN hNT hF hab ε hε).comp_tendsto hφ.tendsto_atTop
+    · have hfreq : ∃ M : ℝ, ∃ᶠ j in atTop, T (φ j) < M := by
+        simpa only [Filter.tendsto_atTop, not_forall, Filter.not_eventually, not_le,
+          Function.comp_apply]
+          using htop
+      obtain ⟨M, hM⟩ := hfreq
+      obtain ⟨ψ, hψ, hψbound⟩ := extraction_of_frequently_atTop hM
+      refine ⟨ψ, hψ, VariableObject.fixed k, VariableObject.fixed l,
+        IsEqUpToInfinitesimal.refl _, IsEqUpToInfinitesimal.refl _, ?_⟩
+      let Q : ℝ := max M 1
+      have hMQ : M ≤ Q := le_max_left _ _
+      refine Asymptotics.IsBigO.of_bound (3 * Q ^ (1 + |k| + |l|)) ?_
+      filter_upwards [] with j
+      have hsmall : T (φ (ψ j)) ≤ Q := (hψbound j).le.trans hMQ
+      have hb := Real.rpow_le_rpow (hTpos (φ (ψ j))).le hsmall
+        (show 0 ≤ 1 + |k| + |l| by positivity)
+      have hx : X (φ (ψ j)) ≤ 3 * Q ^ (1 + |k| + |l|) :=
+        (hXbound _).trans (mul_le_mul_of_nonneg_left hb (by norm_num))
+      have hS := (div_le_iff₀ (hBpos (φ (ψ j)))).mp hx
+      simpa only [B, VariableObject.fixed, Real.norm_eq_abs,
+        abs_of_pos (hBpos (φ (ψ j)))] using hS
+
 /-! ## Consequences of the exponential sum bound -/
 
 /-- The exponential sum bound may be applied when `N ≤ T` only holds eventually. -/
@@ -104,7 +333,7 @@ theorem IsExponentPairBound.isBigO_of_eventually_le
     {F : VariableFunction (VariableObject.fixed ℝ) ℝ} {a b : VariableObject ℕ}
     (hN : ∀ i, 1 ≤ N i) (hT : ∀ i, 1 ≤ T i) (hNT : ∀ᶠ i in atTop, N i ≤ T i)
     (hF : IsModelPhaseFunction F)
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i)
+    (hab : ∀ i, IsDyadicSubinterval (N i) (a i) (b i))
     {ε : ℝ} (hε : 0 < ε) :
     Asymptotics.IsBigO atTop (exponentialSum F T N a b)
       (fun i ↦ (T i / N i) ^ (k + ε) * N i ^ (l + ε)) := by
@@ -118,7 +347,7 @@ theorem IsExponentPairBound.isBigO_of_eventually_le
   have hN'T : ∀ i, N' i ≤ T i := by
     intro i
     by_cases hi : N i ≤ T i <;> simp [hN'def, hi]
-  have hab' : ∀ i, N' i ≤ (a' i : ℝ) ∧ (b' i : ℝ) ≤ 2 * N' i := by
+  have hab' : ∀ i, IsDyadicSubinterval (N' i) (a' i) (b' i) := by
     intro i
     by_cases hi : N i ≤ T i
     · simpa [hN'def, ha'def, hb'def, hi] using hab i
@@ -127,23 +356,10 @@ theorem IsExponentPairBound.isBigO_of_eventually_le
       · have := hT i
         simp only [hN'def, hb'def, hi, if_false, Nat.cast_zero]
         linarith
-  have hmain := h N' T F a' b' hN'1 hN'T hF hab' ε hε
+  have hmain := isExponentPairBound_iff_forall_pos.mp h N' T F a' b' hN'1 hN'T hF hab' ε hε
   refine hmain.congr' ?_ ?_ <;> filter_upwards [hNT] with i hi
   · simp [exponentialSum, hN'def, ha'def, hb'def, hi]
   · simp [hN'def, hi]
-
-/-- An exponential sum over an interval inside `[N, 2N]` has at most `3N` unit-sized terms. -/
-theorem norm_exponentialSum_le_three_mul
-    (F : VariableFunction (VariableObject.fixed ℝ) ℝ)
-    (T N : VariableObject ℝ) (a b : VariableObject ℕ)
-    (hN : ∀ i, 1 ≤ N i)
-    (hab : ∀ i, N i ≤ (a i : ℝ) ∧ (b i : ℝ) ≤ 2 * N i)
-    (i : ℕ) :
-    ‖exponentialSum F T N a b i‖ ≤ 3 * N i := by
-  have h := norm_exponentialSumAt_le_add_one (F i) (T i) (N i) (a i) (b i)
-  have h2 := (hab i).2
-  have h3 := hN i
-  simpa [exponentialSum] using h.trans (by linarith)
 
 /-! ## Duality with the exponential sum growth exponent -/
 
@@ -241,6 +457,7 @@ theorem isExponentPairBound_of_forall_exponentSumGrowthExponent_le
     {k l : ℝ} (hk : 0 ≤ k) (hkl : k ≤ l)
     (hβ : ∀ α : ℝ≥0, α ≤ 1 → exponentSumGrowthExponent α ≤ k + (l - k) * α) :
     IsExponentPairBound k l := by
+  apply isExponentPairBound_iff_forall_pos.mpr
   intro N T F a b hN hNT hF hab ε hε
   by_contra hO
   have hT1 : ∀ i, 1 ≤ T i := fun i ↦ (hN i).trans (hNT i)
@@ -539,8 +756,6 @@ theorem isExponentPair_half_half_of_exponentSumGrowthExponent_le_half
   · exact hβ α h.le hα
 
 /-- `(1/2, 1/2)` is an exponent pair (blueprint Proposition `exp-pair-trivial`). -/
--- TODO: Complete `exponentSumGrowthExponent_reflection` (the van der Corput B-process),
--- whose unfinished proof this theorem depends on.
 theorem isExponentPair_half_half : IsExponentPair (1 / 2) (1 / 2) := by
   apply isExponentPair_half_half_of_exponentSumGrowthExponent_le_half
   intro α hhalf hα
