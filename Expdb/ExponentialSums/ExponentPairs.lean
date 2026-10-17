@@ -1,6 +1,7 @@
 module
 
 public import Expdb.ExponentialSums.ExponentSumGrowthBounds
+import Mathlib.Analysis.Convex.Combination
 
 /-!
 # Exponent pairs
@@ -665,6 +666,63 @@ theorem isExponentPair_half_half : IsExponentPair (1 / 2) (1 / 2) := by
   rw [hγα] at href
   rw [href]
   linarith [exponentSumGrowthExponent_le_self γ]
+
+/-! ## The exponent-pair conjecture -/
+
+/-- The exponent-pair conjecture (blueprint Conjecture `exp-pair-conj`). -/
+def ExponentPairConjecture : Prop :=
+  IsExponentPair 0 (1 / 2)
+
+/-- The exponent-pair conjecture is equivalent to every point of the exponent-pair triangle
+being an exponent pair (blueprint Conjecture `exp-pair-conj`). -/
+theorem exponentPairConjecture_iff_triangle :
+    ExponentPairConjecture ↔
+      ∀ k l : ℝ, (0 ≤ k ∧ k ≤ 1 / 2 ∧ 1 / 2 ≤ l ∧ l ≤ 1 ∧ k + l ≤ 1) →
+        IsExponentPair k l := by
+  constructor
+  · intro h k l htriangle
+    obtain ⟨hk, hkhalf, hlhalf, hl, hkl⟩ := htriangle
+    -- The vertex weights are `2(1-k-ℓ)`, `2ℓ-1`, and `2k`.
+    let w : Fin 3 → ℝ := ![2 * (1 - k - l), 2 * l - 1, 2 * k]
+    let v : Fin 3 → ℝ × ℝ := ![(0, 1 / 2), (0, 1), (1 / 2, 1 / 2)]
+    have hw : ∀ i ∈ Finset.univ, 0 ≤ w i := by
+      intro i _
+      fin_cases i <;> dsimp [w] <;> linarith
+    have hsum : ∑ i, w i = 1 := by
+      rw [Fin.sum_univ_three]
+      change 2 * (1 - k - l) + (2 * l - 1) + 2 * k = 1
+      ring
+    have hv : ∀ i ∈ Finset.univ, v i ∈ exponentPairs := by
+      intro i _
+      fin_cases i
+      · exact h
+      · exact isExponentPair_zero_one
+      · exact isExponentPair_half_half
+    have hmem := convex_exponentPairs.sum_mem hw hsum hv
+    have heq : (∑ i, w i • v i) = (k, l) := by
+      simp only [Fin.sum_univ_three]
+      ext <;> dsimp [w, v] <;> ring
+    change (k, l) ∈ exponentPairs
+    simpa only [heq] using hmem
+  · intro h
+    exact h 0 (1 / 2) (by norm_num)
+
+/-- The exponent-pair conjecture is equivalent to `β(α) = α / 2` on `[0, 1]`
+(blueprint Lemma `exp-pair-conj-beta`). -/
+theorem exponentPairConjecture_iff_beta :
+    ExponentPairConjecture ↔
+      ∀ α : ℝ≥0, α ≤ 1 → exponentSumGrowthExponent α = (α : ℝ) / 2 := by
+  rw [ExponentPairConjecture,
+    isExponentPair_iff_forall_exponentSumGrowthExponent_le
+      (k := 0) (l := 1 / 2) (by norm_num)]
+  constructor
+  · intro h α hα
+    refine le_antisymm ?_ (exponentSumGrowthExponent_mem_Icc hα).1
+    have := h α hα
+    linarith
+  · intro h α hα
+    have := h α hα
+    linarith
 
 /-! ## The van der Corput A-transform -/
 
