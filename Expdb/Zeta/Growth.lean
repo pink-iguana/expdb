@@ -119,16 +119,6 @@ theorem isZetaGrowthBound_iff_forall_pos {σ b : ℝ} :
     filter_upwards [hlarge] with i hi
     simpa [Real.norm_eq_abs, abs_of_nonneg (Real.rpow_nonneg (abs_nonneg _) _)] using hC (t i) hi
 
-/-- A witness constant can always be enlarged to at least one. -/
-theorem IsZetaGrowthBound.exists_constant_ge_one {σ b : ℝ} (h : IsZetaGrowthBound σ b)
-    {ε : ℝ} (hε : 0 < ε) :
-    ∃ C : ℝ, 1 ≤ C ∧ ∀ t : ℝ, C ≤ |t| →
-      ‖zetaAt σ t‖ ≤ C * |t| ^ (b + ε) := by
-  obtain ⟨C, _, hC⟩ := isZetaGrowthBound_iff_forall_pos.mp h ε hε
-  refine ⟨max C 1, le_max_right _ _, fun t ht => ?_⟩
-  exact (hC t ((le_max_left _ _).trans ht)).trans
-    (mul_le_mul_of_nonneg_right (le_max_left _ _) (Real.rpow_nonneg (abs_nonneg _) _))
-
 /-- Increasing an admissible exponent preserves admissibility. -/
 theorem IsZetaGrowthBound.mono {σ b c : ℝ} (h : IsZetaGrowthBound σ b)
     (hbc : b ≤ c) : IsZetaGrowthBound σ c := by

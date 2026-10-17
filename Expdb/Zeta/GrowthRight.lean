@@ -120,10 +120,4 @@ theorem zetaGrowthExponent_eq_zero_of_one_lt {σ : ℝ} (hσ : 1 < σ) :
   · exact (isZetaGrowthBound_zetaGrowthExponent
       (zetaGrowthBounds_nonempty_of_one_lt hσ)).nonneg_of_one_lt hσ
 
-/-- For `σ > 1`, the admissible zeta growth exponents are exactly the nonnegative ones. -/
-theorem isZetaGrowthBound_iff_nonneg_of_one_lt {σ b : ℝ} (hσ : 1 < σ) :
-    IsZetaGrowthBound σ b ↔ 0 ≤ b :=
-  ⟨fun h => h.nonneg_of_one_lt hσ,
-    fun hb => (isZetaGrowthBound_zero_of_one_lt hσ).mono hb⟩
-
 end Expdb

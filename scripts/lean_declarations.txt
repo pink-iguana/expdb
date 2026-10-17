@@ -243,7 +243,6 @@ Expdb.IsZetaGrowthBound
 Expdb.zetaGrowthBounds
 Expdb.zetaGrowthExponent
 Expdb.mem_zetaGrowthBounds
-Expdb.IsZetaGrowthBound.exists_constant_ge_one
 Expdb.IsZetaGrowthBound.mono
 Expdb.isZetaGrowthBound_of_forall_gt
 Expdb.isZetaGrowthBound_zetaGrowthExponent
@@ -262,7 +261,6 @@ Expdb.isClosed_zetaGrowthBounds
 Expdb.isZetaGrowthBound_iff_positive_height
 Expdb.isZetaGrowthBound_of_isBigO
 Expdb.IsZetaGrowthBound.exponent_ge_of_lower_bound
-Expdb.isZetaGrowthBound_iff_nonneg_of_one_lt
 Expdb.isClosed_largeValueBounds
 Expdb.isClosed_zetaLargeValueBounds
 Expdb.largeValueExponent_zero
