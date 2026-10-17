@@ -327,14 +327,11 @@ theorem exponentSumGrowthExponent_le_vanDerCorput_min
   norm_num only at htwo hthree hfour
   apply le_min (le_min ?_ ?_) ?_
   · convert htwo using 1
-    · congr 1
-    · ring
+    ring
   · convert hthree using 1
-    · congr 1
-    · ring
+    ring
   · convert hfour using 1
-    · congr 1
-    · ring
+    ring
 
 /-! ## Full dyadic intervals -/
 

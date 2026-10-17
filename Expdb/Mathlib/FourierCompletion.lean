@@ -225,7 +225,7 @@ theorem exists_norm_sum_Icc_le_log_mul_twist {q A B a b : ℕ}
     ∃ r : ℝ, 0 ≤ r ∧ r ≤ 1 ∧
       ‖∑ n ∈ Finset.Icc a b, f n‖ ≤ (3 + 2 * Real.log q) *
         ‖∑ n ∈ Finset.Icc A B, f n * (𝐞 (-(r * n)) : ℂ)‖ := by
-  letI : NeZero q := ⟨hq.ne'⟩
+  let : NeZero q := ⟨hq.ne'⟩
   let S (j : ℕ) : ℝ := ‖∑ n ∈ Finset.Icc A B, f n * (𝐞 (-((j : ℝ) * n / q)) : ℂ)‖
   obtain ⟨j, hj, hmax⟩ := Finset.exists_max_image (Finset.range q) S (by simp; omega)
   refine ⟨(j : ℝ) / q, (div_nonneg (Nat.cast_nonneg _) (Nat.cast_nonneg _)), ?_, ?_⟩

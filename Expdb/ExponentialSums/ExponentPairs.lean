@@ -92,7 +92,7 @@ theorem IsModelPhaseFunction.comp_strictMono
   have hx : ∀ i, x (φ i) = y i := by
     intro i
     have h : ∃ i', φ i' = φ i := ⟨i, rfl⟩
-    simp only [hxdef, dif_pos h]
+    simp only [hxdef, dite_eq_left h]
     congr 1
     exact hφ.injective h.choose_spec
   have hlimit := (herror p x).comp hφ.tendsto_atTop
@@ -355,7 +355,7 @@ theorem IsExponentPairBound.isBigO_of_eventually_le
     · refine ⟨?_, ?_⟩
       · simpa [hN'def, ha'def, hi] using Nat.le_ceil (T i)
       · have := hT i
-        simp only [hN'def, hb'def, hi, if_false, Nat.cast_zero]
+        simp only [hN'def, hb'def, hi, ite_false, Nat.cast_zero]
         linarith
   have hmain := isExponentPairBound_iff_forall_pos.mp h N' T F a' b' hN'1 hN'T hF hab' ε hε
   refine hmain.congr' ?_ ?_ <;> filter_upwards [hNT] with i hi
@@ -389,12 +389,16 @@ private theorem exponentPairBound_of_isPowerBounded
   have hδ : δ =o VariableObject.fixed 0 := by
     have h := he.sub ((IsEqUpToInfinitesimal.refl (VariableObject.fixed k)).add
       (ha.const_smul (l - k)))
-    convert h using 1 <;> ext i <;> simp [δ, VariableObject.fixed, smul_eq_mul]
+    convert h using 1
+    ext i
+    simp [VariableObject.fixed, smul_eq_mul]
   refine ⟨fun i ↦ k + δ i, fun i ↦ l + δ i, ?_, ?_, ?_⟩
-  · convert (IsEqUpToInfinitesimal.refl (VariableObject.fixed k)).add hδ using 1 <;>
-      ext i <;> simp [VariableObject.fixed]
-  · convert (IsEqUpToInfinitesimal.refl (VariableObject.fixed l)).add hδ using 1 <;>
-      ext i <;> simp [VariableObject.fixed]
+  · convert (IsEqUpToInfinitesimal.refl (VariableObject.fixed k)).add hδ using 1
+    ext i
+    simp [VariableObject.fixed]
+  · convert (IsEqUpToInfinitesimal.refl (VariableObject.fixed l)).add hδ using 1
+    ext i
+    simp [VariableObject.fixed]
   · apply hbound.congr' Filter.EventuallyEq.rfl
     filter_upwards [hNa] with i hi
     rw [exponentPairMajorant_eq_rpow (zero_lt_one.trans_le (hN i))
@@ -432,7 +436,7 @@ theorem IsExponentPairBound.isExponentSumBound
     intro i
     by_cases hi : N i ≤ T i
     · simpa [N', a', b', hi] using hab i
-    · simp only [N', a', b', if_neg hi]
+    · simp only [N', a', b', ite_eq_right hi]
       exact ⟨Nat.le_ceil _, by simp; linarith [hT i]⟩
   apply isPowerBounded_of_subsequences hT hTunbounded
   intro φ hφ
@@ -444,16 +448,16 @@ theorem IsExponentPairBound.isExponentSumBound
     ⟨‖l - k‖, Eventually.of_forall fun _ ↦ le_rfl⟩
     ⟨‖(α : ℝ)‖, Eventually.of_forall fun _ ↦ le_rfl⟩)
   refine ⟨ψ, hψ, e, ?_, ?_⟩
-  · convert he using 1 <;> ext j <;> rfl
+  · exact he
   · have hgood := (hφ.comp hψ).tendsto_atTop.eventually hNTle
     refine hbound.congr' ?_ ?_
     · filter_upwards [hgood] with j hj
       simp only [exponentialSum, Function.comp_apply, N', a', b']
       dsimp [Function.comp_def] at hj
-      simp only [if_pos hj]
+      simp only [ite_eq_left hj]
     · filter_upwards [hgood, hNc] with j hj hjN
       dsimp [Function.comp_def] at hj hjN ⊢
-      simp only [N', if_pos hj]
+      simp only [N', ite_eq_left hj]
       exact exponentPairMajorant_eq_rpow (zero_lt_one.trans_le (hN _))
         (zero_lt_one.trans_le (hT _)) (k' j) (l' j) (c j) hjN
 
@@ -588,7 +592,7 @@ theorem exponentPairs_eq_inter :
         ⋂ α : {α : ℝ≥0 // α ≤ 1},
           {p : ℝ × ℝ | exponentSumGrowthExponent α ≤ p.1 + (p.2 - p.1) * ((α : ℝ≥0) : ℝ)} := by
   ext p
-  simp only [mem_exponentPairs, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_iInter]
+  simp only [mem_exponentPairs, Set.mem_inter_iff, Set.mem_ofPred_eq, Set.mem_iInter]
   constructor
   · intro hp
     exact ⟨⟨⟨⟨⟨hp.k_nonneg, hp.k_le_half⟩, hp.half_le_l⟩, hp.l_le_one⟩, hp.add_le_one⟩,

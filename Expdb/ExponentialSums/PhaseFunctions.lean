@@ -3,9 +3,9 @@ module
 public import Expdb.Basic.Asymptotics
 public import Mathlib.Analysis.Calculus.IteratedDeriv.Defs
 public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.Analysis.SpecialFunctions.Pow.Deriv
 import Expdb.Basic.AutomaticUniformity
 import Expdb.Mathlib.IteratedDeriv
-import Mathlib.Analysis.SpecialFunctions.Pow.Deriv
 
 /-!
 # Phase functions
@@ -191,7 +191,7 @@ theorem modelPhaseErrorAt_add_linear
   · subst p
     simp
     ring
-  · simp only [if_neg (by omega : p + 1 ≠ 0), if_neg (by omega : p + 1 ≠ 1),
+  · simp only [ite_eq_right (by omega : p + 1 ≠ 0), ite_eq_right (by omega : p + 1 ≠ 1),
       mul_zero, add_zero, hp]
     simp
 

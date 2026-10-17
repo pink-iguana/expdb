@@ -256,15 +256,15 @@ private theorem borelDomBound_summable (c : ℕ → F) (k : ℕ) :
   refine Summable.congr_cofinite hgeom ?_
   rw [Nat.cofinite_eq_atTop]
   filter_upwards [eventually_gt_atTop k] with n hn
-  rw [borelDomBound, if_pos hn]
+  rw [borelDomBound, ite_eq_left hn]
 
 private theorem borelDomBound_bound (c : ℕ → F) (k n : ℕ) (t : ℝ) :
     ‖iteratedFDeriv ℝ k (borelTerm c n) t‖ ≤ borelDomBound c k n := by
   rw [norm_iteratedFDeriv_eq_norm_iteratedDeriv, borelDomBound]
   by_cases hkn : k < n
-  · rw [if_pos hkn]
+  · rw [ite_eq_left hkn]
     exact borelTerm_iteratedDeriv_bound c hkn t
-  · rw [if_neg hkn]
+  · rw [ite_eq_right hkn]
     exact Classical.choose_spec (borelTerm_iteratedDeriv_global_bound c n k) t
 
 private theorem borelTerm_iteratedDeriv_zero (c : ℕ → F) (n k : ℕ) :
@@ -306,10 +306,10 @@ private theorem borelTerm_iteratedDeriv_zero (c : ℕ → F) (n k : ℕ) :
       rw [← mul_pow, inv_mul_cancel₀ hL0.ne', one_pow]
     rcases eq_or_ne n k with h | h
     · subst h
-      rw [if_pos rfl, if_pos rfl]
+      rw [ite_eq_left rfl, ite_eq_left rfl]
       have hfac : (Nat.factorial n : ℝ) ≠ 0 := by exact_mod_cast Nat.factorial_ne_zero n
       rw [div_mul_cancel₀ _ hfac, hLn]
-    · rw [if_neg (fun h' => h h'.symm), if_neg h]
+    · rw [ite_eq_right (fun h' => h h'.symm), ite_eq_right h]
       simp
   rw [hpow]
 
@@ -390,8 +390,8 @@ private theorem exists_contDiff_iteratedDeriv_eq_with_bound [CompleteSpace F] (P
   refine ⟨h, hh, ?_, ?_⟩
   · intro k
     rw [hderiv, tsum_congr (fun n => borelTerm_iteratedDeriv_zero c n k)]
-    rw [tsum_eq_single k (fun n hn => by rw [if_neg hn, zero_smul])]
-    rw [if_pos rfl, one_smul]
+    rw [tsum_eq_single k (fun n hn => by rw [ite_eq_right hn, zero_smul])]
+    rw [ite_eq_left rfl, one_smul]
   · intro k hk t
     have hbound (n : ℕ) : ‖iteratedDeriv k (borelTerm c n) t‖ ≤ v k n := by
       dsimp [v]
@@ -457,33 +457,33 @@ theorem contDiffOn_Icc_ite_of_jet_match {fL fR : ℝ → F} {a b x₀ : ℝ} (ha
     simpa only [hpL_def, hpR_def, ftaylorSeriesWithin] using hLR
   have hEqL : ∀ m : ℕ, Set.EqOn (fun y => p y m) (fun y => pL y m) (Icc a x₀) := by
     intro m y hy
-    simp only [hp_def, if_pos hy.2]
+    simp only [hp_def, ite_eq_left hy.2]
   have hEqR : ∀ m : ℕ, Set.EqOn (fun y => p y m) (fun y => pR y m) (Icc x₀ b) := by
     intro m y hy
     rcases eq_or_lt_of_le hy.1 with hy0 | hy0
     · subst hy0
-      simp only [hp_def, if_pos (le_refl x₀), hjetF]
-    · simp only [hp_def, if_neg (not_le.mpr hy0)]
+      simp only [hp_def, ite_eq_left (le_refl x₀), hjetF]
+    · simp only [hp_def, ite_eq_right (not_le.mpr hy0)]
   have hzero : ∀ x ∈ Icc a b, (p x 0).curry0 = f x := by
     intro x hx
     by_cases hx' : x ≤ x₀
     · have hval : (pL x 0).curry0 = fL x := hTL.zero_eq x ⟨hx.1, hx'⟩
-      simp only [hp_def, hf_def, if_pos hx', hval]
+      simp only [hp_def, hf_def, ite_eq_left hx', hval]
     · have hx'' : x₀ ≤ x := le_of_lt (not_le.mp hx')
       have hval : (pR x 0).curry0 = fR x := hTR.zero_eq x ⟨hx'', hx.2⟩
-      simp only [hp_def, hf_def, if_neg hx', hval]
+      simp only [hp_def, hf_def, ite_eq_right hx', hval]
   have hm_lt : ∀ m : ℕ, (m : WithTop ℕ∞) < ∞ := fun m => by
     exact_mod_cast (Nat.cast_lt.mpr m.lt_succ_self).trans_le le_top
   have hderiv : ∀ m : ℕ, ∀ x ∈ Icc a b,
       HasFDerivWithinAt (fun y => p y m) (p x m.succ).curryLeft (Icc a b) x := by
     intro m x hx
     have hpL_succ : ∀ y : ℝ, y ≤ x₀ → p y m.succ = pL y m.succ := fun y hy => by
-      simp only [hp_def, if_pos hy]
+      simp only [hp_def, ite_eq_left hy]
     have hpR_succ : ∀ y : ℝ, x₀ ≤ y → p y m.succ = pR y m.succ := by
       intro y hy
       rcases eq_or_lt_of_le hy with hy0 | hy0
-      · subst hy0; simp only [hp_def, if_pos (le_refl x₀), hjetF]
-      · simp only [hp_def, if_neg (not_le.mpr hy0)]
+      · subst hy0; simp only [hp_def, ite_eq_left (le_refl x₀), hjetF]
+      · simp only [hp_def, ite_eq_right (not_le.mpr hy0)]
     rcases lt_trichotomy x x₀ with hlt | heq | hgt
     · have hdL : HasFDerivWithinAt (fun y => pL y m) (pL x m.succ).curryLeft (Icc a x₀) x :=
         hTL.fderivWithin m (hm_lt m) x ⟨hx.1, hlt.le⟩
@@ -597,11 +597,11 @@ theorem exists_contDiffOn_Icc_extension_with_bound (P : ℕ) :
         ⟨le_rfl, hu.le⟩, hRderiv, sub_self, hRj]
   have hgeq : EqOn g f (Icc 1 2) := by
     intro x hx
-    exact (if_pos hx.2).trans (hg₁eq hx)
+    exact (ite_eq_left hx.2).trans (hg₁eq hx)
   have hgLeq : EqOn g fL (Icc l 1) := by
     intro x hx
     dsimp [g, g₁]
-    rw [if_pos (hx.2.trans (by norm_num)), if_pos hx.2]
+    rw [ite_eq_left (hx.2.trans (by norm_num)), ite_eq_left hx.2]
   have hgReq : EqOn g fR (Icc 2 u) := by
     intro x hx
     dsimp [g]

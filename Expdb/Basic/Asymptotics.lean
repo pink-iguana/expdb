@@ -265,7 +265,7 @@ theorem IsBounded.sum {ι E : Type*} [SeminormedAddCommGroup E] (s : Finset ι)
     {X : ι → VariableObject E} (hX : ∀ j ∈ s, (X j).IsBounded) :
     IsBounded (fun i ↦ ∑ j ∈ s, X j i) := by
   rw [isBounded_iff_isBigO_one]
-  exact Asymptotics.IsBigO.sum fun j hj ↦ (isBounded_iff_isBigO_one _).1 (hX j hj)
+  exact Asymptotics.IsBigO.fun_sum fun j hj ↦ (isBounded_iff_isBigO_one _).1 (hX j hj)
 
 /-- Reciprocals are bounded when their denominators stay away from zero. -/
 theorem isBounded_inv_of_norm_ge {X : VariableObject ℝ} {c : ℝ} (hc : 0 < c)

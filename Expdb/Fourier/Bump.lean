@@ -324,15 +324,15 @@ lemma bumpShift_orthonormal {ι : Type*} [Finite ι]
     (hsep : IsSeparatedFamily (1 / N) ξ) :
     Orthonormal ℂ (fun r => (bumpShift (N * ξ r)).toLp 2) := by
   classical
-  letI := Fintype.ofFinite ι
+  let := Fintype.ofFinite ι
   rw [orthonormal_iff_ite]
   intro r s
   rw [SchwartzMap.inner_toL2_toL2_eq
     (bumpShift (N * ξ r)) (bumpShift (N * ξ s)) volume]
   by_cases hrs : r = s
   · subst s
-    rw [if_pos rfl, bumpShift_inner_self]
-  · rw [if_neg hrs]
+    rw [ite_eq_left rfl, bumpShift_inner_self]
+  · rw [ite_eq_right hrs]
     apply bumpShift_inner_eq_zero
     rw [show N * ξ r - N * ξ s = N * (ξ r - ξ s) by ring, abs_mul, abs_of_pos hN]
     calc

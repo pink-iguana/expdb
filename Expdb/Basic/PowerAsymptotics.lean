@@ -256,10 +256,7 @@ theorem IsPowerAsymptotic.mul
   obtain ⟨a, ha, hAeq⟩ := hA
   obtain ⟨b, hb, hBeq⟩ := hB
   refine ⟨a + b, ?_, ?_⟩
-  · have hab := ha.add hb
-    convert hab using 1
-    · ext i
-      rfl
+  · exact ha.add hb
   · filter_upwards [hAeq, hBeq] with i hiA hiB
     simp only [Pi.mul_apply, hiA, hiB]
     simpa only [Pi.add_apply] using
@@ -274,10 +271,7 @@ theorem IsPowerAsymptotic.div
   obtain ⟨a, ha, hAeq⟩ := hA
   obtain ⟨b, hb, hBeq⟩ := hB
   refine ⟨a - b, ?_, ?_⟩
-  · have hab := ha.sub hb
-    convert hab using 1
-    · ext i
-      rfl
+  · exact ha.sub hb
   · filter_upwards [hAeq, hBeq] with i hiA hiB
     simp only [Pi.div_apply, hiA, hiB]
     simpa only [Pi.sub_apply] using
@@ -593,11 +587,9 @@ theorem IsPowerBounded.mono
   · have hshift := hexponent.add
       (IsEqUpToInfinitesimal.refl (VariableObject.fixed (γ - β)))
     convert hshift using 1
-    · ext i
-      dsimp [shiftedExponent]
-    · ext i
-      dsimp [shiftedExponent]
-      ring
+    ext i
+    dsimp [VariableObject.fixed]
+    ring
   filter_upwards [hT] with i hiT
   have hT0 : 0 ≤ T i := zero_le_one.trans hiT
   rw [one_mul, Real.norm_eq_abs, abs_of_nonneg (Real.rpow_nonneg hT0 _),

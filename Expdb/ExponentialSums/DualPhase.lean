@@ -289,15 +289,15 @@ theorem exists_regularizedPhases {σ : ℝ} (hσ : 0 < σ) {a b : ℝ} (ha : 0 <
   have hHs : ∀ i, ContDiff ℝ ∞ (H i) := by
     intro i
     by_cases hi : good i
-    · simp only [H, if_pos hi]
+    · simp only [H, ite_eq_left hi]
       exact contDiff_secondPrimitive (hrs i) _ _ _
-    · simp only [H, if_neg hi]
+    · simp only [H, ite_eq_right hi]
       exact hH₀s
   have hH₀2 : iteratedDeriv 2 H₀ = r₀ := iteratedDeriv_two_secondPrimitive hr₀s.continuous _ _ _
   have hHgood : ∀ i, good i →
       H i = secondPrimitive (r i) a (G i a) (deriv (G i) a) := fun i hi ↦ by
-    simp only [H, if_pos hi]
-  have hHbad : ∀ i, ¬ good i → H i = H₀ := fun i hi ↦ by simp only [H, if_neg hi]
+    simp only [H, ite_eq_left hi]
+  have hHbad : ∀ i, ¬ good i → H i = H₀ := fun i hi ↦ by simp only [H, ite_eq_right hi]
   have ha_mem : a ∈ Icc (a / 2) (b + 1) := ⟨by linarith, by linarith⟩
   refine ⟨H, H₀, ⟨hHs, hH₀s, ?_, ?_, ?_, ?_, ?_⟩⟩
   · -- Agreement on `[a, b]`.
@@ -507,7 +507,7 @@ theorem exists_global_extensions {F : VariableFunction (VariableObject.fixed ℝ
           ‖iteratedDeriv (p + 1) (G i) x - iteratedDeriv p (modelPhase σ) x‖ ≤
             C (Pidx i) * δ (Pidx i) := by
     intro i h
-    simp only [G, dif_pos h]
+    simp only [G, dite_eq_left h]
     exact Classical.choose_spec (hext (Pidx i) (δ (Pidx i)) (hδ _) σ (F i)
       (h (Pidx i) le_rfl) l u hl hl1 hu)
   have hgoodP : ∀ᶠ i in atTop, good (Pidx i) i := by
@@ -520,7 +520,7 @@ theorem exists_global_extensions {F : VariableFunction (VariableObject.fixed ℝ
   refine ⟨G, fun i ↦ ?_, ?_, ?_⟩
   · by_cases h : good (Pidx i) i
     · exact (hGspec i h).1
-    · simp only [G, dif_neg h]
+    · simp only [G, dite_eq_right h]
       exact contDiff_const
   · filter_upwards [hgoodP] with i hi
     exact (hGspec i hi).2.1

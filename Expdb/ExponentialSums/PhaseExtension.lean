@@ -37,7 +37,7 @@ private theorem hasDerivAt_modelPhasePrimitive (σ : ℝ) {x : ℝ} (hx : 0 < x)
     have hd : (1 - σ) * x ^ (1 - σ - 1) / (1 - σ) = x ^ (-σ) := by
       have hs : 1 - σ ≠ 0 := sub_ne_zero.mpr (Ne.symm hσ)
       rw [show 1 - σ - 1 = -σ by ring, mul_div_cancel_left₀ _ hs]
-    simpa only [modelPhasePrimitive, if_neg hσ, modelPhase, hd] using h
+    simpa only [modelPhasePrimitive, ite_eq_right hσ, modelPhase, hd] using h
 
 private theorem contDiffOn_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
     (hs : ∀ x ∈ s, 0 < x) : ContDiffOn ℝ ∞ (modelPhasePrimitive σ) s := by
@@ -47,7 +47,7 @@ private theorem contDiffOn_modelPhasePrimitive (σ : ℝ) {s : Set ℝ}
   by_cases hσ : σ = 1
   · simp only [hσ]
     exact (Real.contDiffAt_log.mpr (hs x hx).ne').contDiffWithinAt
-  · simp only [if_neg hσ]
+  · simp only [ite_eq_right hσ]
     exact ((Real.contDiffAt_rpow_const_of_ne (hs x hx).ne').div_const _).contDiffWithinAt
 
 private theorem iteratedDerivWithin_modelPhasePrimitive (σ c : ℝ) {s : Set ℝ}

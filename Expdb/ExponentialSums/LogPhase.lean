@@ -183,7 +183,7 @@ theorem norm_logPhaseMainTerm_bounds
         exact norm_add_le _ _
       _ = 1 + 2 * Real.pi * T := by
         dsimp [τ]
-        simp [Complex.norm_real, Real.norm_eq_abs, Real.pi_pos.le,
+        simp [Complex.norm_real, Real.norm_eq_abs,
           abs_of_nonneg (le_trans zero_le_one hT)]
       _ ≤ (1 + 2 * Real.pi) * T := by
         nlinarith [Real.pi_pos]

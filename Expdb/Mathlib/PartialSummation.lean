@@ -33,7 +33,7 @@ theorem norm_sum_Ico_mul_le (a z : ℕ → ℂ) {P Q : ℕ} (hPQ : P ≤ Q) {D :
   have hparts := Finset.sum_Ico_by_parts a g hlt
   have hlhs : ∑ i ∈ Finset.Ico P Q, a i • g i = ∑ m ∈ Finset.Ico P Q, a m * z m :=
     Finset.sum_congr rfl fun i hi ↦ by
-      rw [smul_eq_mul, hg]; simp only [if_pos (Finset.mem_Ico.1 hi).1]
+      rw [smul_eq_mul, hg]; simp only [ite_eq_left (Finset.mem_Ico.1 hi).1]
   rw [hlhs] at hparts
   rw [hparts]
   have hZ : ∀ k, P ≤ k → ∑ i ∈ Finset.range k, g i = ∑ i ∈ Finset.Ico P k, z i :=

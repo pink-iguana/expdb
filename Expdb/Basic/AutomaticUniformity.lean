@@ -253,7 +253,7 @@ theorem VariableFunction.isChoicewiseInfinitesimal_iff_forall_pos_uniform
       if h : ∃ y : E i, ε ≤ ‖f i y‖ then h.choose else x₀ i
     have hx (i : ℕ) (h : ∃ y : E i, ε ≤ ‖f i y‖) :
         ε ≤ ‖f i (x i)‖ := by
-      simp only [x, dif_pos h]
+      simp only [x, dite_eq_left h]
       exact h.choose_spec
     have hsmall :=
       (VariableObject.isInfinitesimal_iff_forall_pos

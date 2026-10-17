@@ -1,6 +1,7 @@
 module
 
 import Expdb.Basic.AutomaticUniformity
+import Mathlib.Analysis.PSeries
 public import Expdb.Basic.DerivativeAsymptotics
 public import Expdb.ExponentialSums.DualPhase
 public import Expdb.ExponentialSums.SmoothCompletion
@@ -158,7 +159,7 @@ theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
   · exact ⟨0, Eventually.of_forall fun i v hv ↦ absurd ((abs_nonneg v).trans hv) hM⟩
   set M' : ℝ := max M (max |p - 1| |q + 1|) with hM'
   let P := {v : ℝ // |v| ≤ M} × ℝ
-  haveI : Nonempty P := ⟨(⟨0, by simpa using hM⟩, 0)⟩
+  have : Nonempty P := ⟨(⟨0, by simpa using hM⟩, 0)⟩
   let g : ℕ → P → ℝ := fun i r ↦ iteratedDeriv k
     (fun t ↦ w (quadInverse (H i) r.1 t) * deriv (quadInverse (H i) r.1) t) r.2
   suffices hsuff : ∃ B, ∀ᶠ i in atTop, ∀ r, ‖g i r‖ ≤ B by
@@ -182,7 +183,7 @@ theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
   have hz' : ∀ i, |quadInverse (H i) (v i) (y' i)| ≤ M' := by
     intro i
     by_cases hg : good i
-    · simp only [y', if_pos hg]
+    · simp only [y', ite_eq_left hg]
       have := hg
       simp only [good, mem_Icc] at this
       rw [abs_le]
@@ -193,7 +194,7 @@ theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
       · have : q + 1 ≤ |q + 1| := le_abs_self _
         have : |q + 1| ≤ M' := le_max_of_le_right (le_max_right _ _)
         linarith
-    · simp only [y', if_neg hg, (hspec i).2.2]
+    · simp only [y', ite_eq_right hg, (hspec i).2.2]
       rw [abs_le]
       constructor
       · have : -|p - 1| ≤ p - 1 := neg_abs_le _
@@ -206,7 +207,7 @@ theorem exists_amplitude_bound (hH : ∀ i, ContDiff ℝ ∞ (H i)) (hc : 0 < c)
   obtain ⟨B, hB⟩ := amplitude_seq_bound hH hc hcurv hbdd hw hwb hv' hz' k
   refine ⟨B, hB.mono fun i hi ↦ ?_⟩
   by_cases hg : good i
-  · simpa [g, y', if_pos hg] using hi
+  · simpa [g, y', ite_eq_left hg] using hi
   · have hzero : iteratedDeriv k
         (fun t ↦ w (quadInverse (H i) (v i) t) * deriv (quadInverse (H i) (v i)) t) (y i) = 0 := by
       have hcont : Continuous (quadInverse (H i) (v i)) := (hspec i).1.continuous
@@ -446,12 +447,12 @@ theorem norm_smooth_sum_sub_main_le (hH : ContDiff ℝ ∞ H) (hc : 0 < c)
     have h2 : 0 ≤ Kn / (δ ^ 2 * N ^ 2) * (1 / (1 + |(m : ℝ)|) ^ 2) := by positivity
     by_cases hm : m ∈ S
     · obtain ⟨n, hn, rfl⟩ := (hmemS m).1 hm
-      simp only [E, f, g, if_pos hm]
+      simp only [E, f, g, ite_eq_left hm]
       have := norm_integral_sub_mainTerm_le hH hc hcurv (ν := N * (n : ℤ) / T) hT
         (by simpa using hstat n hn) hamp
       simp only [I]
       linarith
-    · simp only [E, f, g, if_neg hm, sub_zero, zero_add]
+    · simp only [E, f, g, ite_eq_right hm, sub_zero, zero_add]
       have hout : m < P₀ ∨ (P₁ : ℤ) ≤ m := by
         by_contra hcon
         push Not at hcon

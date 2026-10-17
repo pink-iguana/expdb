@@ -185,7 +185,7 @@ theorem norm_integral_oscillatory_le
     norm_num [phaseInterval])
   have hτnorm : ‖τ‖ = 2 * Real.pi := by
     dsimp [τ]
-    simp [Complex.norm_real, Real.norm_eq_abs, Real.pi_pos.le]
+    simp [Complex.norm_real, Real.norm_eq_abs]
   have hτone : 1 ≤ ‖τ‖ := by rw [hτnorm]; linarith [Real.pi_gt_three]
   have hderivF (x : ℝ) (hx : x ∈ Set.Icc A B) :
       HasDerivWithinAt F (d x) (Set.Icc A B) x := by

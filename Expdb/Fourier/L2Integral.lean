@@ -480,7 +480,7 @@ private theorem smoothing_kernel_decay :
     have hsubset : (Set.Icc uLower uUpper)ᶜ ⊆ {u : ℝ | d ≤ |u|} := by
       intro u hu
       simp only [Set.mem_compl_iff, Set.mem_Icc, not_and_or, not_le] at hu
-      simp only [Set.mem_setOf_eq]
+      simp only [Set.mem_ofPred_eq]
       rcases hu with hu | hu
       · rw [abs_of_nonpos (hu.le.trans huLower_nonpos)]
         exact (min_le_right |uUpper| |uLower|).trans (by
@@ -516,7 +516,7 @@ private theorem smoothing_kernel_decay :
     have hsubset : Set.Icc uLower uUpper ⊆ {u : ℝ | d ≤ |u|} := by
       intro u hu
       rcases hu with ⟨hu1, hu2⟩
-      simp only [Set.mem_setOf_eq]
+      simp only [Set.mem_ofPred_eq]
       have hzero' : 0 < uLower ∨ uUpper < 0 := by
         simpa only [Set.mem_Icc, not_and_or, not_le] using hzero
       rcases hzero' with hLowerPos | hUpperNeg

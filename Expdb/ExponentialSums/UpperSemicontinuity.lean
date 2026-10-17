@@ -97,7 +97,7 @@ theorem exponentSumGrowthExponent_monoOn_Icc :
   filter_upwards [hFapprox, hMdivSmall, hMbetween, hthreshold]
     with i hiF hiMsmall hiM hiC
   have hqi : 0 < q i := floorRpow_pos T κ i
-  letI : NeZero (q i) := ⟨hqi.ne'⟩
+  let : NeZero (q i) := ⟨hqi.ne'⟩
   have hMi : 1 ≤ M i := by
     dsimp [M, Q]
     have hqone : (1 : ℝ) ≤ q i := by exact_mod_cast (Nat.succ_le_iff.mp hqi)

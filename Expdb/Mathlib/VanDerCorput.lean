@@ -175,13 +175,13 @@ private theorem weyl_offdiag {φ : ℕ → ℝ} {M N H : ℕ} (hHM : H ≤ M) (h
     intro n
     by_cases hn1 : n ∈ Finset.Ico (M - h) (N + 1 - h)
     · by_cases hn2 : n ∈ Finset.Ico (M - h') (N + 1 - h')
-      · rw [if_pos hn1, if_pos hn2, e_mul_conj, if_pos ?_]
+      · rw [ite_eq_left hn1, ite_eq_left hn2, e_mul_conj, ite_eq_left ?_]
         rw [Finset.mem_Ico] at hn1 hn2 ⊢
         omega
-      · rw [if_pos hn1, if_neg hn2, map_zero, mul_zero, if_neg ?_]
+      · rw [ite_eq_left hn1, ite_eq_right hn2, map_zero, mul_zero, ite_eq_right ?_]
         rw [Finset.mem_Ico] at hn1 hn2 ⊢
         omega
-    · rw [if_neg hn1, zero_mul, if_neg ?_]
+    · rw [ite_eq_right hn1, zero_mul, ite_eq_right ?_]
       rw [Finset.mem_Ico] at hn1 ⊢
       omega
   rw [Finset.sum_congr rfl (fun n _ => h1 n), Finset.sum_ite_mem]
@@ -226,8 +226,8 @@ private theorem weyl_diag {φ : ℕ → ℝ} {M N H : ℕ} (hHM : H ≤ M) (hMN 
       = if n ∈ Finset.Ico (M - h) (N + 1 - h) then 1 else 0 := by
     intro n
     by_cases hn : n ∈ Finset.Ico (M - h) (N + 1 - h)
-    · rw [if_pos hn, if_pos hn, e_mul_conj, sub_self, e_zero]
-    · rw [if_neg hn, zero_mul, if_neg hn]
+    · rw [ite_eq_left hn, ite_eq_left hn, e_mul_conj, sub_self, e_zero]
+    · rw [ite_eq_right hn, zero_mul, ite_eq_right hn]
   rw [Finset.sum_congr rfl (fun n _ => h1 n), Finset.sum_ite_mem,
     Finset.sum_const, nsmul_eq_mul, mul_one]
   have h2 : Finset.Ico (M - H + 1) (N + 1)

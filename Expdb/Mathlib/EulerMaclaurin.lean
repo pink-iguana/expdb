@@ -154,16 +154,9 @@ private theorem intervalIntegrable_presaw_smul
 private theorem integral_saw_eq_integral_presaw :
     ∫ x in a..a + 1, saw s x • iteratedDerivWithin s f t x =
       ∫ x in a..a + 1, presaw s a x • iteratedDerivWithin s f t x := by
-  apply intervalIntegral.integral_congr_ae
-  have e : uIoc (a : ℝ) (a + 1) =ᵐ[volume] Ioo a (a + 1) := by
-    rw [uIoc_of_le]
-    · exact MeasureTheory.Ioo_ae_eq_Ioc.symm
-    · simp only [(lt_add_one _).le]
-  simp only [← MeasureTheory.ae_restrict_iff' measurableSet_uIoc,
-    MeasureTheory.ae_restrict_congr_set e,
-    MeasureTheory.ae_restrict_iff' measurableSet_Ioo]
-  filter_upwards
+  apply intervalIntegral.integral_congr_Ioo_of_le (le_add_of_nonneg_right zero_le_one)
   intro x m
+  dsimp only
   rw [saw_eqOn (a := a)]
   exact Ioo_subset_Ico_self m
 
@@ -442,7 +435,9 @@ private theorem sum_Icc_int_eq_sum_Icc_nat
     ∑ z ∈ Finset.Icc (a : ℤ) (b : ℤ), f z =
       ∑ n ∈ Finset.Icc a b, f n := by
   rw [← map_Icc_natCast_int]
-  simp
+  simp only [Finset.sum_map]
+  change (∑ n ∈ Finset.Icc a b, f ((n : ℤ) : ℝ)) = _
+  simp only [Int.cast_natCast]
 
 /-- A convenient norm form of Euler–Maclaurin for natural endpoints. Uniform bounds on the
 function and its derivatives control the difference between the inclusive sum and its integral;
