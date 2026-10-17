@@ -2,10 +2,7 @@
 
 Now we study a variant of the exponent $\LV(\sigma,\tau)$, specialized to the Riemann zeta function.
 
-\begin{definition}[Large value zeta exponent]\label{lvz-def}
-\lean{Expdb.IsZetaLargeValueBound, Expdb.zetaLargeValueExponent, Expdb.zetaLargeValueExponent_le_iff, Expdb.zetaLargeValueExponent_ne_top}
-\leanok
-Let $1/2 \leq \sigma \leq 1$ and $\tau \geq 0$ be fixed. We define $\LV_\zeta(\sigma,\tau) \in [-\infty, +\infty)$ to be the least (fixed) exponent for which the following claim is true: if $(N,T,V,(a_n)_{n \in [N,2N]},J,W)$ is a zeta large value pattern with $N$ is unbounded, $T = N^{\tau+o(1)}$, and $V = N^{\sigma+o(1)}$, then $|W| \ll N^{\rho+o(1)}$.
+\begin{definition}[Large value zeta exponent]\label{lvz-def} Let $1/2 \leq \sigma \leq 1$ and $\tau \geq 0$ be fixed. We define $\LV_\zeta(\sigma,\tau) \in [-\infty, +\infty)$ to be the least (fixed) exponent for which the following claim is true: if $(N,T,V,(a_n)_{n \in [N,2N]},J,W)$ is a zeta large value pattern with $N$ is unbounded, $T = N^{\tau+o(1)}$, and $V = N^{\sigma+o(1)}$, then $|W| \ll N^{\rho+o(1)}$.
 \end{definition}
 
 \python{large_values}

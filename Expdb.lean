@@ -25,9 +25,6 @@ public import Expdb.Mathlib.IteratedDeriv
 public import Expdb.Mathlib.PartialSummation
 public import Expdb.Mathlib.InverseFunction
 public import Expdb.Mathlib.QuadraticNormalization
-public import Expdb.LargeValues.Exponents
-public import Expdb.Zeta.GrowthRight
-public import Expdb.Zeta.PowerRemainder
 
 /-!
 # Exponent database
