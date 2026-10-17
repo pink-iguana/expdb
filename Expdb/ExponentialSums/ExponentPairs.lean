@@ -363,93 +363,112 @@ theorem IsExponentPairBound.isBigO_of_eventually_le
 
 /-! ## Duality with the exponential sum growth exponent -/
 
+/-- Substitute the scale relation into the exponent-pair majorant. -/
+private theorem exponentPairMajorant_eq_rpow {N T : ℝ} (hN : 0 < N) (hT : 0 < T)
+    (k l a : ℝ) (hNa : N = T ^ a) :
+    (T / N) ^ k * N ^ l = T ^ (k + (l - k) * a) := by
+  rw [Real.div_rpow hT.le hN.le, div_mul_eq_mul_div, mul_div_assoc,
+    ← Real.rpow_sub hN, hNa, ← Real.rpow_mul hT.le, ← Real.rpow_add hT]
+  congr 1
+  ring
+
+/-- Rewrite a power bound at a fixed scale as an exponent-pair estimate, keeping the
+vanishing errors as variable exponents rather than introducing epsilon losses. -/
+private theorem exponentPairBound_of_isPowerBounded
+    {S : VariableObject ℂ} {N T : VariableObject ℝ} {α k l : ℝ}
+    (hN : ∀ i, 1 ≤ N i) (hT : ∀ i, 1 ≤ T i)
+    (hNT : IsPowerAsymptotic N T α)
+    (hS : IsPowerBounded S T (k + (l - k) * α)) :
+    ∃ k' l' : VariableObject ℝ,
+      k' =o VariableObject.fixed k ∧ l' =o VariableObject.fixed l ∧
+      Asymptotics.IsBigO atTop S (fun i ↦ (T i / N i) ^ k' i * N i ^ l' i) := by
+  obtain ⟨a, ha, hNa⟩ := hNT
+  obtain ⟨e, he, hbound⟩ := hS
+  let δ : VariableObject ℝ := fun i ↦ e i - (k + (l - k) * a i)
+  have hδ : δ =o VariableObject.fixed 0 := by
+    have h := he.sub ((IsEqUpToInfinitesimal.refl (VariableObject.fixed k)).add
+      (ha.const_smul (l - k)))
+    convert h using 1 <;> ext i <;> simp [δ, VariableObject.fixed, smul_eq_mul]
+  refine ⟨fun i ↦ k + δ i, fun i ↦ l + δ i, ?_, ?_, ?_⟩
+  · convert (IsEqUpToInfinitesimal.refl (VariableObject.fixed k)).add hδ using 1 <;>
+      ext i <;> simp [VariableObject.fixed]
+  · convert (IsEqUpToInfinitesimal.refl (VariableObject.fixed l)).add hδ using 1 <;>
+      ext i <;> simp [VariableObject.fixed]
+  · apply hbound.congr' Filter.EventuallyEq.rfl
+    filter_upwards [hNa] with i hi
+    rw [exponentPairMajorant_eq_rpow (zero_lt_one.trans_le (hN i))
+      (zero_lt_one.trans_le (hT i)) (k + δ i) (l + δ i) (a i) hi]
+    congr 1
+    dsimp [δ]
+    ring
+
 /-- Half of the blueprint's Lemma `beta-duality`: an exponent pair gives the linear bound
 `β(α) ≤ k + (ℓ - k) α`, here in the range `α < 1`. -/
 theorem IsExponentPairBound.isExponentSumBound
-    {k l : ℝ} (h : IsExponentPairBound k l) (hkl : k ≤ l)
+    {k l : ℝ} (h : IsExponentPairBound k l)
     {α : ℝ≥0} (hα : (α : ℝ) < 1) :
     IsExponentSumBound α (k + (l - k) * α) := by
   intro N T F a b hN hT hTunbounded hNT hF hab
-  refine (isPowerBounded_iff_forall_pos _ T _ hT hTunbounded).2 ?_
-  intro ε hε
-  have hlk : 0 ≤ l - k := by linarith
-  set δ : ℝ := min ((1 - (α : ℝ)) / 2) (ε / (2 * (l - k + 1))) with hδdef
-  have hδpos : 0 < δ := by
-    refine lt_min (by linarith) ?_
-    have : 0 < 2 * (l - k + 1) := by linarith
-    positivity
-  have hδ1 : (α : ℝ) + δ ≤ 1 := by
-    have := min_le_left ((1 - (α : ℝ)) / 2) (ε / (2 * (l - k + 1)))
-    rw [← hδdef] at this
-    linarith
-  have hδ2 : δ * (l - k) ≤ ε / 2 := by
-    have hd := min_le_right ((1 - (α : ℝ)) / 2) (ε / (2 * (l - k + 1)))
-    rw [← hδdef, le_div_iff₀ (by linarith : (0 : ℝ) < 2 * (l - k + 1))] at hd
-    nlinarith [hδpos.le]
-  have hbetween := hNT.eventually_between (Filter.Eventually.of_forall hT) hδpos
+  -- For `α < 1`, the scale relation implies `N ≤ T` after discarding finitely many indices.
+  have hbetween := hNT.eventually_between (Eventually.of_forall hT)
+    (show 0 < (1 - (α : ℝ)) / 2 by linarith)
   have hNTle : ∀ᶠ i in atTop, N i ≤ T i := by
     filter_upwards [hbetween] with i hi
-    calc N i ≤ T i ^ ((α : ℝ) + δ) := hi.2
-      _ ≤ T i ^ (1 : ℝ) := Real.rpow_le_rpow_of_exponent_le (hT i) hδ1
+    calc N i ≤ T i ^ ((α : ℝ) + (1 - α) / 2) := hi.2
+      _ ≤ T i ^ (1 : ℝ) := Real.rpow_le_rpow_of_exponent_le (hT i) (by linarith)
       _ = T i := Real.rpow_one _
-  have hbig := h.isBigO_of_eventually_le hN hT hNTle hF hab
-    (ε := ε / 2) (by linarith)
-  refine hbig.trans (Asymptotics.IsBigO.of_bound 1 ?_)
-  filter_upwards [hbetween] with i hi
-  have hT0 : (0 : ℝ) < T i := lt_of_lt_of_le zero_lt_one (hT i)
-  have hN0 : (0 : ℝ) < N i := lt_of_lt_of_le zero_lt_one (hN i)
-  have hsplit : (T i / N i) ^ (k + ε / 2) * N i ^ (l + ε / 2) =
-      T i ^ (k + ε / 2) * N i ^ (l - k) := by
-    rw [Real.div_rpow hT0.le hN0.le, div_mul_eq_mul_div, mul_div_assoc,
-      ← Real.rpow_sub hN0, show l + ε / 2 - (k + ε / 2) = l - k by ring]
-  have hNpow : N i ^ (l - k) ≤ T i ^ (((α : ℝ) + δ) * (l - k)) := by
-    calc N i ^ (l - k) ≤ (T i ^ ((α : ℝ) + δ)) ^ (l - k) :=
-          Real.rpow_le_rpow hN0.le hi.2 hlk
-      _ = T i ^ (((α : ℝ) + δ) * (l - k)) := by
-          rw [← Real.rpow_mul hT0.le]
-  have hfinal : T i ^ (k + ε / 2) * N i ^ (l - k) ≤
-      T i ^ (k + (l - k) * (α : ℝ) + ε) := by
-    calc T i ^ (k + ε / 2) * N i ^ (l - k)
-        ≤ T i ^ (k + ε / 2) * T i ^ (((α : ℝ) + δ) * (l - k)) := by
-          gcongr
-      _ = T i ^ (k + ε / 2 + ((α : ℝ) + δ) * (l - k)) := by
-          rw [← Real.rpow_add hT0]
-      _ ≤ T i ^ (k + (l - k) * (α : ℝ) + ε) := by
-          apply Real.rpow_le_rpow_of_exponent_le (hT i)
-          nlinarith [hδ2]
-  rw [one_mul, Real.norm_eq_abs, Real.norm_eq_abs,
-    abs_of_nonneg (by positivity : (0 : ℝ) ≤ (T i / N i) ^ (k + ε / 2) * N i ^ (l + ε / 2)),
-    abs_of_nonneg (Real.rpow_nonneg hT0.le _), hsplit]
-  exact hfinal
+  -- Fill the exceptional indices with admissible data; the eventual sum is unchanged.
+  let N' : VariableObject ℝ := fun i ↦ if N i ≤ T i then N i else T i
+  let a' : VariableObject ℕ := fun i ↦ if N i ≤ T i then a i else ⌈T i⌉₊
+  let b' : VariableObject ℕ := fun i ↦ if N i ≤ T i then b i else 0
+  have hN' : ∀ i, 1 ≤ N' i := by
+    intro i
+    by_cases hi : N i ≤ T i <;> simp [N', hi, hN i, hT i]
+  have hN'T : ∀ i, N' i ≤ T i := by
+    intro i
+    by_cases hi : N i ≤ T i <;> simp [N', hi]
+  have hab' : ∀ i, IsDyadicSubinterval (N' i) (a' i) (b' i) := by
+    intro i
+    by_cases hi : N i ≤ T i
+    · simpa [N', a', b', hi] using hab i
+    · simp only [N', a', b', if_neg hi]
+      exact ⟨Nat.le_ceil _, by simp; linarith [hT i]⟩
+  apply isPowerBounded_of_subsequences hT hTunbounded
+  intro φ hφ
+  obtain ⟨ψ, hψ, k', l', hk', hl', hbound⟩ := h N' T F a' b' hN' hN'T hF hab' φ hφ
+  obtain ⟨c, hc, hNc⟩ := hNT.comp_tendsto (hφ.comp hψ).tendsto_atTop
+  -- Substitute `N = T^(α + o(1))` into `(T/N)^(k + o(1)) N^(ℓ + o(1))`.
+  let e : VariableObject ℝ := fun j ↦ k' j + (l' j - k' j) * c j
+  have he := hk'.add ((hl'.sub hk').mul hc
+    ⟨‖l - k‖, Eventually.of_forall fun _ ↦ le_rfl⟩
+    ⟨‖(α : ℝ)‖, Eventually.of_forall fun _ ↦ le_rfl⟩)
+  refine ⟨ψ, hψ, e, ?_, ?_⟩
+  · convert he using 1 <;> ext j <;> rfl
+  · have hgood := (hφ.comp hψ).tendsto_atTop.eventually hNTle
+    refine hbound.congr' ?_ ?_
+    · filter_upwards [hgood] with j hj
+      simp only [exponentialSum, Function.comp_apply, N', a', b']
+      dsimp [Function.comp_def] at hj
+      simp only [if_pos hj]
+    · filter_upwards [hgood, hNc] with j hj hjN
+      dsimp [Function.comp_def] at hj hjN ⊢
+      simp only [N', if_pos hj]
+      exact exponentPairMajorant_eq_rpow (zero_lt_one.trans_le (hN _))
+        (zero_lt_one.trans_le (hT _)) (k' j) (l' j) (c j) hjN
 
 /-- An exponent pair gives the linear bound `β(α) ≤ k + (ℓ - k) α` on `[0, 1]`. -/
 theorem IsExponentPair.exponentSumGrowthExponent_le
     {k l : ℝ} (h : IsExponentPair k l) {α : ℝ≥0} (hα : α ≤ 1) :
     exponentSumGrowthExponent α ≤ k + (l - k) * α := by
-  have hkl : k ≤ l := h.k_le_l
-  have hα' : (α : ℝ) ≤ 1 := by exact_mod_cast hα
-  rcases lt_or_eq_of_le hα' with hlt | heq
-  · exact exponentSumGrowthExponent_le_iff.2 (h.bound.isExponentSumBound hkl hlt)
-  · have hαone : α = 1 := by exact_mod_cast heq
-    subst hαone
-    rw [NNReal.coe_one, mul_one]
-    refine le_of_forall_pos_le_add fun ε hε ↦ ?_
-    set ε' : ℝ := min ε (1 / 2) with hε'def
-    have hε'pos : 0 < ε' := lt_min hε (by norm_num)
-    have hε'le : ε' ≤ ε := min_le_left _ _
-    have hε'half : ε' ≤ 1 / 2 := min_le_right _ _
-    set α' : ℝ≥0 := ⟨1 - ε', by linarith⟩ with hα'def
-    have hcoe : (α' : ℝ) = 1 - ε' := rfl
-    have hle : α' ≤ 1 := by
-      rw [← NNReal.coe_le_coe, hcoe, NNReal.coe_one]
-      linarith
-    have h1 := exponentSumGrowthExponent_le_add_sub hle
-    have h2 : exponentSumGrowthExponent α' ≤ k + (l - k) * (α' : ℝ) :=
-      exponentSumGrowthExponent_le_iff.2
-        (h.bound.isExponentSumBound hkl (by rw [hcoe]; linarith))
-    rw [NNReal.coe_one] at h1
-    rw [hcoe] at h2
-    nlinarith [sub_nonneg.2 hkl]
+  -- The endpoint values of `β` and the triangle constraints settle `α = 0, 1`.
+  by_cases hzero : α = 0
+  · subst α
+    simpa using h.k_nonneg
+  by_cases hone : α = 1
+  · subst α
+    simpa using h.half_le_l
+  exact exponentSumGrowthExponent_le_iff.mpr
+    (h.bound.isExponentSumBound (by exact_mod_cast lt_of_le_of_ne hα hone))
 
 /-- The converse half of the blueprint's Lemma `beta-duality`: the linear bound
 `β(α) ≤ k + (ℓ - k) α` on `[0, 1]` implies the exponential sum bound. -/
@@ -457,158 +476,85 @@ theorem isExponentPairBound_of_forall_exponentSumGrowthExponent_le
     {k l : ℝ} (hk : 0 ≤ k) (hkl : k ≤ l)
     (hβ : ∀ α : ℝ≥0, α ≤ 1 → exponentSumGrowthExponent α ≤ k + (l - k) * α) :
     IsExponentPairBound k l := by
-  apply isExponentPairBound_iff_forall_pos.mpr
-  intro N T F a b hN hNT hF hab ε hε
-  by_contra hO
+  intro N T F a b hN hNT hF hab φ hφ
   have hT1 : ∀ i, 1 ≤ T i := fun i ↦ (hN i).trans (hNT i)
-  have hlk : 0 ≤ l - k := by linarith
-  set R : VariableObject ℝ := fun i ↦ (T i / N i) ^ (k + ε) * N i ^ (l + ε) with hRdef
-  have hRsplit : ∀ i, R i = T i ^ (k + ε) * N i ^ (l - k) := by
-    intro i
-    have hT0 : (0 : ℝ) < T i := lt_of_lt_of_le zero_lt_one (hT1 i)
-    have hN0 : (0 : ℝ) < N i := lt_of_lt_of_le zero_lt_one (hN i)
-    simp only [hRdef]
-    rw [Real.div_rpow hT0.le hN0.le, div_mul_eq_mul_div, mul_div_assoc,
-      ← Real.rpow_sub hN0, show l + ε - (k + ε) = l - k by ring]
-  have hR1 : ∀ i, 1 ≤ R i := by
-    intro i
-    rw [hRsplit i]
-    have h1 : (1 : ℝ) ≤ T i ^ (k + ε) :=
-      Real.one_le_rpow (hT1 i) (by linarith)
-    have h2 : (1 : ℝ) ≤ N i ^ (l - k) := Real.one_le_rpow (hN i) hlk
+  by_cases hNtop : Tendsto (N ∘ φ) atTop atTop
+  · have hTtop : Tendsto (fun j ↦ T (φ j)) atTop atTop :=
+      tendsto_atTop_mono (fun j ↦ hNT (φ j)) hNtop
+    -- On growing scales, pass to a further subsequence with a fixed scale exponent.
+    set x : ℕ → ℝ := fun j ↦ max 0 (min 1 (Real.logb (T (φ j)) (N (φ j)))) with hxdef
+    have hxmem : ∀ j, x j ∈ Set.Icc (0 : ℝ) 1 := by
+      intro j
+      refine ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
+    obtain ⟨α0, hα0mem, ψ, hψ, hlimit⟩ := isCompact_Icc.tendsto_subseq hxmem
+    set φ2 : ℕ → ℕ := fun j ↦ φ (ψ j) with hφ2def
+    have hφ2 : StrictMono φ2 := hφ.comp hψ
+    set N₂ : VariableObject ℝ := fun j ↦ N (φ2 j) with hN₂def
+    set T₂ : VariableObject ℝ := fun j ↦ T (φ2 j) with hT₂def
+    set F₂ : VariableFunction (VariableObject.fixed ℝ) ℝ := fun j ↦ F (φ2 j) with hF₂def
+    set a₂ : VariableObject ℕ := fun j ↦ a (φ2 j) with ha₂def
+    set b₂ : VariableObject ℕ := fun j ↦ b (φ2 j) with hb₂def
+    have hN₂1 : ∀ j, 1 ≤ N₂ j := fun j ↦ hN _
+    have hT₂1 : ∀ j, 1 ≤ T₂ j := fun j ↦ hT1 _
+    have hT₂top : Tendsto T₂ atTop atTop := hTtop.comp hψ.tendsto_atTop
+    have hT₂unbounded : T₂.IsUnbounded :=
+      (VariableObject.isUnbounded_iff_tendsto_atTop
+        (fun j ↦ zero_le_one.trans (hT₂1 j))).2 hT₂top
+    have hT₂gt : ∀ᶠ j in atTop, 1 < T₂ j := hT₂top.eventually (eventually_gt_atTop 1)
+    have hlogb : Tendsto (fun j ↦ Real.logb (T₂ j) (N₂ j)) atTop (𝓝 α0) := by
+      refine hlimit.congr' ?_
+      filter_upwards [hT₂gt] with j hj
+      have hlogT : 0 < Real.log (T₂ j) := Real.log_pos hj
+      have hlogN : 0 ≤ Real.log (N₂ j) := Real.log_nonneg (hN₂1 j)
+      have hle : Real.log (N₂ j) ≤ Real.log (T₂ j) :=
+        Real.log_le_log (lt_of_lt_of_le zero_lt_one (hN₂1 j)) (hNT _)
+      have h0 : 0 ≤ Real.logb (T₂ j) (N₂ j) := by
+        rw [Real.logb]; positivity
+      have h1 : Real.logb (T₂ j) (N₂ j) ≤ 1 := by
+        rw [Real.logb, div_le_one hlogT]; exact hle
+      simp only [Function.comp_apply, hxdef]
+      change max 0 (min 1 (Real.logb (T₂ j) (N₂ j))) = Real.logb (T₂ j) (N₂ j)
+      rw [min_eq_right h1, max_eq_right h0]
+    have hpa : IsPowerAsymptotic N₂ T₂ α0 :=
+      isPowerAsymptotic_of_logb_tendsto hT₂gt
+        (Filter.Eventually.of_forall fun j ↦ lt_of_lt_of_le zero_lt_one (hN₂1 j)) hlogb
+    set αnn : ℝ≥0 := ⟨α0, hα0mem.1⟩ with hαnndef
+    have hαnncoe : (αnn : ℝ) = α0 := rfl
+    have hαnnle : αnn ≤ 1 := by
+      rw [← NNReal.coe_le_coe, hαnncoe, NNReal.coe_one]
+      exact hα0mem.2
+    have hsumbound : IsExponentSumBound αnn (k + (l - k) * α0) :=
+      exponentSumGrowthExponent_le_iff.1 (hβ αnn hαnnle)
+    have hpb := hsumbound N₂ T₂ F₂ a₂ b₂ hN₂1 hT₂1 hT₂unbounded hpa
+      (hF.comp_strictMono hφ2) (fun j ↦ hab _)
+    refine ⟨ψ, hψ, ?_⟩
+    exact exponentPairBound_of_isPowerBounded hN₂1 hT₂1 hpa hpb
+  · -- If the lengths do not tend to infinity, extract bounded lengths and use the trivial bound.
+    have hfreq : ∃ M : ℝ, ∃ᶠ j in atTop, N (φ j) < M := by
+      simpa only [Filter.tendsto_atTop, not_forall, Filter.not_eventually, not_le,
+        Function.comp_apply] using hNtop
+    obtain ⟨M, hM⟩ := hfreq
+    obtain ⟨ψ, hψ, hψbound⟩ := extraction_of_frequently_atTop hM
+    refine ⟨ψ, hψ, VariableObject.fixed k, VariableObject.fixed l,
+      IsEqUpToInfinitesimal.refl _, IsEqUpToInfinitesimal.refl _, ?_⟩
+    let Q : ℝ := max M 1
+    have hQ : 1 ≤ Q := le_max_right _ _
+    refine Asymptotics.IsBigO.of_bound (3 * Q) ?_
+    filter_upwards [] with j
+    have hNpos : 0 < N (φ (ψ j)) := zero_lt_one.trans_le (hN _)
+    have hTpos : 0 < T (φ (ψ j)) := hNpos.trans_le (hNT _)
+    have hdiv : 1 ≤ T (φ (ψ j)) / N (φ (ψ j)) :=
+      (le_div_iff₀ hNpos).mpr (by simpa using hNT (φ (ψ j)))
+    have hkpow := Real.one_le_rpow hdiv hk
+    have hlpow := Real.one_le_rpow (hN (φ (ψ j))) (hk.trans hkl)
+    have hmajor : 1 ≤ (T (φ (ψ j)) / N (φ (ψ j))) ^ k * N (φ (ψ j)) ^ l := by
+      nlinarith
+    have hS := norm_exponentialSum_le_three_mul F T N a b hN hab (φ (ψ j))
+    have hNQ : N (φ (ψ j)) ≤ Q := (hψbound j).le.trans (le_max_left _ _)
+    simp only [VariableObject.fixed, Real.norm_eq_abs,
+      abs_of_pos (mul_pos (Real.rpow_pos_of_pos (div_pos hTpos hNpos) _)
+        (Real.rpow_pos_of_pos hNpos _))]
     nlinarith
-  -- Extract a subsequence along which the claimed bound fails badly.
-  have hfreq : ∀ n : ℕ, ∃ᶠ i in atTop,
-      (n : ℝ) * ‖R i‖ < ‖exponentialSum F T N a b i‖ := by
-    intro n
-    rw [Asymptotics.isBigO_iff] at hO
-    push Not at hO
-    simpa using hO n
-  obtain ⟨φ, hφ, hφprop⟩ := extraction_forall_of_frequently hfreq
-  -- The scales along this subsequence tend to infinity.
-  have hNlarge : ∀ j : ℕ, (j : ℝ) ≤ 3 * N (φ j) := by
-    intro j
-    have h1 := hφprop j
-    have h2 : (1 : ℝ) ≤ ‖R (φ j)‖ := by
-      rw [Real.norm_eq_abs, abs_of_nonneg (by linarith [hR1 (φ j)])]
-      exact hR1 (φ j)
-    have h3 : ‖exponentialSum F T N a b (φ j)‖ ≤ 3 * N (φ j) :=
-      norm_exponentialSum_le_three_mul F T N a b hN hab (φ j)
-    nlinarith [Nat.cast_nonneg (α := ℝ) j]
-  have hNtop : Tendsto (fun j ↦ N (φ j)) atTop atTop := by
-    have hdiv : Tendsto (fun j : ℕ ↦ (j : ℝ) / 3) atTop atTop :=
-      tendsto_natCast_atTop_atTop.atTop_div_const (by norm_num)
-    refine tendsto_atTop_mono (fun j ↦ ?_) hdiv
-    exact (div_le_iff₀ (show (0:ℝ) < 3 by norm_num)).2 (by linarith [hNlarge j])
-  have hTtop : Tendsto (fun j ↦ T (φ j)) atTop atTop :=
-    tendsto_atTop_mono (fun j ↦ hNT (φ j)) hNtop
-  -- Pass to a further subsequence on which the scale exponent converges.
-  set x : ℕ → ℝ := fun j ↦ max 0 (min 1 (Real.logb (T (φ j)) (N (φ j)))) with hxdef
-  have hxmem : ∀ j, x j ∈ Set.Icc (0 : ℝ) 1 := by
-    intro j
-    refine ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
-  obtain ⟨α0, hα0mem, ψ, hψ, hlimit⟩ := isCompact_Icc.tendsto_subseq hxmem
-  set φ2 : ℕ → ℕ := fun j ↦ φ (ψ j) with hφ2def
-  have hφ2 : StrictMono φ2 := hφ.comp hψ
-  set N₂ : VariableObject ℝ := fun j ↦ N (φ2 j) with hN₂def
-  set T₂ : VariableObject ℝ := fun j ↦ T (φ2 j) with hT₂def
-  set F₂ : VariableFunction (VariableObject.fixed ℝ) ℝ := fun j ↦ F (φ2 j) with hF₂def
-  set a₂ : VariableObject ℕ := fun j ↦ a (φ2 j) with ha₂def
-  set b₂ : VariableObject ℕ := fun j ↦ b (φ2 j) with hb₂def
-  have hN₂1 : ∀ j, 1 ≤ N₂ j := fun j ↦ hN _
-  have hT₂1 : ∀ j, 1 ≤ T₂ j := fun j ↦ hT1 _
-  have hT₂top : Tendsto T₂ atTop atTop := hTtop.comp hψ.tendsto_atTop
-  have hT₂unbounded : T₂.IsUnbounded :=
-    (VariableObject.isUnbounded_iff_tendsto_atTop
-      (fun j ↦ zero_le_one.trans (hT₂1 j))).2 hT₂top
-  have hT₂gt : ∀ᶠ j in atTop, 1 < T₂ j := hT₂top.eventually (eventually_gt_atTop 1)
-  have hlogb : Tendsto (fun j ↦ Real.logb (T₂ j) (N₂ j)) atTop (𝓝 α0) := by
-    refine hlimit.congr' ?_
-    filter_upwards [hT₂gt] with j hj
-    have hlogT : 0 < Real.log (T₂ j) := Real.log_pos hj
-    have hlogN : 0 ≤ Real.log (N₂ j) := Real.log_nonneg (hN₂1 j)
-    have hle : Real.log (N₂ j) ≤ Real.log (T₂ j) :=
-      Real.log_le_log (lt_of_lt_of_le zero_lt_one (hN₂1 j)) (hNT _)
-    have h0 : 0 ≤ Real.logb (T₂ j) (N₂ j) := by
-      rw [Real.logb]; positivity
-    have h1 : Real.logb (T₂ j) (N₂ j) ≤ 1 := by
-      rw [Real.logb, div_le_one hlogT]; exact hle
-    simp only [Function.comp_apply, hxdef]
-    change max 0 (min 1 (Real.logb (T₂ j) (N₂ j))) = Real.logb (T₂ j) (N₂ j)
-    rw [min_eq_right h1, max_eq_right h0]
-  have hpa : IsPowerAsymptotic N₂ T₂ α0 :=
-    isPowerAsymptotic_of_logb_tendsto hT₂gt
-      (Filter.Eventually.of_forall fun j ↦ lt_of_lt_of_le zero_lt_one (hN₂1 j)) hlogb
-  set αnn : ℝ≥0 := ⟨α0, hα0mem.1⟩ with hαnndef
-  have hαnncoe : (αnn : ℝ) = α0 := rfl
-  have hαnnle : αnn ≤ 1 := by
-    rw [← NNReal.coe_le_coe, hαnncoe, NNReal.coe_one]
-    exact hα0mem.2
-  have hsumbound : IsExponentSumBound αnn (k + (l - k) * α0) :=
-    exponentSumGrowthExponent_le_iff.1 (hβ αnn hαnnle)
-  have hpb := hsumbound N₂ T₂ F₂ a₂ b₂ hN₂1 hT₂1 hT₂unbounded hpa
-    (hF.comp_strictMono hφ2) (fun j ↦ hab _)
-  obtain ⟨C, hCpos, hCbound⟩ :=
-    ((isPowerBounded_iff_forall_pos _ T₂ _ hT₂1 hT₂unbounded).1 hpb
-      (ε / 4) (by linarith)).exists_pos
-  -- Bound the majorant below along the subsequence.
-  set δ : ℝ := ε / (2 * (l - k + 1)) with hδdef
-  have hδpos : 0 < δ := by
-    rw [hδdef]
-    have : 0 < 2 * (l - k + 1) := by linarith
-    positivity
-  have hδ2 : δ * (l - k) ≤ ε / 2 := by
-    rw [hδdef]
-    rw [div_mul_eq_mul_div, div_le_div_iff₀ (by linarith) (by norm_num : (0:ℝ) < 2)]
-    nlinarith
-  have hbetween := hpa.eventually_between
-    (Filter.Eventually.of_forall hT₂1) hδpos
-  have hcontra : ∀ᶠ j in atTop, ((ψ j : ℝ)) < C := by
-    filter_upwards [hbetween, hCbound.bound, hT₂gt] with j hj hCj hTj
-    have hT0 : (0 : ℝ) < T₂ j := lt_trans zero_lt_one hTj
-    have hRlow : T₂ j ^ (k + (l - k) * α0 + ε / 2) ≤ R (φ2 j) := by
-      rw [hRsplit]
-      calc T₂ j ^ (k + (l - k) * α0 + ε / 2)
-          ≤ T₂ j ^ (k + ε + (α0 - δ) * (l - k)) := by
-            apply Real.rpow_le_rpow_of_exponent_le hTj.le
-            nlinarith
-        _ = T₂ j ^ (k + ε) * T₂ j ^ ((α0 - δ) * (l - k)) := by
-            rw [← Real.rpow_add hT0]
-        _ = T₂ j ^ (k + ε) * (T₂ j ^ (α0 - δ)) ^ (l - k) := by
-            rw [← Real.rpow_mul hT0.le]
-        _ ≤ T₂ j ^ (k + ε) * N₂ j ^ (l - k) :=
-            mul_le_mul_of_nonneg_left
-              (Real.rpow_le_rpow (Real.rpow_nonneg hT0.le _) hj.1 hlk)
-              (Real.rpow_nonneg hT0.le _)
-    have hSj : ‖exponentialSum F T N a b (φ2 j)‖ ≤ C * T₂ j ^ (k + (l - k) * α0 + ε / 4) := by
-      have := hCj
-      rw [Real.norm_eq_abs,
-        abs_of_nonneg (Real.rpow_nonneg (zero_le_one.trans (hT₂1 j)) _)] at this
-      exact this
-    have hlow := hφprop (ψ j)
-    have hRnorm : ‖R (φ2 j)‖ = R (φ2 j) := by
-      rw [Real.norm_eq_abs, abs_of_nonneg (by linarith [hR1 (φ2 j)])]
-    rw [hRnorm] at hlow
-    have hmono : T₂ j ^ (k + (l - k) * α0 + ε / 4) ≤
-        T₂ j ^ (k + (l - k) * α0 + ε / 2) :=
-      Real.rpow_le_rpow_of_exponent_le hTj.le (by linarith)
-    have hpos : (0 : ℝ) < T₂ j ^ (k + (l - k) * α0 + ε / 2) :=
-      Real.rpow_pos_of_pos hT0 _
-    have hkey : (ψ j : ℝ) * T₂ j ^ (k + (l - k) * α0 + ε / 2) <
-        C * T₂ j ^ (k + (l - k) * α0 + ε / 2) := by
-      calc (ψ j : ℝ) * T₂ j ^ (k + (l - k) * α0 + ε / 2)
-          ≤ (ψ j : ℝ) * R (φ2 j) := by
-            have : (0 : ℝ) ≤ (ψ j : ℝ) := Nat.cast_nonneg _
-            exact mul_le_mul_of_nonneg_left hRlow this
-        _ < ‖exponentialSum F T N a b (φ2 j)‖ := hlow
-        _ ≤ C * T₂ j ^ (k + (l - k) * α0 + ε / 4) := hSj
-        _ ≤ C * T₂ j ^ (k + (l - k) * α0 + ε / 2) := by
-            exact mul_le_mul_of_nonneg_left hmono hCpos.le
-    exact lt_of_mul_lt_mul_right (by linarith [hkey]) hpos.le
-  obtain ⟨j, hj1, hj2⟩ := ((hcontra.and (eventually_ge_atTop ⌈C⌉₊)).exists)
-  have : (C : ℝ) ≤ (j : ℝ) := le_trans (Nat.le_ceil C) (by exact_mod_cast hj2)
-  have hψj : (j : ℝ) ≤ (ψ j : ℝ) := by exact_mod_cast hψ.le_apply
-  linarith
 
 /-- **Duality between exponent pairs and `β`** (blueprint Lemma `beta-duality`). A point
 `(k, ℓ)` of the triangle `{0 ≤ k ≤ 1/2 ≤ ℓ ≤ 1, k + ℓ ≤ 1}` is an exponent pair if and only if
